@@ -1,0 +1,2 @@
+TAB_CHAR=\	
+NL_CHAR=\
