@@ -386,6 +386,9 @@ int alu__shl( alu_t *alu, int num, size_t by )
 		return ret;
 	}
 	
+	if ( !by )
+		return 0;
+	
 	N = alu->regv + num;
 	
 	n = N->upto;
@@ -425,6 +428,9 @@ int alu__shr( alu_t *alu, int num, size_t by )
 		alu_error( ret );
 		return ret;
 	}
+	
+	if ( !by )
+		return 0;
 	
 	N = alu->regv + num;
 	
@@ -537,8 +543,7 @@ int alu_mul( alu_t *alu, int num, int val )
 	bool carry = 0;
 	int ret = alu_check2( alu, num, val ), tmp = -1;
 	alu_reg_t *V;
-	alu_bit_t p, v = {0}, e;
-	size_t bits = 0;
+	alu_bit_t p, v, e;
 	
 	if ( ret != 0 )
 		return ret;
@@ -555,13 +560,13 @@ int alu_mul( alu_t *alu, int num, int val )
 	alu__or( alu, tmp, num );
 	alu_xor( alu, num, num );
 	
-	for ( ; v.b < e.b; v = alu_bit_inc( v ), ++bits )
+	for ( ; v.b < e.b; v = alu_bit_inc( v ) )
 	{
 		if ( *(v.S) & v.B )
-		{
-			//(void)alu__shl( alu, tmp, bits );
+		{	
+			(void)alu__shl( alu, tmp, v.b - p.b );
 			ret = alu_add( alu, num, tmp );
-			bits = 0;
+			p = v;
 			
 			if ( ret == EOVERFLOW )
 				carry = true;
@@ -573,7 +578,6 @@ int alu_mul( alu_t *alu, int num, int val )
 				break;
 			}
 		}
-		(void)alu__shl( alu, tmp, 1 );
 	}
 	
 	alu_rem_reg( alu, tmp );
@@ -705,6 +709,9 @@ int alu__rol( alu_t *alu, int num, size_t by )
 		return ret;
 	}
 	
+	if ( !by )
+		return 0;
+	
 	ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	
 	if ( ret != 0 )
@@ -763,6 +770,9 @@ int alu__ror( alu_t *alu, int num, size_t by )
 		alu_error( ret );
 		return ret;
 	}
+	
+	if ( !by )
+		return 0;
 	
 	ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	

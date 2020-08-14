@@ -180,7 +180,8 @@ int alu_pri_reg( alu_t *alu, int reg )
 	}
 	
 	REG = alu->regv + reg;
-	
+
+#if 0
 	alu_printf( "reg = %i, REG->part = %p", reg, REG->part );
 	
 	alu_printf(
@@ -197,6 +198,7 @@ int alu_pri_reg( alu_t *alu, int reg )
 		"REG->upto.S = %p, REG->last.S = %p, REG->init.S = %p",
 		REG->upto.S, REG->last.S, REG->init.S
 	);
+#endif
 	
 	n = REG->upto;
 	if ( n.b == REG->init.b )

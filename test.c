@@ -466,7 +466,7 @@ int main()
 	ret = compare( &alu, num, val, 1, 2 );
 #endif
 
-#if 1
+#if 0
 	alu_puts( "Checking bitwise operations..." );
 	alu_puts( "===========================================" );
 
@@ -495,7 +495,7 @@ int main()
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, 'r' );
 #endif
 
-#if 0
+#if 1
 	alu_puts( "Checking mathmatical operations..." );
 	alu_puts( "===========================================" );
 
