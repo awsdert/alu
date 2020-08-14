@@ -512,6 +512,7 @@ int main()
 	alu_puts( "Multiplying values..." );
 	ret = modify( &alu, 0xDEADC0DE, 2, '*' );
 	ret = modify( &alu, 0xDEADC0DE, 0, '*' );
+	ret = modify( &alu, 0xDEADC0DE, 0xBAD, '*' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '*' );
 	
 	alu_puts( "Dividing values..." );
