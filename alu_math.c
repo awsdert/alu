@@ -389,8 +389,9 @@ int alu__shl( alu_t *alu, int num, size_t by )
 	N = alu->regv + num;
 	
 	n = N->upto;
-	if ( by >= n.b ) by = n.b;
-	v = alu_bit_set_bit( N->part, n.b - by );
+	v = N->init;
+	if ( by < (n.b - v.b) )
+		v = alu_bit_set_bit( N->part, n.b - by );
 	
 	while ( v.b > N->init.b )
 	{
@@ -428,9 +429,9 @@ int alu__shr( alu_t *alu, int num, size_t by )
 	N = alu->regv + num;
 	
 	n = N->init;
-	e = N->upto;
-	if ( by >= e.b ) by = e.b;
-	v = alu_bit_set_bit( N->part, n.b + by );
+	e = v = N->upto;
+	if ( by < (e.b - n.b) )
+		v = alu_bit_set_bit( N->part, n.b + by );
 	
 	while ( v.b < e.b )
 	{	
@@ -534,9 +535,9 @@ int alu__shift( alu_t *alu, int num, int val, bool left )
 int alu_mul( alu_t *alu, int num, int val )
 {
 	bool carry = 0;
-	int ret = alu_check2( alu, num, val ), tmp = 0;
-	alu_reg_t *N, *V, *T;
-	alu_bit_t v = {0}, e;
+	int ret = alu_check2( alu, num, val ), tmp = -1;
+	alu_reg_t *V;
+	alu_bit_t p, v = {0}, e;
 	size_t bits = 0;
 	
 	if ( ret != 0 )
@@ -547,32 +548,37 @@ int alu_mul( alu_t *alu, int num, int val )
 	if ( ret != 0 )
 		return ret;
 	
-	N = alu->regv + num;
 	V = alu->regv + val;
-	T = alu->regv + tmp;
-
-	v = V->init;
-	e = N->upto;
+	p = v = V->init;
+	e = V->upto;
+	
+	alu__or( alu, tmp, num );
+	alu_xor( alu, num, num );
 	
 	for ( ; v.b < e.b; v = alu_bit_inc( v ), ++bits )
 	{
 		if ( *(v.S) & v.B )
 		{
-			(void)alu__shl( alu, num, bits );
-			ret = alu_add( alu, tmp, num );
+			//(void)alu__shl( alu, tmp, bits );
+			ret = alu_add( alu, num, tmp );
 			bits = 0;
 			
 			if ( ret == EOVERFLOW )
 				carry = true;
-			else if ( ret != 0 )
+			else if ( ret == ENODATA )
 				break;
+			else if ( ret != 0 )
+			{
+				alu_error( ret );
+				break;
+			}
 		}
+		(void)alu__shl( alu, tmp, 1 );
 	}
 	
-	memcpy( N->part, T->part, alu->buff.perN );
 	alu_rem_reg( alu, tmp );
 	
-	return carry ? EOVERFLOW : 0;
+	return carry ? EOVERFLOW : ret;
 }
 
 int alu_divide( alu_t *alu, int num, int val, int rem )
@@ -718,7 +724,8 @@ int alu__rol( alu_t *alu, int num, size_t by )
 	T->init = alu_bit_set_bit( T->part, N->init.b );
 	
 	n = N->upto;
-	by %= n.b;
+	v = N->init;
+	by %= (n.b - v.b);
 	v = alu_bit_set_bit( T->part, n.b - by );
 	
 	while ( v.b > N->init.b )
@@ -777,7 +784,7 @@ int alu__ror( alu_t *alu, int num, size_t by )
 	
 	n = N->init;
 	e = N->upto;
-	by %= e.b;
+	by %= (e.b - n.b);
 	v = alu_bit_set_bit( T->part, n.b + by );
 	
 	while ( v.b < e.b )

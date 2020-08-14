@@ -466,7 +466,7 @@ int main()
 	ret = compare( &alu, num, val, 1, 2 );
 #endif
 
-#if 0
+#if 1
 	alu_puts( "Checking bitwise operations..." );
 	alu_puts( "===========================================" );
 
@@ -479,11 +479,15 @@ int main()
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAC2DEAD, '^' );
 
 	alu_puts( "Shifting values..." );
-	ret = modify( &alu, 0xDEADC0DE, 2, '<' );
+	ret = modify( &alu, 0xDEADC0DE00000000LL, 2, '<' );
 	ret = modify( &alu, 0xDEADC0DE, 2, '>' );
+	ret = modify( &alu, 0xDEADC0DE00000000LL, 30, '<' );
+	ret = modify( &alu, 0xDEADC0DE, 8, '>' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, '<' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, '>' );
+#endif
 	
+#if 0
 	alu_puts( "Rotating values..." );
 	ret = modify( &alu, 0xDEADC0DE, 2, 'l' );
 	ret = modify( &alu, 0xDEADC0DE, 2, 'r' );
@@ -491,7 +495,7 @@ int main()
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, 'r' );
 #endif
 
-#if 1
+#if 0
 	alu_puts( "Checking mathmatical operations..." );
 	alu_puts( "===========================================" );
 
@@ -499,15 +503,18 @@ int main()
 	ret = modify( &alu, 0xDEADC0DE, 0, 'i' );
 	ret = modify( &alu, 0xDEADC0DE, 2, '+' );
 	ret = modify( &alu, 0xDEADC0DE, 0, '+' );
+	ret = modify( &alu, 0xDEADC0DE00000000LL, 0xDEADC0DE000000LL, '+' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0, 'i' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '+' );
-	
+
+#if 0	
 	alu_puts( "Subtracting values..." );
 	ret = modify( &alu, 0xDEADC0DE, 2, 'd' );
 	ret = modify( &alu, 0xDEADC0DE, 2, '-' );
 	ret = modify( &alu, 0xDEADC0DE, 0, '-' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0, 'd' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '-' );
+#endif
 
 	alu_puts( "Multiplying values..." );
 	ret = modify( &alu, 0xDEADC0DE, 2, '*' );
@@ -515,6 +522,7 @@ int main()
 	ret = modify( &alu, 0xDEADC0DE, 0xBAD, '*' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '*' );
 	
+#if 0
 	alu_puts( "Dividing values..." );
 	ret = modify( &alu, 0xDEADC0DE, 2, '/' );
 	ret = modify( &alu, 0xDEADC0DE, 0, '/' );
@@ -522,6 +530,7 @@ int main()
 	ret = modify( &alu, 0xDEADC0DE, 2, '%' );
 	ret = modify( &alu, 0xDEADC0DE, 0, '%' );
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '%' );
+#endif
 #endif
 	
 	(void)alu_vec_shrink( &(alu.buff), 0, 0 );
