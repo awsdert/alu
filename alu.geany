@@ -28,7 +28,7 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=8
+current_page=21
 FILE_NAME_0=19;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2F1st.mak;0;4
 FILE_NAME_1=1206;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Fmain.mak;0;4
 FILE_NAME_2=8820;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu.h;0;4
@@ -49,9 +49,10 @@ FILE_NAME_16=714;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Ffbstdc%2Finclude%2F
 FILE_NAME_17=1087;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Ffbstdc%2Finclude%2Ffbarch.h;0;4
 FILE_NAME_18=5878;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_uint.c;0;4
 FILE_NAME_19=52;None;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2F.gitignore;0;4
+FILE_NAME_20=403;HTML;0;EUTF-8;1;1;0;%2Fhome%2Fzxuiji%2FDocuments%2FGenerate%20JSON%20List%2Fpage.htm;0;4
 
 [VTE]
-last_dir=/mnt/HOME/github/alu
+last_dir=/home/zxuiji/Documents/Generate JSON List
 
 [build-menu]
 NF_01_LB=Custom Command...

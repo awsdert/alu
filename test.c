@@ -12,14 +12,14 @@
 
 int compare(
 	alu_t *alu,
-	uint_t num, uint_t val,
 	size_t _num, size_t _val
 )
 {
-	int ret = alu_check2( alu, num, val ), expect = 0, cmp = 0;
+	int ret = 0, num = -1, val = -1, cmp = 0, expect = 0;
 	alu_reg_t *NUM, *VAL;
-	size_t *N, *V;
-	size_t bit = 0;
+	size_t *N, *V, bit = 0;
+	
+	ret = alu_get_reg( alu, &num, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -27,11 +27,14 @@ int compare(
 		return ret;
 	}
 	
-	if ( _num > _val )
-		expect = 1;
+	ret = alu_get_reg( alu, &val, sizeof(size_t) );
 	
-	if ( _num < _val )
-		expect = -1;
+	if ( ret != 0 )
+	{
+		alu_rem_reg( alu, num );
+		alu_error( ret );
+		return ret;
+	}
 	
 	NUM = alu->regv + num;
 	VAL = alu->regv + val;
@@ -41,6 +44,7 @@ int compare(
 	
 	*N = _num;
 	*V = _val;
+	
 #if 0
 	alu_printf(
 		"num = %i, val = %i, "
@@ -48,6 +52,12 @@ int compare(
 		num, val, *N, *V,  _num, _val
 	);
 #endif
+	
+	if ( _num > _val )
+		expect = 1;
+	
+	if ( _num < _val )
+		expect = -1;
 
 	ret = alu_cmp( alu, num, val, &cmp, &bit );
 	if ( ret != 0 )
@@ -457,13 +467,13 @@ int main()
 	alu_puts( "Pre-allocating 16 ALU registers..." );
 	alu_setup_reg( &alu, 16, sizeof(size_t) );
 
-#if 0
+#if 1
 	alu_puts( "Comparing values..." );
 	alu_puts( "===========================================" );
 
-	ret = compare( &alu, num, val, 3, 2 );
-	ret = compare( &alu, num, val, 2, 2 );
-	ret = compare( &alu, num, val, 1, 2 );
+	ret = compare( &alu, 3, 2 );
+	ret = compare( &alu, 2, 2 );
+	ret = compare( &alu, 1, 2 );
 #endif
 
 #if 0
@@ -495,7 +505,7 @@ int main()
 	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, 'r' );
 #endif
 
-#if 1
+#if 0
 	alu_puts( "Checking mathmatical operations..." );
 	alu_puts( "===========================================" );
 

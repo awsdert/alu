@@ -79,10 +79,11 @@ int alu_end_bit( alu_t *alu, int val, alu_bit_t *bit )
 
 int alu_cmp( alu_t *alu, int num, int val, int *cmp, size_t *bit )
 {
-	int ret = 0, a, b;
+	int ret = 0, a, b, c;
 	alu_bit_t n = {0}, v = {0};
 	alu_reg_t *N, *V;
 	size_t ndiff, vdiff;
+	bool nNeg, vNeg;
 	
 	if ( !cmp || !bit )
 	{
@@ -105,25 +106,73 @@ int alu_cmp( alu_t *alu, int num, int val, int *cmp, size_t *bit )
 
 	N = alu->regv + num;
 	V = alu->regv + val;
-
+	
+	nNeg = ( N->info & ALU_REG_F__SIGN && n.b == N->last.b );
+	vNeg = ( V->info & ALU_REG_F__SIGN && v.b == V->last.b );
+	
+	if ( nNeg != vNeg )
+	{
+		if ( vNeg )
+		{
+			*bit = n.b;
+			*cmp = 1;
+			return 0;
+		}
+		else
+		{
+			*bit = n.b;
+			*cmp = -1;
+			return 0;
+		}
+	}
+	
 	ndiff = n.b - N->init.b;
 	vdiff = v.b - V->init.b;
 	
-	if ( ndiff < vdiff )
+	a = (*(n.S) & n.B) ? 1 : 0;
+	b = (*(v.S) & v.B) ? 1 : 0;
+	
+	c = a - b;
+	if ( c != 0 )
 	{
 		*bit = n.b;
-		*cmp = -1;
+		*cmp = c;
 		return 0;
 	}
 	
-	if ( ndiff > vdiff )
+	/* Deal with different sized integers */
+	
+	a = (*(n.S) & n.B) ? 1 : 0;
+	while ( ndiff < vdiff )
 	{
-		*bit = n.b;
-		*cmp = 1;
-		return 0;
+		vdiff--;
+		v = alu_bit_dec( v );
+		b = (*(v.S) & v.B) ? 1 : 0;
+		
+		c = a - b;
+		if ( c != 0 )
+		{
+			*bit = n.b;
+			*cmp = c;
+			return 0;
+		}
 	}
 	
-	goto start;
+	b = (*(v.S) & v.B) ? 1 : 0;
+	while ( ndiff > vdiff )
+	{
+		ndiff--;
+		n = alu_bit_dec( n );
+		a = (*(n.S) & n.B) ? 1 : 0;
+		
+		c = a - b;
+		if ( c != 0 )
+		{
+			*bit = n.b;
+			*cmp = c;
+			return 0;
+		}
+	}
 	
 	while ( ndiff )
 	{
@@ -131,15 +180,14 @@ int alu_cmp( alu_t *alu, int num, int val, int *cmp, size_t *bit )
 		n = alu_bit_dec( n );
 		v = alu_bit_dec( v );
 		
-		start:
 		a = (*(n.S) & n.B) ? 1 : 0;
 		b = (*(v.S) & v.B) ? 1 : 0;
 		
-		a -= b;
-		if ( a != 0 )
+		c = a - b;
+		if ( c != 0 )
 		{
 			*bit = n.b;
-			*cmp = a;
+			*cmp = c;
 			return 0;
 		}
 	}

@@ -295,7 +295,9 @@ int alu_int_dec( alu_t *alu, alu_int_t num );
 int alu_int_add( alu_t *alu, alu_int_t num, alu_int_t val );
 int alu_int_sub( alu_t *alu, alu_int_t num, alu_int_t val );
 int alu_int_mul( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_div( alu_t *alu, alu_int_t num, alu_int_t val, alu_int_t rem );
+int alu_int_divide( alu_t *alu, alu_int_t num, alu_int_t val, alu_int_t rem );
+int alu_int_div( alu_t *alu, alu_int_t num, alu_int_t val );
+int alu_int_rem( alu_t *alu, alu_int_t num, alu_int_t val );
 
 /* Deals with +/-, +/-INF and NaN */
 int alu_fpn_cmp( alu_t *alu, alu_fpn_t num, alu_fpn_t val );
