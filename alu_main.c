@@ -100,7 +100,7 @@ int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val )
 	return ret;
 }
 
-int alu_check_reg( alu_t *alu, int reg )
+int alu_check_reg( alu_t *alu, uint_t reg )
 {
 	int ret = 0;
 	alu_reg_t *REG;
@@ -111,7 +111,7 @@ int alu_check_reg( alu_t *alu, int reg )
 		return ret;
 	}
 	
-	if ( reg < 0 || reg >= alu->_regv.qty.used )
+	if ( reg >= alu->_regv.qty.used )
 	{
 		ret = EADDRNOTAVAIL;
 		return ret;
@@ -127,7 +127,7 @@ int alu_check_reg( alu_t *alu, int reg )
 	return 0;
 }
 
-int alu_check1( alu_t *alu, int num )
+int alu_check1( alu_t *alu, uint_t num )
 {
 	return (
 		alu_check_reg( alu, num ) == EADDRINUSE
@@ -135,7 +135,7 @@ int alu_check1( alu_t *alu, int num )
 	) ? 0 : EDESTADDRREQ;
 }
 
-int alu_check2( alu_t *alu, int num, int val )
+int alu_check2( alu_t *alu, uint_t num, uint_t val )
 {
 	int ret = alu_check1( alu, num );
 	
@@ -151,7 +151,7 @@ int alu_check2( alu_t *alu, int num, int val )
 	) ? 0 : EADDRNOTAVAIL;
 }
 
-int alu_check3( alu_t *alu, int num, int val, int rem )
+int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 {
 	int ret = alu_check2( alu, num, val );
 	
@@ -167,7 +167,7 @@ int alu_check3( alu_t *alu, int num, int val, int rem )
 	) ? 0 : EDESTADDRREQ;
 }
 
-int alu_pri_reg( alu_t *alu, int reg )
+int alu_pri_reg( alu_t *alu, uint_t reg )
 {
 	int ret = alu_check_reg( alu, reg );
 	alu_reg_t *REG;
@@ -219,7 +219,7 @@ int alu_pri_reg( alu_t *alu, int reg )
 	return 0;
 }
 
-int alu_reset_reg( alu_t *alu, int reg, bool preserve_positions )
+int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions )
 {
 	int ret = alu_check_reg( alu, reg );
 	alu_reg_t *REG;
@@ -253,7 +253,8 @@ int alu_reset_reg( alu_t *alu, int reg, bool preserve_positions )
 
 int alu_setup_reg( alu_t *alu, int want, size_t perN )
 {
-	int ret, i;
+	int ret;
+	uint_t i;
 	alu_reg_t *REG;
 	void *mem;
 	
@@ -378,7 +379,7 @@ int alu_get_reg( alu_t *alu, int *reg, size_t size )
 	return 0;
 }
 
-int alu_rem_reg( alu_t *alu, int reg )
+int alu_rem_reg( alu_t *alu, uint_t reg )
 {
 	int ret = alu_check1( alu, reg );
 	alu_reg_t *R;

@@ -1,6 +1,6 @@
 #include "alu.h"
 
-int alu_zero( alu_t *alu, int num )
+int alu_zero( alu_t *alu, uint_t num )
 {
 	alu_reg_t *N;
 	alu_bit_t n;
@@ -20,7 +20,7 @@ int alu_zero( alu_t *alu, int num )
 	return 0;
 }
 
-int alu_copy( alu_t *alu, int num, int val )
+int alu_copy( alu_t *alu, uint_t num, uint_t val )
 {
 	alu_reg_t *N, *V;
 	alu_bit_t n, v, e;
@@ -53,7 +53,7 @@ int alu_copy( alu_t *alu, int num, int val )
 	return 0;
 }
 
-int alu_end_bit( alu_t *alu, int val, alu_bit_t *bit )
+int alu_end_bit( alu_t *alu, uint_t val, alu_bit_t *bit )
 {
 	int ret = alu_check_reg( alu, val );
 	alu_reg_t *V;
@@ -77,7 +77,7 @@ int alu_end_bit( alu_t *alu, int val, alu_bit_t *bit )
 	return 0;
 }
 
-int alu_cmp( alu_t *alu, int num, int val, int *cmp, size_t *bit )
+int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit )
 {
 	int ret = 0, a, b, c;
 	alu_bit_t n = {0}, v = {0};
@@ -129,40 +129,36 @@ int alu_cmp( alu_t *alu, int num, int val, int *cmp, size_t *bit )
 	ndiff = n.b - N->init.b;
 	vdiff = v.b - V->init.b;
 	
-	a = (*(n.S) & n.B) ? 1 : 0;
-	b = (*(v.S) & v.B) ? 1 : 0;
-	
-	c = a - b;
-	if ( c != 0 )
-	{
-		*bit = n.b;
-		*cmp = c;
-		return 0;
-	}
+	a = nNeg;
+	b = vNeg;
+
+#if 0
+	alu_printf(
+		"a = %i, b = %i, ndiff = %zu, vdiff = %zu",
+		a, b, ndiff, vdiff
+	);
+#endif
 	
 	/* Deal with different sized integers */
-	
-	a = (*(n.S) & n.B) ? 1 : 0;
+
 	while ( ndiff < vdiff )
 	{
+		b = (*(v.S) & v.B) ? 1 : 0;
+		
+		c = a - b;
+		if ( c != 0 )
+		{
+			*bit = n.b;
+			*cmp = c;
+			return 0;
+		}
+		
 		vdiff--;
 		v = alu_bit_dec( v );
-		b = (*(v.S) & v.B) ? 1 : 0;
-		
-		c = a - b;
-		if ( c != 0 )
-		{
-			*bit = n.b;
-			*cmp = c;
-			return 0;
-		}
 	}
 	
-	b = (*(v.S) & v.B) ? 1 : 0;
 	while ( ndiff > vdiff )
 	{
-		ndiff--;
-		n = alu_bit_dec( n );
 		a = (*(n.S) & n.B) ? 1 : 0;
 		
 		c = a - b;
@@ -172,30 +168,37 @@ int alu_cmp( alu_t *alu, int num, int val, int *cmp, size_t *bit )
 			*cmp = c;
 			return 0;
 		}
+		
+		ndiff--;
+		n = alu_bit_dec( n );
 	}
 	
-	while ( ndiff )
+	do
 	{
+		a = (*(n.S) & n.B) ? 1 : 0;
+		b = (*(v.S) & v.B) ? 1 : 0;
+		
+		c = a - b;
+		if ( c != 0 )
+		{
+			*bit = n.b;
+			*cmp = c;
+			return 0;
+		}
+		
+		if ( !ndiff )
+			break;
+		
 		ndiff--;
 		n = alu_bit_dec( n );
 		v = alu_bit_dec( v );
-		
-		a = (*(n.S) & n.B) ? 1 : 0;
-		b = (*(v.S) & v.B) ? 1 : 0;
-		
-		c = a - b;
-		if ( c != 0 )
-		{
-			*bit = n.b;
-			*cmp = c;
-			return 0;
-		}
 	}
+	while ( 1 );
 	
 	return 0;
 }
 
-int alu_size2reg( alu_t *alu, int num, size_t val )
+int alu_size2reg( alu_t *alu, uint_t num, size_t val )
 {
 	int ret = alu_check1( alu, num );
 	size_t i;
@@ -217,7 +220,7 @@ int alu_size2reg( alu_t *alu, int num, size_t val )
 	return 0;
 }
 
-int alu_reg2size( alu_t *alu, int num, size_t *val )
+int alu_reg2size( alu_t *alu, uint_t num, size_t *val )
 {
 	int ret = alu_check1( alu, num );
 	size_t i, dst;
@@ -252,7 +255,32 @@ int alu_reg2size( alu_t *alu, int num, size_t *val )
 	return 0;
 }
 
-int alu_inc( alu_t *alu, int num )
+int alu_not( alu_t *alu, uint_t num )
+{
+	int ret = alu_check1( alu, num );
+	alu_reg_t *N;
+	alu_bit_t n;
+	
+	if ( ret != 0 )
+		return ret;
+	
+	N = alu->regv + num;
+	n = N->init;
+	
+	while ( n.b < N->upto.b )
+	{
+		if ( *(n.S) & n.B )
+			*(n.S) ^= n.B;
+		else
+			*(n.S) |= n.B;
+			
+		n = alu_bit_inc( n );
+	}
+	
+	return 0;
+}
+
+int alu_inc( alu_t *alu, uint_t num )
 {
 	bool carry = 0;
 	int ret = alu_check1( alu, num );
@@ -291,7 +319,7 @@ int alu_inc( alu_t *alu, int num )
 	return carry ? EOVERFLOW : 0;
 }
 
-int alu_dec( alu_t *alu, int num )
+int alu_dec( alu_t *alu, uint_t num )
 {
 	bool carry = 0;
 	int ret = alu_check1( alu, num );
@@ -330,7 +358,7 @@ int alu_dec( alu_t *alu, int num )
 	return carry ? EOVERFLOW : 0;
 }
 
-int alu_add( alu_t *alu, int num, int val )
+int alu_add( alu_t *alu, uint_t num, uint_t val )
 {
 	bool carry = false, changed = false;
 	int ret = alu_check2( alu, num, val );
@@ -376,7 +404,7 @@ int alu_add( alu_t *alu, int num, int val )
 	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
 }
 
-int alu_sub( alu_t *alu, int num, int val )
+int alu_sub( alu_t *alu, uint_t num, uint_t val )
 {
 	bool carry = false, changed = false;
 	int ret = alu_check2( alu, num, val );
@@ -422,7 +450,7 @@ int alu_sub( alu_t *alu, int num, int val )
 	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
 }
 
-int alu__shl( alu_t *alu, int num, size_t by )
+int alu__shl( alu_t *alu, uint_t num, size_t by )
 {
 	alu_reg_t *N;
 	alu_bit_t n = {0}, v;
@@ -465,11 +493,12 @@ int alu__shl( alu_t *alu, int num, size_t by )
 	return 0;
 }
 
-int alu__shr( alu_t *alu, int num, size_t by )
+int alu__shr( alu_t *alu, uint_t num, size_t by )
 {
 	alu_reg_t *N;
 	alu_bit_t n, v, e;
 	int ret = alu_check1( alu, num );
+	size_t neg = 0;
 	
 	if ( ret != 0 )
 	{
@@ -487,6 +516,9 @@ int alu__shr( alu_t *alu, int num, size_t by )
 	if ( by < (e.b - n.b) )
 		v = alu_bit_set_bit( N->part, n.b + by );
 	
+	if ( (N->info & ALU_REG_F__SIGN) && (*(N->last.S) & N->last.B) )
+		neg = ~neg;
+	
 	while ( v.b < e.b )
 	{	
 		*(n.S) &= ~(n.B);
@@ -501,6 +533,7 @@ int alu__shr( alu_t *alu, int num, size_t by )
 	while ( n.b < e.b )
 	{
 		*(n.S) &= ~(n.B);
+		*(n.S) |= (neg & n.B);
 		
 		n = alu_bit_inc( n );
 	}
@@ -508,7 +541,7 @@ int alu__shr( alu_t *alu, int num, size_t by )
 	return 0;
 }
 
-int alu__shift( alu_t *alu, int num, int val, bool left )
+int alu__shift( alu_t *alu, uint_t num, uint_t val, bool left )
 {
 	alu_reg_t *N;
 	int ret = alu_check2( alu, num, val ), tmp = -1, cmp;
@@ -586,7 +619,7 @@ int alu__shift( alu_t *alu, int num, int val, bool left )
 	return alu__shr( alu, num, by );
 }
 
-int alu_mul( alu_t *alu, int num, int val )
+int alu_mul( alu_t *alu, uint_t num, uint_t val )
 {
 	bool carry = 0;
 	int ret = alu_check2( alu, num, val ), tmp = -1;
@@ -633,12 +666,13 @@ int alu_mul( alu_t *alu, int num, int val )
 	return carry ? EOVERFLOW : ret;
 }
 
-int alu_divide( alu_t *alu, int num, int val, int rem )
+int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 {
 	int ret = alu_check3( alu, num, val, rem ), cmp = 0;
 	alu_reg_t *N, *V, *R, TR, TV;
 	alu_bit_t n, v;
 	size_t bits = 0, bit;
+	bool nNeg, vNeg;
 	
 	if ( ret != 0 )
 		return ret;
@@ -650,8 +684,24 @@ int alu_divide( alu_t *alu, int num, int val, int rem )
 	TR = *R;
 	TV = *V;
 	
-	memcpy( R->part, N->part, alu->buff.perN );
-	(void)alu_zero( alu, num );
+	nNeg = ((N->info & ALU_REG_F__SIGN) && (*(N->last.S) & N->last.B));
+	vNeg = ((V->info & ALU_REG_F__SIGN) && (*(V->last.S) & V->last.B));
+	
+	if ( nNeg )
+	{
+		alu_not( alu, num );
+		alu_inc( alu, num );
+	}
+	
+	if ( vNeg )
+	{
+		alu_not( alu, val );
+		alu_inc( alu, val );
+	}
+	
+	(void)alu_xor( alu, rem, rem );
+	(void)alu__or( alu, rem, num );
+	(void)alu_xor( alu, num, num );
 
 	(void)alu_end_bit( alu, rem, &(n) );
 	(void)alu_end_bit( alu, val, &(v) );
@@ -695,10 +745,28 @@ int alu_divide( alu_t *alu, int num, int val, int rem )
 	*R = TR;
 	*V = TV;
 	
+	if ( nNeg != vNeg )
+	{
+		if ( nNeg )
+		{
+			alu_dec( alu, num );
+			alu_not( alu, num );
+			
+			alu_dec( alu, rem );
+			alu_not( alu, rem );
+		}
+		
+		if ( vNeg )
+		{
+			alu_dec( alu, val );
+			alu_not( alu, val );
+		}
+	}
+	
 	return ret;
 }
 
-int alu_div( alu_t *alu, int num, int val )
+int alu_div( alu_t *alu, uint_t num, uint_t val )
 {
 	int tmp = -1, ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	
@@ -714,7 +782,7 @@ int alu_div( alu_t *alu, int num, int val )
 	return ret;
 }
 
-int alu_rem( alu_t *alu, int num, int val )
+int alu_rem( alu_t *alu, uint_t num, uint_t val )
 {
 	int tmp = -1, ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	alu_reg_t *N, *T;
@@ -745,7 +813,7 @@ int alu_rem( alu_t *alu, int num, int val )
 	return ret;
 }
 
-int alu__rol( alu_t *alu, int num, size_t by )
+int alu__rol( alu_t *alu, uint_t num, size_t by )
 {
 	alu_reg_t *N, *T;
 	alu_bit_t n = {0}, v;
@@ -807,7 +875,7 @@ int alu__rol( alu_t *alu, int num, size_t by )
 	return 0;
 }
 
-int alu__ror( alu_t *alu, int num, size_t by )
+int alu__ror( alu_t *alu, uint_t num, size_t by )
 {
 	alu_reg_t *N, *T;
 	alu_bit_t n = {0}, v, e;
@@ -869,7 +937,7 @@ int alu__ror( alu_t *alu, int num, size_t by )
 	return 0;
 }
 
-int alu__rotate( alu_t *alu, int num, int val, bool left )
+int alu__rotate( alu_t *alu, uint_t num, uint_t val, bool left )
 {
 	alu_reg_t *N;
 	int ret = alu_check2( alu, num, val ), tmp = -1, cmp;
@@ -947,7 +1015,7 @@ int alu__rotate( alu_t *alu, int num, int val, bool left )
 	return alu__ror( alu, num, by );
 }
 
-int alu_upto( alu_t *alu, int num, int val, alu_bit_t *pos )
+int alu_upto( alu_t *alu, uint_t num, uint_t val, alu_bit_t *pos )
 {
 	int ret = alu_check2( alu, num, val );
 	alu_reg_t *N, *V;
@@ -980,7 +1048,7 @@ int alu_upto( alu_t *alu, int num, int val, alu_bit_t *pos )
 	return 0;
 }
 
-int alu_and( alu_t *alu, int num, int val )
+int alu_and( alu_t *alu, uint_t num, uint_t val )
 {
 	alu_bit_t n, v, e = {0};
 	int ret = alu_upto( alu, num, val, &e );
@@ -1015,7 +1083,7 @@ int alu_and( alu_t *alu, int num, int val )
 	return 0;
 }
 
-int alu__or( alu_t *alu, int num, int val )
+int alu__or( alu_t *alu, uint_t num, uint_t val )
 {
 	alu_bit_t n, v, e = {0};
 	int ret = alu_upto( alu, num, val, &e );
@@ -1043,7 +1111,7 @@ int alu__or( alu_t *alu, int num, int val )
 	return 0;
 }
 
-int alu_xor( alu_t *alu, int num, int val )
+int alu_xor( alu_t *alu, uint_t num, uint_t val )
 {
 	alu_bit_t n, v, e = {0};
 	int ret = alu_upto( alu, num, val, &e );

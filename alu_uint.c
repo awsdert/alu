@@ -108,6 +108,50 @@ int alu_uint_prep3(
 	return ret;
 }
 
+int alu_uint_cmp( alu_t *alu, alu_uint_t num, alu_uint_t val, int *cmp, size_t *bit )
+{
+	int ret = 0, _num = -1, _val = -1;
+	
+	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	(void)alu_mov( alu, _num, (uintptr_t)&num );
+	(void)alu_mov( alu, _val, (uintptr_t)&val );
+	ret = alu_cmp( alu, _num, _val, cmp, bit );
+	(void)alu_mov( alu, (uintptr_t)&num, _num );
+	
+	(void)alu_rem_reg( alu, _val );
+	(void)alu_rem_reg( alu, _num );
+	
+	return ret;
+}
+
+int alu_uint_not( alu_t *alu, alu_uint_t num )
+{
+	int ret = 0, _num = -1;
+	
+	ret = alu_uint_prep1( alu, num, &_num );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	(void)alu_mov( alu, _num, (uintptr_t)&num );
+	ret = alu_not( alu, _num );
+	(void)alu_mov( alu, (uintptr_t)&num, _num );
+	
+	(void)alu_rem_reg( alu, _num );
+	
+	return ret;
+}
+
 int alu_uint_and( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0, _num = -1, _val = -1;

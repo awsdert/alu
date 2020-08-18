@@ -10,7 +10,88 @@
 # define rol( NUM, BITS ) rotate( NUM, BITS, <<, >> )
 # define ror( NUM, BITS ) rotate( NUM, BITS, >>, << )
 
-int compare(
+int uint_compare( alu_t *alu, size_t _num, size_t _val )
+{
+	int ret = 0, cmp = 0, expect = 0;
+	size_t N = _num, V = _val, bit = 0;
+	alu_uint_t num = {0}, val = {0};
+	
+	num.perN = sizeof(size_t);
+	num.qty.last = 0;
+	num.qty.upto = num.qty.used = 1;
+	num.mem.block = &N;
+	num.mem.bytes.last = sizeof(size_t) - 1;
+	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	
+	val = num;
+	val.mem.block = &V;
+	
+	if ( _num > _val )
+		expect = 1;
+	
+	if ( _num < _val )
+		expect = -1;
+
+	ret = alu_uint_cmp( alu, num, val, &cmp, &bit );
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return ret;
+	}
+	alu_printf( "Expected %i, Got %i\n", expect, cmp );
+	
+	if ( expect != cmp )
+	{
+		alu_printf(
+			"N = %zu, V = %zu, _num = %zu, _val = %zu", N, V,  _num, _val
+		);
+	}
+	
+	return ret;
+}
+
+int int_compare( alu_t *alu, ssize_t _num, ssize_t _val )
+{
+	int ret = 0, cmp = 0, expect = 0;
+	size_t N = _num, V = _val, bit = 0;
+	alu_int_t num = {0}, val = {0};
+	
+	num.perN = sizeof(size_t);
+	num.qty.last = 0;
+	num.qty.upto = num.qty.used = 1;
+	num.mem.block = &N;
+	num.mem.bytes.last = sizeof(size_t) - 1;
+	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	
+	val = num;
+	val.mem.block = &V;
+	
+	if ( _num > _val )
+		expect = 1;
+	
+	if ( _num < _val )
+		expect = -1;
+
+	ret = alu_int_cmp( alu, num, val, &cmp, &bit );
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return ret;
+	}
+	alu_printf( "Expected %i, Got %i\n", expect, cmp );
+	
+	if ( expect != cmp )
+	{
+		alu_printf(
+			"N = %zi, V = %zi, _num = %zi, _val = %zi",
+			N, V,  _num, _val
+		);
+	}
+	
+	return ret;
+}
+
+int reg_compare(
 	alu_t *alu,
 	size_t _num, size_t _val
 )
@@ -45,14 +126,6 @@ int compare(
 	*N = _num;
 	*V = _val;
 	
-#if 0
-	alu_printf(
-		"num = %i, val = %i, "
-		"N = %016zX, V = %016zX, _num = %016zX, _val = %016zX",
-		num, val, *N, *V,  _num, _val
-	);
-#endif
-	
 	if ( _num > _val )
 		expect = 1;
 	
@@ -67,10 +140,18 @@ int compare(
 	}
 	alu_printf( "Expected %i, Got %i\n", expect, cmp );
 	
+	if ( expect != cmp )
+	{
+		alu_printf(
+			"N = 0x%zX, V = 0x%zX, _num = 0x%zX, _val = 0x%zX",
+			*N, *V,  _num, _val
+		);
+	}
+	
 	return ret;
 }
 
-int modify( alu_t *alu, size_t _num, size_t _val, int op )
+int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
 {
 	int ret = 0, num = -1, val = -1;
 	alu_reg_t *NUM, *VAL;
@@ -106,7 +187,7 @@ int modify( alu_t *alu, size_t _num, size_t _val, int op )
 #if 0
 	alu_printf(
 		"num = %i, val = %i, "
-		"N = %016zX, V = %016zX, _num = %016zX, _val = %016zX",
+		"N = 0x%016zX, V = 0x%016zX, _num = 0x%016zX, _val = 0x%016zX",
 		num, val, *N, *V,  _num, _val
 	);
 #endif
@@ -114,68 +195,73 @@ int modify( alu_t *alu, size_t _num, size_t _val, int op )
 	expect = _num;
 	switch ( op )
 	{
+	case '~':
+		sprintf( pfx, "~0x%016zX", _num );
+		expect = ~expect;
+		ret = alu_not( alu, num );
+		break;
 	case '&':
-		sprintf( pfx, "%016zX & %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX & 0x%016zX", _num, _val );
 		expect &= _val;
 		ret = alu_and( alu, num, val );
 		break;
 	case '|':
-		sprintf( pfx, "%016zX | %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX | 0x%016zX", _num, _val );
 		expect |= _val;
 		ret = alu__or( alu, num, val );
 		break;
 	case '^':
-		sprintf( pfx, "%016zX ^ %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX ^ 0x%016zX", _num, _val );
 		expect ^= _val;
 		ret = alu_xor( alu, num, val );
 		break;
 	case 'i':
-		sprintf( pfx, "%016zX++", _num );
+		sprintf( pfx, "0x%016zX++", _num );
 		expect++;
 		ret = alu_inc( alu, num );
 		break;
 	case 'd':
-		sprintf( pfx, "%016zX--", _num );
+		sprintf( pfx, "0x%016zX--", _num );
 		expect--;
 		ret = alu_dec( alu, num );
 		break;
 	case '+':
-		sprintf( pfx, "%016zX + %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX + 0x%016zX", _num, _val );
 		expect += _val;
 		ret = alu_add( alu, num, val );
 		break;
 	case '-':
-		sprintf( pfx, "%016zX - %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX - 0x%016zX", _num, _val );
 		expect -= _val;
 		ret = alu_sub( alu, num, val );
 		break;
 	case 'l':
-		sprintf( pfx, "%016zX <<< %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
 		expect = rol( expect, _val );
 		ret = alu_rol( alu, num, val );
 		break;
 	case '<':
-		sprintf( pfx, "%016zX << %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX << 0x%016zX", _num, _val );
 		expect <<= _val;
 		ret = alu_shl( alu, num, val );
 		break;
 	case 'r':
-		sprintf( pfx, "%016zX >>> %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
 		expect = ror( expect, _val );
 		ret = alu_ror( alu, num, val );
 		break;
 	case '>':
-		sprintf( pfx, "%016zX >> %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX >> 0x%016zX", _num, _val );
 		expect >>= _val;
 		ret = alu_shr( alu, num, val );
 		break;
 	case '*':
-		sprintf( pfx, "%016zX * %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX * 0x%016zX", _num, _val );
 		expect *= _val;
 		ret = alu_mul( alu, num, val );
 		break;
 	case '/':
-		sprintf( pfx, "%016zX / %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX / 0x%016zX", _num, _val );
 		if ( _val )
 			expect /= _val;
 		else
@@ -183,7 +269,7 @@ int modify( alu_t *alu, size_t _num, size_t _val, int op )
 		ret = alu_div( alu, num, val );
 		break;
 	case '%':
-		sprintf( pfx, "%016zX %% %016zX", _num, _val );
+		sprintf( pfx, "0x%016zX %% 0x%016zX", _num, _val );
 		if ( _val )
 			expect %= _val;
 		ret = alu_rem( alu, num, val );
@@ -208,20 +294,20 @@ int modify( alu_t *alu, size_t _num, size_t _val, int op )
 		return ret;
 	}
 
-	alu_printf(
-		"%s, Expected %016zX, Got %016zX, op = '%c'\n",
-		pfx, expect, *N, op
-	);	
-
-#if 0
 	if ( expect != *N )
 	{
+		alu_printf(
+			"%s, Expected 0x%016zX, Got 0x%016zX, op = '%c'\n",
+			pfx, expect, *N, op
+		);
+
+#if 0		
 		alu_pri_reg( alu, num );
 		(void)memset( N, 0, alu->buff.perN );
 		*N = expect;
 		alu_pri_reg( alu, num );
-	}
 #endif
+	}
 	
 	alu_rem_reg( alu, num );
 	alu_rem_reg( alu, val );
@@ -249,68 +335,73 @@ int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
 	expect = _num;
 	switch ( op )
 	{
+	case '~':
+		sprintf( pfx, "~%zu", _num );
+		expect = ~expect;
+		ret = alu_uint_not( alu, num );
+		break;
 	case '&':
-		sprintf( pfx, "%016zX & %016zX", _num, _val );
+		sprintf( pfx, "%zu & %zu", _num, _val );
 		expect &= _val;
 		ret = alu_uint_and( alu, num, val );
 		break;
 	case '|':
-		sprintf( pfx, "%016zX | %016zX", _num, _val );
+		sprintf( pfx, "%zu | %zu", _num, _val );
 		expect |= _val;
 		ret = alu_uint__or( alu, num, val );
 		break;
 	case '^':
-		sprintf( pfx, "%016zX ^ %016zX", _num, _val );
+		sprintf( pfx, "%zu ^ %zu", _num, _val );
 		expect ^= _val;
 		ret = alu_uint_xor( alu, num, val );
 		break;
 	case 'i':
-		sprintf( pfx, "%016zX++", _num );
+		sprintf( pfx, "%zu++", _num );
 		expect++;
 		ret = alu_uint_inc( alu, num );
 		break;
 	case 'd':
-		sprintf( pfx, "%016zX--", _num );
+		sprintf( pfx, "%zu--", _num );
 		expect--;
 		ret = alu_uint_dec( alu, num );
 		break;
 	case '+':
-		sprintf( pfx, "%016zX + %016zX", _num, _val );
+		sprintf( pfx, "%zu + %zu", _num, _val );
 		expect += _val;
 		ret = alu_uint_add( alu, num, val );
 		break;
 	case '-':
-		sprintf( pfx, "%016zX - %016zX", _num, _val );
+		sprintf( pfx, "%zu - %zu", _num, _val );
 		expect -= _val;
 		ret = alu_uint_sub( alu, num, val );
 		break;
 	case 'l':
-		sprintf( pfx, "%016zX <<< %016zX", _num, _val );
+		sprintf( pfx, "%zu <<< %zu", _num, _val );
 		expect = rol( expect, _val );
 		ret = alu_uint_rol( alu, num, val );
 		break;
 	case '<':
-		sprintf( pfx, "%016zX << %016zX", _num, _val );
+		sprintf( pfx, "%zu << %zu", _num, _val );
 		expect <<= _val;
 		ret = alu_uint_shl( alu, num, val );
 		break;
 	case 'r':
-		sprintf( pfx, "%016zX >>> %016zX", _num, _val );
+		sprintf( pfx, "%zu >>> %zu", _num, _val );
 		expect = ror( expect, _val );
 		ret = alu_uint_ror( alu, num, val );
 		break;
 	case '>':
-		sprintf( pfx, "%016zX >> %016zX", _num, _val );
+		sprintf( pfx, "%zu >> %zu", _num, _val );
 		expect >>= _val;
 		ret = alu_uint_shr( alu, num, val );
 		break;
 	case '*':
-		sprintf( pfx, "%016zX * %016zX", _num, _val );
+		sprintf( pfx, "%zu * %zu", _num, _val );
 		expect *= _val;
 		ret = alu_uint_mul( alu, num, val );
 		break;
 	case '/':
-		sprintf( pfx, "%016zX / %016zX", _num, _val );
+		sprintf( pfx, "%zu / %zu", _num, _val );
 		if ( _val )
 			expect /= _val;
 		else
@@ -318,7 +409,7 @@ int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
 		ret = alu_uint_div( alu, num, val );
 		break;
 	case '%':
-		sprintf( pfx, "%016zX %% %016zX", _num, _val );
+		sprintf( pfx, "%zu %% %zu", _num, _val );
 		if ( _val )
 			expect %= _val;
 		ret = alu_uint_rem( alu, num, val );
@@ -334,14 +425,137 @@ int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
 		return ret;
 	}
 
-	alu_printf(
-		"%s, Expected %016zX, Got %016zX, op = '%c'\n",
-		pfx, expect, N, op
-	);
+	if ( expect != N )
+	{
+		alu_printf(
+			"%s, Expected %zu, Got %zu, op = '%c'\n",
+			pfx, expect, N, op
+		);
+	}
 	
 	return 0;
 }
 
+int int_modify( alu_t *alu, ssize_t _num, ssize_t _val, int op )
+{
+	int ret = 0;
+	ssize_t expect = _num;
+	size_t N = _num, V = _val;
+	alu_int_t num = {0}, val = {0};
+	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
+	
+	num.perN = sizeof(size_t);
+	num.qty.last = 0;
+	num.qty.upto = num.qty.used = 1;
+	num.mem.block = &N;
+	num.mem.bytes.last = sizeof(size_t) - 1;
+	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	
+	val = num;
+	val.mem.block = &V;
+	
+	switch ( op )
+	{
+	case '~':
+		sprintf( pfx, "~%zi", _num );
+		expect = ~expect;
+		ret = alu_int_not( alu, num );
+		break;
+	case '&':
+		sprintf( pfx, "%zi & %zi", _num, _val );
+		expect &= _val;
+		ret = alu_int_and( alu, num, val );
+		break;
+	case '|':
+		sprintf( pfx, "%zi | %zi", _num, _val );
+		expect |= _val;
+		ret = alu_int__or( alu, num, val );
+		break;
+	case '^':
+		sprintf( pfx, "%zi ^ %zi", _num, _val );
+		expect ^= _val;
+		ret = alu_int_xor( alu, num, val );
+		break;
+	case 'i':
+		sprintf( pfx, "%zi++", _num );
+		expect++;
+		ret = alu_int_inc( alu, num );
+		break;
+	case 'd':
+		sprintf( pfx, "%zi--", _num );
+		expect--;
+		ret = alu_int_dec( alu, num );
+		break;
+	case '+':
+		sprintf( pfx, "%zi + %zi", _num, _val );
+		expect += _val;
+		ret = alu_int_add( alu, num, val );
+		break;
+	case '-':
+		sprintf( pfx, "%zi - %zi", _num, _val );
+		expect -= _val;
+		ret = alu_int_sub( alu, num, val );
+		break;
+	case 'l':
+		sprintf( pfx, "%zi <<< %zi", _num, _val );
+		expect = rol( expect, _val );
+		ret = alu_int_rol( alu, num, val );
+		break;
+	case '<':
+		sprintf( pfx, "%zi << %zi", _num, _val );
+		expect <<= _val;
+		ret = alu_int_shl( alu, num, val );
+		break;
+	case 'r':
+		sprintf( pfx, "%zi >>> %zi", _num, _val );
+		expect = ror( expect, _val );
+		ret = alu_int_ror( alu, num, val );
+		break;
+	case '>':
+		sprintf( pfx, "%zi >> %zi", _num, _val );
+		expect >>= _val;
+		ret = alu_int_shr( alu, num, val );
+		break;
+	case '*':
+		sprintf( pfx, "%zi * %zi", _num, _val );
+		expect *= _val;
+		ret = alu_int_mul( alu, num, val );
+		break;
+	case '/':
+		sprintf( pfx, "%zi / %zi", _num, _val );
+		if ( _val )
+			expect /= _val;
+		else
+			expect = 0;
+		ret = alu_int_div( alu, num, val );
+		break;
+	case '%':
+		sprintf( pfx, "%zi %% %zi", _num, _val );
+		if ( _val )
+			expect %= _val;
+		ret = alu_int_rem( alu, num, val );
+		break;
+	default: ret = ENOSYS;
+	}
+	
+	switch ( ret )
+	{
+	case 0: case ENODATA: case EOVERFLOW: break;
+	default:
+		alu_error( ret );
+		return ret;
+	}
+
+	if ( expect != *((ssize_t*)(&N)) )
+	{
+		alu_printf(
+			"%s, Expected %zi, Got %zi, op = '%c'\n",
+			pfx, expect, *((ssize_t*)(&N)), op
+		);
+	}
+	
+	return 0;
+}
 
 # define RNG_MOD 0xC0FFEE
 # define RNG_MAG 0xDAD
@@ -373,14 +587,8 @@ size_t rng( size_t n )
 	return n % RAND_MAX;
 }
 
-int main()
+void print_limits()
 {
-	int ret = 0;
-	//uint_t seed = time(NULL);
-	
-	alu_t alu;
-
-#if 0
 	alu_printf( "CHAR_BIT = %u", CHAR_BIT );
 	alu_printf("CHAR_SIGNED = %i", CHAR_SIGNED);
 	alu_printf("CHAR_UNSIGNED = %i", CHAR_UNSIGNED);
@@ -459,7 +667,209 @@ int main()
 	alu_printf( "LLONG_MIN = %llX", LLONG_MIN );
 #endif
 	alu_puts( "===========================================" );
-#endif
+}
+
+int compare( alu_t *alu )
+{
+	int ret = 0;
+	(void)alu_puts( "Comparing values..." );
+	(void)alu_puts( "===========================================" );
+
+	ret = reg_compare( alu, 2, 1 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = reg_compare( alu, 1, 1 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = reg_compare( alu, 0, 1 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = uint_compare( alu, 2, 1 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = uint_compare( alu, 1, 1 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = uint_compare( alu, 0, 1 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = int_compare( alu, 1, 0 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = int_compare( alu, 0, 0 );
+	
+	if ( ret != 0 )
+		return ret;
+
+	return int_compare( alu, -1, 0 );
+}
+
+int modify( alu_t *alu, ssize_t _num, ssize_t _val, int op )
+{
+	int ret = 0;
+	ret = reg_modify( alu, _num, _val, op );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = uint_modify( alu, _num, _val, op );
+	
+	if ( ret != 0 )
+		return ret;
+
+	ret = int_modify( alu, _num, _val, op );
+	return ret;
+}
+
+int bitwise( alu_t *alu, bool doShift, bool doRotate )
+{
+	int ret = 0;
+	alu_puts( "Checking bitwise operations..." );
+	alu_puts( "===========================================" );
+	
+	ret = modify( alu, 0xDEADC0DE, 0, '~' );
+	
+	if ( ret != 0 )
+		return ret;
+	
+	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '&' );
+	
+	if ( ret != 0 )
+		return ret;
+	
+	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '|' );
+	
+	if ( ret != 0 )
+		return ret;
+	
+	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '^' );
+	
+	if ( doShift )
+	{
+		if ( ret != 0 )
+			return ret;
+		
+		alu_puts( "Shifting values..." );
+		
+		ret = modify( alu, 0xDEADC0DELL, 4, '<' );
+		
+		if ( ret != 0 )
+			return ret;
+		
+		ret = modify( alu, -0xDEADC0DELL, 4, '>' );
+	}
+	
+	if ( doRotate )
+	{
+		if ( ret != 0 )
+			return ret;
+		
+		alu_puts( "Rotating values..." );
+			
+		ret = modify( alu, 0xDEADC0DE, 4, 'l' );
+		
+		if ( ret != 0 )
+			return ret;
+		
+		ret = modify( alu, 0xDEADC0DE, 4, 'r' );
+	
+	}
+	
+	return ret;
+}
+
+int mathmatical( alu_t *alu, bool doInc, bool doDec )
+{
+	int ret = 0;
+	alu_puts( "Mathematics values..." );
+	
+	if ( doInc )
+	{
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'i' );
+		
+		if ( ret != 0 )
+			return ret;
+		
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '+' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '*' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '*' );
+	}
+	
+	if ( doDec )
+	{
+		if ( ret != 0 )
+			return ret;
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'd' );
+		
+		if ( ret != 0 )
+			return ret;
+		
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '-' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '/' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '%' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '/' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '%' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '/' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '%' );
+	}
+	
+	return ret;
+}
+
+int main()
+{
+	int ret = 0;
+	//uint_t seed = time(NULL);
+	
+	alu_t alu;
+	
+	//print_limits();
 	
 	alu_puts( "Initiating ALU to 0..." );
 	memset( &alu, 0, sizeof(alu_t) );
@@ -467,81 +877,9 @@ int main()
 	alu_puts( "Pre-allocating 16 ALU registers..." );
 	alu_setup_reg( &alu, 16, sizeof(size_t) );
 
-#if 1
-	alu_puts( "Comparing values..." );
-	alu_puts( "===========================================" );
-
-	ret = compare( &alu, 3, 2 );
-	ret = compare( &alu, 2, 2 );
-	ret = compare( &alu, 1, 2 );
-#endif
-
-#if 0
-	alu_puts( "Checking bitwise operations..." );
-	alu_puts( "===========================================" );
-
-	alu_puts( "Bitwising values..." );
-	ret = modify( &alu, 0xDEADC0DE, 0xC0FFEE, '&' );
-	ret = modify( &alu, 0xDEADC0DE, 0xC0FFEE, '|' );
-	ret = modify( &alu, 0xDEADC0DE, 0xC0FFEE, '^' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAC2DEAD, '&' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAC2DEAD, '|' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAC2DEAD, '^' );
-
-	alu_puts( "Shifting values..." );
-	ret = modify( &alu, 0xDEADC0DE00000000LL, 2, '<' );
-	ret = modify( &alu, 0xDEADC0DE, 2, '>' );
-	ret = modify( &alu, 0xDEADC0DE00000000LL, 30, '<' );
-	ret = modify( &alu, 0xDEADC0DE, 8, '>' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, '<' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, '>' );
-#endif
-	
-#if 0
-	alu_puts( "Rotating values..." );
-	ret = modify( &alu, 0xDEADC0DE, 2, 'l' );
-	ret = modify( &alu, 0xDEADC0DE, 2, 'r' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, 'l' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xA, 'r' );
-#endif
-
-#if 0
-	alu_puts( "Checking mathmatical operations..." );
-	alu_puts( "===========================================" );
-
-	alu_puts( "Adding values..." );
-	ret = modify( &alu, 0xDEADC0DE, 0, 'i' );
-	ret = modify( &alu, 0xDEADC0DE, 2, '+' );
-	ret = modify( &alu, 0xDEADC0DE, 0, '+' );
-	ret = modify( &alu, 0xDEADC0DE00000000LL, 0xDEADC0DE000000LL, '+' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0, 'i' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '+' );
-
-#if 0	
-	alu_puts( "Subtracting values..." );
-	ret = modify( &alu, 0xDEADC0DE, 2, 'd' );
-	ret = modify( &alu, 0xDEADC0DE, 2, '-' );
-	ret = modify( &alu, 0xDEADC0DE, 0, '-' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0, 'd' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '-' );
-#endif
-
-	alu_puts( "Multiplying values..." );
-	ret = modify( &alu, 0xDEADC0DE, 2, '*' );
-	ret = modify( &alu, 0xDEADC0DE, 0, '*' );
-	ret = modify( &alu, 0xDEADC0DE, 0xBAD, '*' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '*' );
-	
-#if 0
-	alu_puts( "Dividing values..." );
-	ret = modify( &alu, 0xDEADC0DE, 2, '/' );
-	ret = modify( &alu, 0xDEADC0DE, 0, '/' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '/' );
-	ret = modify( &alu, 0xDEADC0DE, 2, '%' );
-	ret = modify( &alu, 0xDEADC0DE, 0, '%' );
-	ret = uint_modify( &alu, 0xDEADC0DE, 0xBAD, '%' );
-#endif
-#endif
+	//compare( &alu );
+	bitwise( &alu, true, true );
+	mathmatical( &alu, false, true );
 	
 	(void)alu_vec_shrink( &(alu.buff), 0, 0 );
 	(void)alu_vec_shrink( &(alu._regv), 0, 0 );

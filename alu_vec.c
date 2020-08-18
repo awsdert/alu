@@ -1,19 +1,11 @@
 #include "alu.h"
 #include <string.h>
 
-int alu_vec( alu_vec_t *vec, int want, size_t perN, int dir )
+int alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
 {
 	int ret = 0, used = vec->qty.used;
 	void *dst, *src, *block;
 	size_t diff = 0;
-	
-	if ( want < 0 )
-	{
-		want = used + want;
-	
-		if ( want < 0 )
-			want = 0;
-	}
 	
 	if ( perN > vec->perN )
 		goto expand;

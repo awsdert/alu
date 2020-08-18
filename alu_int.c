@@ -23,7 +23,7 @@ int alu_int_prep1( alu_t *alu, alu_int_t num, int *reg )
 	REG = alu->regv + _reg;
 	REG->info |= ALU_REG_F__SIGN;
 	
-	(void)memcpy( REG->part, num.mem.block, size );
+	(void)alu_mov( alu, _reg, (uintptr_t)&num );
 	
 	*reg = _reg;
 	return 0;
@@ -106,6 +106,49 @@ int alu_int_prep3(
 	*nreg = _nreg;
 	*vreg = _vreg;
 	*rreg = _rreg;
+	return ret;
+}
+
+int alu_int_cmp( alu_t *alu, alu_int_t num, alu_int_t val, int *cmp, size_t *bit )
+{
+	int ret = 0, _num = -1, _val = -1;
+	
+	ret = alu_int_prep2( alu, num, val, &_num, &_val );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	(void)alu_mov( alu, _num, (intptr_t)&num );
+	(void)alu_mov( alu, _val, (intptr_t)&val );
+	ret = alu_cmp( alu, _num, _val, cmp, bit );
+	(void)alu_mov( alu, (intptr_t)&num, _num );
+	
+	(void)alu_rem_reg( alu, _val );
+	(void)alu_rem_reg( alu, _num );
+	
+	return ret;
+}
+
+int alu_int_not( alu_t *alu, alu_int_t num )
+{
+	int ret = 0, _num = -1;
+	
+	ret = alu_int_prep1( alu, num, &_num );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	ret = alu_not( alu, _num );
+	(void)alu_mov( alu, (uintptr_t)&num, _num );
+	
+	(void)alu_rem_reg( alu, _num );
+	
 	return ret;
 }
 
@@ -421,6 +464,7 @@ int alu_int_div( alu_t *alu, alu_int_t num, alu_int_t val )
 	(void)alu_mov( alu, _num, (uintptr_t)&num );
 	(void)alu_mov( alu, _val, (uintptr_t)&val );
 	ret = alu_div( alu, _num, _val );
+	
 	(void)alu_mov( alu, (uintptr_t)&num, _num );
 	
 	(void)alu_rem_reg( alu, _val );
