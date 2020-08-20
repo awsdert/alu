@@ -857,6 +857,16 @@ int mathmatical( alu_t *alu, bool doInc, bool doDec )
 		if ( ret != 0 )
 			return ret;
 			
+		ret = modify( alu, 12, 10, '/' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, 12, 10, '%' );
+		
+		if ( ret != 0 )
+			return ret;
+			
 		ret = modify( alu, 0xDEADC0DE, 0xBAD, '/' );
 		
 		if ( ret != 0 )
@@ -924,7 +934,7 @@ void func_flipstr( alu_block_t *dst )
 	char *str = dst->block, c;
 	size_t n, v;
 	
-	for ( n = 0, v = dst->bytes.used; n < v; ++n, --v )
+	for ( n = 0, v = dst->bytes.used - 1; n < v; ++n, --v )
 	{
 		c = str[n];
 		str[n] = str[v];
@@ -937,6 +947,8 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	uint_t tmp = -1;
 	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	alu_block_t src = {0};
+	alu_reg_t *TMP;
+	size_t *T;
 	long nextpos = 0;
 	
 	if ( ret != 0 )
@@ -965,11 +977,17 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 		return ret;
 	}
 	
+	TMP = alu->regv + tmp;
+	T = TMP->part;
+	
+	alu_printf( "%zu", *T );
+	
 	(void)memset( &src, 0, sizeof(alu_block_t) );
 	ret = alu_block( &src, size, 0 );
 	
 	if ( ret != 0 )
 	{
+		alu_rem_reg( alu, tmp );
 		alu_error(ret);
 		return ret;
 	}
@@ -986,6 +1004,7 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	
 	(void)alu_printf( "alu = '%s'", (char*)(src.block) );
 	alu_block_release( &src );
+	alu_rem_reg( alu, tmp );
 	
 	return ret;
 }

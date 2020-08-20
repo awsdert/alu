@@ -257,6 +257,7 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit );
  * values
 **/
 int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val );
+int alu_zero( alu_t *alu, uint_t num );
 int alu_not( alu_t *alu, uint_t num );
 int alu_and( alu_t *alu, uint_t num, uint_t val );
 int alu__or( alu_t *alu, uint_t num, uint_t val );

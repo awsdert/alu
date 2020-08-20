@@ -95,7 +95,7 @@ int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val )
 		return 0;
 	}
 	
-	alu_xor( alu, num, num );
+	alu_zero( alu, num );
 	alu__or( alu, num, val );
 	
 	return ret;
@@ -521,7 +521,7 @@ int alu_str2reg
 			n = DST->last;
 		}
 		
-		*V = c;
+		*V = b;
 		
 		(void)alu_mul( alu, dst, mul );
 		(void)alu_add( alu, dst, val );
@@ -548,7 +548,7 @@ int alu_reg2str
 	alu_reg_t *DIV, *VAL, *NUM;
 	int ret;
 	uint_t num = -1, div = -1, val = -1;
-	char32_t *V;
+	size_t *V, *N;
 	char *base_str = lowercase ?
 		ALU_BASE_STR_0toztoZ :
 		ALU_BASE_STR_0toZtoz;
@@ -596,24 +596,34 @@ int alu_reg2str
 	V = DIV->part;
 	*V = base;
 	
+	N = NUM->part;
 	V = VAL->part;
+	
+	//alu_printf( "num = %zu", *N );
 
 	do
 	{	
 		(void)alu_divide( alu, num, div, val );
 		ret = nextchar( base_str[*V], dst );
 		
+		alu_printf( "num = %zu", *N );
+		
 		if ( ret != 0 )
+		{
+			alu_rem_reg( alu, num );
+			alu_rem_reg( alu, div );
+			alu_rem_reg( alu, val );
 			return ret;
+		}
 	}
 	while ( alu_compare( *NUM, *DIV, NULL ) >= 0 );
+	
+	ret = nextchar( base_str[*N], dst );
 	
 	alu_rem_reg( alu, num );
 	alu_rem_reg( alu, div );
 	alu_rem_reg( alu, val );
 	
-	ret = nextchar( 0, dst );
-		
 	if ( ret != 0 )
 		return ret;
 	
