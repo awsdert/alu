@@ -162,7 +162,7 @@ typedef int (*alu_func_nextchar_t)( char32_t *dst, void *src, size_t *nextpos );
 
 int alu_setup_reg( alu_t *alu, int want, size_t perN );
 int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions );
-int alu_pri_reg( alu_t *alu, uint_t reg );
+void alu_print_reg( char *pfx, alu_reg_t reg, bool print_info );
 int alu_get_reg( alu_t *alu, int *reg, size_t need );
 int alu_rem_reg( alu_t *alu, uint_t reg );
 
@@ -212,6 +212,7 @@ int alu_fpn2int( alu_t *alu, alu_fpn_t *val );
 int alu_check1( alu_t *alu, uint_t num );
 int alu_check2( alu_t *alu, uint_t num, uint_t val );
 int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem );
+int alu_compare( alu_reg_t num, alu_reg_t val, size_t *bit );
 int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit );
 
 /** @brief Copy to/from registers &/or addresses
@@ -243,6 +244,7 @@ int alu__rotate( alu_t *alu, uint_t num, uint_t val, bool left );
 # define alu_rol( ALU, NUM, VAL ) alu__rotate( ALU, NUM, VAL, 1 )
 # define alu_ror( ALU, NUM, VAL ) alu__rotate( ALU, NUM, VAL, 0 )
 
+int alu_neg( alu_t *alu, uint_t num );
 int alu_inc( alu_t *alu, uint_t num );
 int alu_dec( alu_t *alu, uint_t num );
 int alu_add( alu_t *alu, uint_t num, uint_t val );
@@ -269,6 +271,7 @@ int alu_uint_shl( alu_t *alu, alu_uint_t num, alu_uint_t val );
 int alu_uint_shr( alu_t *alu, alu_uint_t num, alu_uint_t val );
 int alu_uint_rol( alu_t *alu, alu_uint_t num, alu_uint_t val );
 int alu_uint_ror( alu_t *alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_neg( alu_t *alu, alu_uint_t num );
 int alu_uint_inc( alu_t *alu, alu_uint_t num );
 int alu_uint_dec( alu_t *alu, alu_uint_t num );
 int alu_uint_add( alu_t *alu, alu_uint_t num, alu_uint_t val );
@@ -296,6 +299,7 @@ int alu_int_shl( alu_t *alu, alu_int_t num, alu_int_t val );
 int alu_int_shr( alu_t *alu, alu_int_t num, alu_int_t val );
 int alu_int_rol( alu_t *alu, alu_int_t num, alu_int_t val );
 int alu_int_ror( alu_t *alu, alu_int_t num, alu_int_t val );
+int alu_int_neg( alu_t *alu, alu_int_t num );
 int alu_int_inc( alu_t *alu, alu_int_t num );
 int alu_int_dec( alu_t *alu, alu_int_t num );
 int alu_int_add( alu_t *alu, alu_int_t num, alu_int_t val );

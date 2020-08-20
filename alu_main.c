@@ -167,56 +167,45 @@ int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 	) ? 0 : EDESTADDRREQ;
 }
 
-int alu_pri_reg( alu_t *alu, uint_t reg )
+void alu_print_reg( char *pfx, alu_reg_t reg, bool print_info )
 {
-	int ret = alu_check_reg( alu, reg );
-	alu_reg_t *REG;
 	alu_bit_t n;
-	
-	if ( ret != EADDRINUSE && ret != 0 )
+	alu_block_t p = {0};
+	size_t len = 0;
+	char *_pfx;
+
+	if ( print_info )
 	{
-		alu_error( ret );
-		return ret;
+		len = strlen(pfx);
+		if ( alu_block( &p, len + 10, 0 ) == 0 )
+		{
+			_pfx = p.block;
+			alu_printf( "%s.part = %p", pfx, reg.part );
+			sprintf( _pfx, "%s.upto", pfx );
+			alu_print_bit( _pfx, reg.upto, 0 );
+			sprintf( _pfx, "%s.last", pfx );
+			alu_print_bit( _pfx, reg.last, 0 );
+			sprintf( _pfx, "%s.init", pfx );
+			alu_print_bit( _pfx, reg.init, 0 );
+			alu_block( &p, 0, 0 );
+		}
 	}
 	
-	REG = alu->regv + reg;
-
-#if 0
-	alu_printf( "reg = %i, REG->part = %p", reg, REG->part );
-	
-	alu_printf(
-		"REG->upto.b = %zu, REG->last.b = %zu, REG->init.b = %zu",
-		REG->upto.b, REG->last.b, REG->init.b
-	);
-	
-	alu_printf(
-		"REG->upto.s = %zu, REG->last.s = %zu, REG->init.s = %zu",
-		REG->upto.s, REG->last.s, REG->init.s
-	);
-	
-	alu_printf(
-		"REG->upto.S = %p, REG->last.S = %p, REG->init.S = %p",
-		REG->upto.S, REG->last.S, REG->init.S
-	);
-#endif
-	
-	n = REG->upto;
-	if ( n.b == REG->init.b )
+	n = reg.upto;
+	if ( n.b == reg.init.b )
 	{
 		fputc( '0', stderr );
 		alu_error( ERANGE );
 	}
 	else
 	{
-		while ( n.b > REG->init.b )
+		while ( n.b > reg.init.b )
 		{
 			n = alu_bit_dec(n);
 			(void)fputc( '0' + !!(*(n.S) & n.B), stderr );
 		}
 	}
 	fputc( '\n', stderr );
-	
-	return 0;
 }
 
 int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions )
@@ -245,7 +234,7 @@ int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions )
 		REG->init = alu_bit_set_byte( REG->part, 0 );
 	}
 #if 0
-	alu_pri_reg( alu, reg );
+	alu_print_reg( alu, reg );
 #endif
 	
 	return 0;

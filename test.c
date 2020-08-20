@@ -38,12 +38,12 @@ int uint_compare( alu_t *alu, size_t _num, size_t _val )
 		alu_error( ret );
 		return ret;
 	}
-	alu_printf( "Expected %i, Got %i\n", expect, cmp );
 	
 	if ( expect != cmp )
 	{
 		alu_printf(
-			"N = %zu, V = %zu, _num = %zu, _val = %zu", N, V,  _num, _val
+			"%zu vs %zu Expected %i, Got %i\n",
+			_num, _val, expect, cmp
 		);
 	}
 	
@@ -78,13 +78,12 @@ int int_compare( alu_t *alu, ssize_t _num, ssize_t _val )
 		alu_error( ret );
 		return ret;
 	}
-	alu_printf( "Expected %i, Got %i\n", expect, cmp );
 	
 	if ( expect != cmp )
 	{
 		alu_printf(
-			"N = %zi, V = %zi, _num = %zi, _val = %zi",
-			N, V,  _num, _val
+			"%zi vs %zi Expected %i, Got %i\n",
+			_num, _val, expect, cmp
 		);
 	}
 	
@@ -138,13 +137,13 @@ int reg_compare(
 		alu_error( ret );
 		return ret;
 	}
-	alu_printf( "Expected %i, Got %i\n", expect, cmp );
+	
 	
 	if ( expect != cmp )
 	{
 		alu_printf(
-			"N = 0x%zX, V = 0x%zX, _num = 0x%zX, _val = 0x%zX",
-			*N, *V,  _num, _val
+			"0x%016zX vs 0x%016zX Expected %i, Got %i, Bit = %zu\n",
+			_num, _val, expect, cmp, bit
 		);
 	}
 	
@@ -195,6 +194,11 @@ int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
 	expect = _num;
 	switch ( op )
 	{
+	case 'n':
+		sprintf( pfx, "-0x%016zX", _num );
+		expect = -expect;
+		ret = alu_neg( alu, num );
+		break;
 	case '~':
 		sprintf( pfx, "~0x%016zX", _num );
 		expect = ~expect;
@@ -301,11 +305,11 @@ int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
 			pfx, expect, *N, op
 		);
 
-#if 0		
-		alu_pri_reg( alu, num );
+#if 1
+		alu_print_reg( "num#1", *NUM, 0 );
 		(void)memset( N, 0, alu->buff.perN );
 		*N = expect;
-		alu_pri_reg( alu, num );
+		alu_print_reg( "num#2", *NUM, 0 );
 #endif
 	}
 	
@@ -335,6 +339,11 @@ int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
 	expect = _num;
 	switch ( op )
 	{
+	case 'n':
+		sprintf( pfx, "-0x%016zX", _num );
+		expect = -expect;
+		ret = alu_uint_neg( alu, num );
+		break;
 	case '~':
 		sprintf( pfx, "~%zu", _num );
 		expect = ~expect;
@@ -456,6 +465,11 @@ int int_modify( alu_t *alu, ssize_t _num, ssize_t _val, int op )
 	
 	switch ( op )
 	{
+	case 'n':
+		sprintf( pfx, "-0x%016zX", _num );
+		expect = -expect;
+		ret = alu_int_neg( alu, num );
+		break;
 	case '~':
 		sprintf( pfx, "~%zi", _num );
 		expect = ~expect;
@@ -830,6 +844,16 @@ int mathmatical( alu_t *alu, bool doInc, bool doDec )
 		
 		if ( ret != 0 )
 			return ret;
+		
+		ret = modify( alu, 0xDEADC0DE, 0, '/' );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, 0xDEADC0DE, 0, '%' );
+		
+		if ( ret != 0 )
+			return ret;
 			
 		ret = modify( alu, 0xDEADC0DE, 0xBAD, '/' );
 		
@@ -877,7 +901,7 @@ int main()
 	alu_puts( "Pre-allocating 16 ALU registers..." );
 	alu_setup_reg( &alu, 16, sizeof(size_t) );
 
-	//compare( &alu );
+	compare( &alu );
 	bitwise( &alu, true, true );
 	mathmatical( &alu, false, true );
 	

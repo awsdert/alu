@@ -53,81 +53,60 @@ int alu_copy( alu_t *alu, uint_t num, uint_t val )
 	return 0;
 }
 
-int alu_end_bit( alu_t *alu, uint_t val, alu_bit_t *bit )
+alu_bit_t alu_end_bit( alu_reg_t val )
 {
-	int ret = alu_check_reg( alu, val );
-	alu_reg_t *V;
 	alu_bit_t v;
 	
-	if ( ret != 0 && ret != EADDRINUSE )
-		return ret;
-	
-	V = alu->regv + val;
-	v = V->upto;
-	
-	while ( v.b > V->init.b )
+	for ( v = val.last; v.b > val.init.b; v = alu_bit_dec( v ) )
 	{
-		v = alu_bit_dec( v );
-		
 		if ( *(v.S) & v.B )
-			break;
+			return v;
 	}
 	
-	*bit = v;
-	return 0;
+	return val.init;
 }
 
 int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit )
 {
-	int ret = 0, a, b, c;
-	alu_bit_t n = {0}, v = {0};
-	alu_reg_t *N, *V;
-	size_t ndiff, vdiff;
-	bool nNeg, vNeg;
+	int ret = 0;
 	
-	if ( !cmp || !bit )
+	if ( !cmp )
 	{
-		alu_error( EDESTADDRREQ );
-		return EDESTADDRREQ;
+		ret = EDESTADDRREQ;
+		alu_error(ret);
+		return ret;
 	}
 	
-	*bit = 0;
-	*cmp = 0;
-	
-	ret = alu_end_bit( alu, num, &n );
+	ret = alu_check2( alu, num, val );
 	
 	if ( ret != 0 )
 		return ret;
 	
-	ret = alu_end_bit( alu, val, &v );
-	
-	if ( ret != 0 )
-		return ret;
+	*cmp = alu_compare( alu->regv[num], alu->regv[val], bit );
+	return 0;
+}
 
-	N = alu->regv + num;
-	V = alu->regv + val;
+int alu_compare( alu_reg_t num, alu_reg_t val, size_t *bit )
+{
+	int a, b, c = 0;
+	alu_bit_t n = {0}, v = {0};
+	size_t ndiff = 0, vdiff = 0;
+	bool nNeg, vNeg;
 	
-	nNeg = ( N->info & ALU_REG_F__SIGN && n.b == N->last.b );
-	vNeg = ( V->info & ALU_REG_F__SIGN && v.b == V->last.b );
+	n = alu_end_bit( num );
+	v = alu_end_bit( val );
+	
+	nNeg = ( num.info & ALU_REG_F__SIGN && n.b == num.last.b );
+	vNeg = ( val.info & ALU_REG_F__SIGN && v.b == val.last.b );
 	
 	if ( nNeg != vNeg )
 	{
-		if ( vNeg )
-		{
-			*bit = n.b;
-			*cmp = 1;
-			return 0;
-		}
-		else
-		{
-			*bit = n.b;
-			*cmp = -1;
-			return 0;
-		}
+		c = -1 + vNeg + vNeg;
+		goto done;
 	}
 	
-	ndiff = n.b - N->init.b;
-	vdiff = v.b - V->init.b;
+	ndiff = n.b - num.init.b;
+	vdiff = v.b - val.init.b;
 	
 	a = nNeg;
 	b = vNeg;
@@ -147,11 +126,7 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit )
 		
 		c = a - b;
 		if ( c != 0 )
-		{
-			*bit = n.b;
-			*cmp = c;
-			return 0;
-		}
+			goto done;
 		
 		vdiff--;
 		v = alu_bit_dec( v );
@@ -163,11 +138,7 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit )
 		
 		c = a - b;
 		if ( c != 0 )
-		{
-			*bit = n.b;
-			*cmp = c;
-			return 0;
-		}
+			goto done;
 		
 		ndiff--;
 		n = alu_bit_dec( n );
@@ -180,12 +151,8 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit )
 		
 		c = a - b;
 		if ( c != 0 )
-		{
-			*bit = n.b;
-			*cmp = c;
-			return 0;
-		}
-		
+			goto done;
+			
 		if ( !ndiff )
 			break;
 		
@@ -195,7 +162,10 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit )
 	}
 	while ( 1 );
 	
-	return 0;
+	done:
+	if ( bit )
+		*bit = ndiff;
+	return c;
 }
 
 int alu_size2reg( alu_t *alu, uint_t num, size_t val )
@@ -666,58 +636,56 @@ int alu_mul( alu_t *alu, uint_t num, uint_t val )
 	return carry ? EOVERFLOW : ret;
 }
 
+int alu_neg( alu_t *alu, uint_t num )
+{
+	int ret = alu_not( alu, num );
+	
+	if ( ret != 0 )
+		return ret;
+	
+	return alu_inc( alu, num );
+}
+
 int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 {
-	int ret = alu_check3( alu, num, val, rem ), cmp = 0;
-	alu_reg_t *N, *V, *R, TR, TV;
-	alu_bit_t n, v;
-	size_t bits = 0, bit;
+	int ret = alu_check3( alu, num, val, rem );
+	alu_reg_t *N, *V, *R, TR;
+	alu_bit_t n;
+	size_t bits = 0;
 	bool nNeg, vNeg;
 	
 	if ( ret != 0 )
 		return ret;
 		
 	N = alu->regv + num;
-	R = alu->regv + rem;
 	V = alu->regv + val;
+	R = alu->regv + rem;
 	
 	TR = *R;
-	TV = *V;
 	
 	nNeg = ((N->info & ALU_REG_F__SIGN) && (*(N->last.S) & N->last.B));
 	vNeg = ((V->info & ALU_REG_F__SIGN) && (*(V->last.S) & V->last.B));
 	
 	if ( nNeg )
-	{
-		alu_not( alu, num );
-		alu_inc( alu, num );
-	}
+		(void)alu_neg( alu, num );
 	
 	if ( vNeg )
-	{
-		alu_not( alu, val );
-		alu_inc( alu, val );
-	}
+		(void)alu_neg( alu, val );
 	
 	(void)alu_xor( alu, rem, rem );
 	(void)alu__or( alu, rem, num );
 	(void)alu_xor( alu, num, num );
 
-	(void)alu_end_bit( alu, rem, &(n) );
-	(void)alu_end_bit( alu, val, &(v) );
-	
-	R->upto = alu_bit_inc(n); R->last = n;
-	V->upto = alu_bit_inc(v); V->last = v;
+	n = alu_end_bit( *R );
 	
 	for (
-		R->init = n; R->init.b > TR.init.b;
-		++bits, R->init = alu_bit_dec(R->init)
+		; alu_compare( TR, *V, NULL ) >= 0
+		; ++bits, n = alu_bit_dec(n)
 	)
 	{
-		(void)alu_cmp( alu, rem, val, &cmp, &bit );
-		
-		if ( cmp >= 0 )
-		{			
+		R->init = n;
+		if ( alu_compare( *R, *V, NULL ) >= 0 )
+		{
 			ret = alu_sub( alu, rem, val );
 			
 			if ( ret == ENODATA )
@@ -726,42 +694,22 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 			(void)alu__shl( alu, num, bits );
 			*(N->init.S) |= N->init.B;
 			bits = 0;
-			ret = 0;
 		}
 	}
 	
-	if ( bits )
-	{
-		(void)alu_cmp( alu, rem, val, &cmp, &bit );
-		(void)alu__shl( alu, num, bits );
-		
-		if ( cmp >= 0 )
-		{
-			ret = alu_sub( alu, rem, val );
-			*(N->init.S) |= N->init.B;
-		}
-	}
+	/* Clear return value while we're at it */
+	ret = alu__shl( alu, num, bits + 1 );
 	
 	*R = TR;
-	*V = TV;
 	
 	if ( nNeg != vNeg )
-	{
-		if ( nNeg )
-		{
-			alu_dec( alu, num );
-			alu_not( alu, num );
-			
-			alu_dec( alu, rem );
-			alu_not( alu, rem );
-		}
-		
-		if ( vNeg )
-		{
-			alu_dec( alu, val );
-			alu_not( alu, val );
-		}
-	}
+		(void)alu_neg( alu, num );
+	
+	if ( nNeg )
+		(void)alu_neg( alu, rem );
+	
+	if ( vNeg )
+		(void)alu_neg( alu, val );
 	
 	return ret;
 }

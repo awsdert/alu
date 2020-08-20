@@ -71,7 +71,7 @@ run: build
 	./$(PRJ_DST_BIN)
 	
 debug: build
-	gdb ./$(PRJ_DST_BIN)
+	gdb -ex run ./$(PRJ_DST_BIN)
 
 build: objects $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 

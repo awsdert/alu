@@ -131,6 +131,27 @@ int alu_uint_cmp( alu_t *alu, alu_uint_t num, alu_uint_t val, int *cmp, size_t *
 	return ret;
 }
 
+int alu_uint_neg( alu_t *alu, alu_uint_t num )
+{
+	int ret = 0, _num = -1;
+	
+	ret = alu_uint_prep1( alu, num, &_num );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	(void)alu_mov( alu, _num, (uintptr_t)&num );
+	ret = alu_neg( alu, _num );
+	(void)alu_mov( alu, (uintptr_t)&num, _num );
+	
+	(void)alu_rem_reg( alu, _num );
+	
+	return ret;
+}
+
 int alu_uint_not( alu_t *alu, alu_uint_t num )
 {
 	int ret = 0, _num = -1;
