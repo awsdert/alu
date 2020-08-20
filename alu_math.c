@@ -674,9 +674,9 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 	if ( vNeg )
 		(void)alu_neg( alu, val );
 	
-	(void)alu_xor( alu, rem, rem );
+	(void)alu_zero( alu, rem );
 	(void)alu__or( alu, rem, num );
-	(void)alu_xor( alu, num, num );
+	(void)alu_zero( alu, num );
 
 	n = alu_end_bit( *R );
 	
@@ -699,8 +699,8 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 		}
 	}
 	
-	/* Clear return value while we're at it */
-	ret = alu__shl( alu, num, bits + 1 );
+	if ( R->init.b )
+		ret = alu__shl( alu, num, bits + 1 );
 	
 	*R = TR;
 	

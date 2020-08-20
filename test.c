@@ -922,9 +922,7 @@ int func_wrChar32( char32_t src, alu_block_t *dst )
 			return ret;
 	}
 	str = dst->block;
-	alu_printf( "str = '%s'", str );
 	str[dst->bytes.used] = src;
-	alu_printf( "str = '%s'", str );
 	dst->bytes.used++;
 	return 0;
 }
@@ -962,8 +960,6 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	src.bytes.last = size - 1;
 	src.bytes.used = strnlen( num, size - 1 );
 	
-	alu_printf( "num = '%s'", num );
-	
 	ret = alu_str2reg(
 		alu, &src, tmp,
 		(alu_func_rdChar32_t)func_rdChar32,
@@ -979,8 +975,6 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	
 	TMP = alu->regv + tmp;
 	T = TMP->part;
-	
-	alu_printf( "%zu", *T );
 	
 	(void)memset( &src, 0, sizeof(alu_block_t) );
 	ret = alu_block( &src, size, 0 );

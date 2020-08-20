@@ -193,6 +193,7 @@ void alu_print_reg( char *pfx, alu_reg_t reg, bool print_info )
 	}
 	
 	n = reg.upto;
+	fprintf( stderr, "%s = ", pfx );
 	if ( n.b == reg.init.b )
 	{
 		fputc( '0', stderr );
@@ -605,8 +606,6 @@ int alu_reg2str
 	{	
 		(void)alu_divide( alu, num, div, val );
 		ret = nextchar( base_str[*V], dst );
-		
-		alu_printf( "num = %zu", *N );
 		
 		if ( ret != 0 )
 		{
