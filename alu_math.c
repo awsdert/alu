@@ -514,7 +514,8 @@ int alu__shr( alu_t *alu, uint_t num, size_t by )
 int alu__shift( alu_t *alu, uint_t num, uint_t val, bool left )
 {
 	alu_reg_t *N;
-	int ret = alu_check2( alu, num, val ), tmp = -1, cmp;
+	uint_t tmp = -1;
+	int ret = alu_check2( alu, num, val ), cmp;
 	size_t by = 0, bit;
 	alu_uint_t bits = {0};
 	
@@ -592,7 +593,8 @@ int alu__shift( alu_t *alu, uint_t num, uint_t val, bool left )
 int alu_mul( alu_t *alu, uint_t num, uint_t val )
 {
 	bool carry = 0;
-	int ret = alu_check2( alu, num, val ), tmp = -1;
+	uint_t tmp = -1;
+	int ret = alu_check2( alu, num, val );
 	alu_reg_t *V;
 	alu_bit_t p, v, e;
 	
@@ -716,7 +718,8 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 
 int alu_div( alu_t *alu, uint_t num, uint_t val )
 {
-	int tmp = -1, ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
+	uint_t tmp = -1;
+	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -732,7 +735,8 @@ int alu_div( alu_t *alu, uint_t num, uint_t val )
 
 int alu_rem( alu_t *alu, uint_t num, uint_t val )
 {
-	int tmp = -1, ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
+	uint_t tmp = -1;
+	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	alu_reg_t *N, *T;
 	
 	if ( ret != 0 )
@@ -765,7 +769,8 @@ int alu__rol( alu_t *alu, uint_t num, size_t by )
 {
 	alu_reg_t *N, *T;
 	alu_bit_t n = {0}, v;
-	int ret = alu_check1( alu, num ), tmp = -1;
+	int ret = alu_check1( alu, num );
+	uint_t tmp = -1;
 	
 	if ( ret != 0 )
 	{
@@ -827,7 +832,8 @@ int alu__ror( alu_t *alu, uint_t num, size_t by )
 {
 	alu_reg_t *N, *T;
 	alu_bit_t n = {0}, v, e;
-	int ret = alu_check1( alu, num ), tmp = -1;
+	int ret = alu_check1( alu, num );
+	uint_t tmp = -1;
 	
 	if ( ret != 0 )
 	{
@@ -888,7 +894,8 @@ int alu__ror( alu_t *alu, uint_t num, size_t by )
 int alu__rotate( alu_t *alu, uint_t num, uint_t val, bool left )
 {
 	alu_reg_t *N;
-	int ret = alu_check2( alu, num, val ), tmp = -1, cmp;
+	int ret = alu_check2( alu, num, val ), cmp;
+	uint_t tmp = -1;
 	size_t by = 0, bit;
 	alu_uint_t bits = {0};
 	

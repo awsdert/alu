@@ -158,12 +158,15 @@ int alu_check1( alu_t *alu, uint_t num );
 int alu_check2( alu_t *alu, uint_t num, uint_t val );
 int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem );
 
-typedef int (*alu_func_nextchar_t)( char32_t *dst, void *src, size_t *nextpos );
+typedef int (*alu_func_rdChar32_t)
+	( char32_t *dst, void *src, long *nextpos );
+typedef int (*alu_func_wrChar32_t)( char32_t src, void *dst );
+typedef void (*alu_func_flipstr_t)( void *dst );
 
-int alu_setup_reg( alu_t *alu, int want, size_t perN );
+int alu_setup_reg( alu_t *alu, uint_t want, size_t perN );
 int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions );
 void alu_print_reg( char *pfx, alu_reg_t reg, bool print_info );
-int alu_get_reg( alu_t *alu, int *reg, size_t need );
+int alu_get_reg( alu_t *alu, uint_t *reg, size_t need );
 int alu_rem_reg( alu_t *alu, uint_t reg );
 
 # define ALU_BASE_STR_0to9 "0123456789"
@@ -174,12 +177,35 @@ int alu_rem_reg( alu_t *alu, uint_t reg );
 # define ALU_BASE_STR_0toztoZ \
 	ALU_BASE_STR_0to9 ALU_BASE_STR_atoz ALU_BASE_STR_AtoZ
 
+int alu_str2reg
+(
+	alu_t *alu,
+	void *src,
+	uint_t dst,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
+	size_t base,
+	bool lowercase
+);
+
+int alu_reg2str
+(
+	alu_t *alu,
+	void *dst,
+	uint_t src,
+	alu_func_wrChar32_t nextchar,
+	alu_func_flipstr_t flipstr,
+	size_t base,
+	bool lowercase
+);
+
 int alu_str2uint
 (
 	alu_t *alu,
-	void *val,
-	alu_func_nextchar_t nextchar,
-	size_t *nextpos,
+	void *src,
+	alu_uint_t *dst,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
 	size_t base,
 	bool lowercase
 );
@@ -187,9 +213,10 @@ int alu_str2uint
 int alu_str2int
 (
 	alu_t *alu,
-	void *val,
-	alu_func_nextchar_t nextchar,
-	size_t *nextpos,
+	void *src,
+	alu_int_t *dst,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
 	size_t base,
 	bool lowercase
 );
@@ -198,7 +225,8 @@ int alu_str2fpn
 (
 	alu_t *alu,
 	void *val,
-	alu_func_nextchar_t nextchar,
+	alu_fpn_t *dst,
+	alu_func_rdChar32_t nextchar,
 	size_t *nextpos,
 	size_t base,
 	bool lowercase

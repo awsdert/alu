@@ -4,7 +4,8 @@
 
 int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val )
 {
-	int ret = 0, tmp = -1;
+	uint_t tmp = -1;
+	int ret = 0;
 	alu_reg_t *REG = NULL;
 	alu_vec_t *NUM = NULL, *VAL = NULL;
 	size_t size = 0;
@@ -240,7 +241,7 @@ int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions )
 	return 0;
 }
 
-int alu_setup_reg( alu_t *alu, int want, size_t perN )
+int alu_setup_reg( alu_t *alu, uint_t want, size_t perN )
 {
 	int ret;
 	uint_t i;
@@ -308,7 +309,7 @@ int alu_setup_reg( alu_t *alu, int want, size_t perN )
 	return 0;
 }
 
-int alu_get_reg( alu_t *alu, int *reg, size_t size )
+int alu_get_reg( alu_t *alu, uint_t *reg, size_t size )
 {
 	int ret, count = 0, r = count;
 	size_t perN;
@@ -415,62 +416,80 @@ int alu_set_constants( alu_t *alu )
 }
 
 
-int alu_str2int
+int alu_str2reg
 (
 	alu_t *alu,
-	void *val,
-	alu_func_nextchar_t nextchar,
-	size_t *nextpos,
+	void *src,
+	uint_t dst,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
 	size_t base,
 	bool lowercase
 )
 {
 	size_t b, perN;
-	alu_reg_t *N, *M, *V;
-	int ret = 0, r, n[3] = {-1};
-	char32_t c = 0;
+	alu_reg_t *MUL, *VAL, *DST;
+	alu_bit_t n;
+	int ret;
+	uint_t mul = -1, val = -1;
+	char32_t *V, c = 0;
 	char *base_str = lowercase ?
 		ALU_BASE_STR_0toztoZ :
 		ALU_BASE_STR_0toZtoz;
-	uchar_t *D, *S;
 	
-	if ( !alu || !nextpos )
+	if ( !nextpos )
 		return EDESTADDRREQ;
+	
+	if ( *nextpos < 0 )
+		*nextpos = 0;
+	
+	ret = alu_check1( alu, dst );
+	
+	if ( ret != 0 )
+		return ret;
 	
 	if ( !val || !nextchar )
 		return EADDRNOTAVAIL;
 	
 	if ( base < 2 || base > strlen(base_str) )
 		return ERANGE;
+		
+		
+	ret = alu_get_reg( alu, &val, sizeof(size_t) );
+		
+	if ( ret != 0 )
+		return ret;
 	
-	/* Clear counts */
-	alu->buff.mem.bytes.used = 0;
-	alu->buff.qty.used = 0;
+	ret = alu_get_reg( alu, &mul, sizeof(size_t) );
 		
-	/* Ensure we have enough registers for our own referencing */
-	for ( r = 0; r < 3; ++r )
+	if ( ret != 0 )
 	{
-		ret = alu_get_reg( alu, n + r, sizeof(size_t) );
-		
-		if ( ret != 0 )
-			return ret;
+		alu_rem_reg( alu, val );
+		return ret;
 	}
 	
 	/* Hook registers */
-	M = alu->regv + n[0];
-	V = alu->regv + n[1];
-	N = alu->regv + n[2];
+	MUL = alu->regv + mul;
+	VAL = alu->regv + val;
+	DST = alu->regv + dst;
 
 	/* Clear all registers in direct use */
 	perN = alu->buff.perN;
 	
-	*((uchar_t*)M->part) = *((uchar_t*)&base);
-	D = V->part;
-	S = (uchar_t*)(&c);
+	V = MUL->part;
+	*V = base;
+	
+	V = VAL->part;
+	n = DST->last;
+	
+	alu_reset_reg( alu, dst, false );
+	memset( DST->part, 0, alu->buff.perN );
 
 	do
 	{	
-		ret = nextchar( &c, val, nextpos );
+		/* Failsafe if failed to get character but return code is 0 */
+		c = -1;
+		ret = nextchar( &c, src, nextpos );
 		
 		if ( ret != 0 && ret != EOF )
 			return ret;
@@ -486,7 +505,7 @@ int alu_str2int
 		
 		++(*nextpos);
 		
-		if ( *(N->last.S) & SIZE_END_BIT )
+		if ( *(n.S) & n.B )
 		{
 			ret = alu_setup_reg(
 				alu, alu->buff.qty.upto, perN + sizeof(size_t)
@@ -494,21 +513,111 @@ int alu_str2int
 			
 			if ( ret != 0 )
 				return ret;
+				
+			(void)alu_reset_reg( alu, dst, false );
 			
 			perN = alu->buff.perN;
-			D = V->part;
+			V = VAL->part;
+			n = DST->last;
 		}
 		
-		*D = *S;
+		*V = c;
 		
-		ret = alu_mul( alu, n[2], n[0] );
-		
-		if ( ret != 0 )
-			break;
-		
-		ret = alu_add( alu, n[2], n[1] );
+		(void)alu_mul( alu, dst, mul );
+		(void)alu_add( alu, dst, val );
 	}
 	while ( ret == 0 );
+	
+	alu_rem_reg( alu, mul );
+	alu_rem_reg( alu, val );
+	
+	return 0;
+}
+
+int alu_reg2str
+(
+	alu_t *alu,
+	void *dst,
+	uint_t src,
+	alu_func_wrChar32_t nextchar,
+	alu_func_flipstr_t flipstr,
+	size_t base,
+	bool lowercase
+)
+{
+	alu_reg_t *DIV, *VAL, *NUM;
+	int ret;
+	uint_t num = -1, div = -1, val = -1;
+	char32_t *V;
+	char *base_str = lowercase ?
+		ALU_BASE_STR_0toztoZ :
+		ALU_BASE_STR_0toZtoz;
+		
+	ret = alu_check1( alu, src );
+	
+	if ( ret != 0 )
+		return ret;
+	
+	if ( !val || !nextchar || !flipstr )
+		return EADDRNOTAVAIL;
+	
+	if ( base < 2 || base > strlen(base_str) )
+		return ERANGE;
+	
+	ret = alu_get_reg( alu, &num, sizeof(size_t) );
+		
+	if ( ret != 0 )
+		return ret;
+		
+	ret = alu_get_reg( alu, &val, sizeof(size_t) );
+		
+	if ( ret != 0 )
+	{
+		(void)alu_rem_reg( alu, num );
+		return ret;
+	}
+	
+	ret = alu_get_reg( alu, &div, sizeof(size_t) );
+		
+	if ( ret != 0 )
+	{
+		(void)alu_rem_reg( alu, num );
+		(void)alu_rem_reg( alu, val );
+		return ret;
+	}
+	
+	/* Hook registers */
+	DIV = alu->regv + div;
+	VAL = alu->regv + val;
+	NUM = alu->regv + num;
+	
+	(void)alu_mov( alu, num, src );
+	
+	V = DIV->part;
+	*V = base;
+	
+	V = VAL->part;
+
+	do
+	{	
+		(void)alu_divide( alu, num, div, val );
+		ret = nextchar( base_str[*V], dst );
+		
+		if ( ret != 0 )
+			return ret;
+	}
+	while ( alu_compare( *NUM, *DIV, NULL ) >= 0 );
+	
+	alu_rem_reg( alu, num );
+	alu_rem_reg( alu, div );
+	alu_rem_reg( alu, val );
+	
+	ret = nextchar( 0, dst );
+		
+	if ( ret != 0 )
+		return ret;
+	
+	flipstr( dst );
 	
 	return 0;
 }

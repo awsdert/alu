@@ -1,7 +1,8 @@
 #include "alu.h"
 int alu_uint_prep1( alu_t *alu, alu_uint_t num, int *reg )
 {
-	int ret = 0, _reg = -1;
+	int ret = 0;
+	uint_t _reg = -1;
 	size_t size = num.mem.bytes.upto;
 	alu_reg_t *REG;
 	

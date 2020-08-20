@@ -95,7 +95,8 @@ int reg_compare(
 	size_t _num, size_t _val
 )
 {
-	int ret = 0, num = -1, val = -1, cmp = 0, expect = 0;
+	int ret = 0, cmp = 0, expect = 0;
+	uint_t num = -1, val = -1;
 	alu_reg_t *NUM, *VAL;
 	size_t *N, *V, bit = 0;
 	
@@ -152,7 +153,8 @@ int reg_compare(
 
 int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
 {
-	int ret = 0, num = -1, val = -1;
+	int ret = 0;
+	uint_t num = -1, val = -1;
 	alu_reg_t *NUM, *VAL;
 	size_t *N, *V, expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
@@ -886,6 +888,108 @@ int mathmatical( alu_t *alu, bool doInc, bool doDec )
 	return ret;
 }
 
+int func_rdChar32( char32_t *dst, alu_block_t *src, long *nextpos )
+{
+	char *str = src->block;
+	if ( (size_t)(*nextpos) < src->bytes.used )
+	{
+		*dst = str[*nextpos];
+		return 0;
+	}
+	
+	*dst = 0;
+	return EOF;
+}
+
+int func_wrChar32( char32_t src, alu_block_t *dst )
+{
+	int ret;
+	char *str;
+	if ( dst->bytes.used >= dst->bytes.last )
+	{
+		ret = alu_block_expand( dst, dst->bytes.used + 50 );
+		if ( ret != 0 )
+			return ret;
+	}
+	str = dst->block;
+	alu_printf( "str = '%s'", str );
+	str[dst->bytes.used] = src;
+	alu_printf( "str = '%s'", str );
+	dst->bytes.used++;
+	return 0;
+}
+
+void func_flipstr( alu_block_t *dst )
+{
+	char *str = dst->block, c;
+	size_t n, v;
+	
+	for ( n = 0, v = dst->bytes.used; n < v; ++n, --v )
+	{
+		c = str[n];
+		str[n] = str[v];
+		str[v] = c;
+	}
+}
+
+int print_value( alu_t *alu, char *num, size_t size, size_t base )
+{
+	uint_t tmp = -1;
+	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
+	alu_block_t src = {0};
+	long nextpos = 0;
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	src.block = num;
+	src.bytes.upto = size;
+	src.bytes.last = size - 1;
+	src.bytes.used = strnlen( num, size - 1 );
+	
+	alu_printf( "num = '%s'", num );
+	
+	ret = alu_str2reg(
+		alu, &src, tmp,
+		(alu_func_rdChar32_t)func_rdChar32,
+		&nextpos,
+		base, false
+	);
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	(void)memset( &src, 0, sizeof(alu_block_t) );
+	ret = alu_block( &src, size, 0 );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	ret = alu_reg2str(
+		alu, &src, tmp,
+		(alu_func_wrChar32_t)func_wrChar32,
+		(alu_func_flipstr_t)func_flipstr,
+		base, false
+	);
+	
+	if ( ret != 0 )
+		alu_error(ret);
+	
+	(void)alu_printf( "alu = '%s'", (char*)(src.block) );
+	alu_block_release( &src );
+	
+	return ret;
+}
+
 int main()
 {
 	int ret = 0;
@@ -900,6 +1004,8 @@ int main()
 
 	alu_puts( "Pre-allocating 16 ALU registers..." );
 	alu_setup_reg( &alu, 16, sizeof(size_t) );
+	
+	print_value( &alu, "123", 4, 10 );
 
 	compare( &alu );
 	bitwise( &alu, true, true );
