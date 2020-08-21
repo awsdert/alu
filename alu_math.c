@@ -699,8 +699,9 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 		}
 	}
 	
+	ret = 0;
 	if ( R->init.b )
-		ret = alu__shl( alu, num, bits + 1 );
+		(void)alu__shl( alu, num, bits + 1 );
 	
 	*R = TR;
 	

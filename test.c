@@ -945,9 +945,9 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	uint_t tmp = -1;
 	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	alu_block_t src = {0};
-	alu_reg_t *TMP;
-	size_t *T;
 	long nextpos = 0;
+	bool lowercase = false, noSign = false, noPfx = false;
+	char32_t digitSeparator = '\'';
 	
 	if ( ret != 0 )
 	{
@@ -961,10 +961,10 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	src.bytes.used = strnlen( num, size - 1 );
 	
 	ret = alu_str2reg(
-		alu, &src, tmp,
+		alu, &src, tmp, digitSeparator,
 		(alu_func_rdChar32_t)func_rdChar32,
 		&nextpos,
-		base, false
+		base, lowercase, noPfx, noSign
 	);
 	
 	if ( ret != 0 )
@@ -972,9 +972,6 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 		alu_error(ret);
 		return ret;
 	}
-	
-	TMP = alu->regv + tmp;
-	T = TMP->part;
 	
 	(void)memset( &src, 0, sizeof(alu_block_t) );
 	ret = alu_block( &src, size, 0 );
@@ -987,16 +984,20 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 	}
 	
 	ret = alu_reg2str(
-		alu, &src, tmp,
+		alu, &src, tmp, digitSeparator,
 		(alu_func_wrChar32_t)func_wrChar32,
 		(alu_func_flipstr_t)func_flipstr,
-		base, false
+		4, lowercase, noPfx, noSign
 	);
 	
 	if ( ret != 0 )
 		alu_error(ret);
 	
-	(void)alu_printf( "alu = '%s'", (char*)(src.block) );
+	if ( strcmp( num, (char*)(src.block) ) != 0 )
+		(void)alu_printf(
+			"Expected = '%s', Got = '%s'",
+			num, (char*)(src.block)
+		);
 	alu_block_release( &src );
 	alu_rem_reg( alu, tmp );
 	

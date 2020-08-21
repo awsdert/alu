@@ -182,10 +182,13 @@ int alu_str2reg
 	alu_t *alu,
 	void *src,
 	uint_t dst,
+	char32_t digitSeparator,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 );
 
 int alu_reg2str
@@ -193,10 +196,13 @@ int alu_reg2str
 	alu_t *alu,
 	void *dst,
 	uint_t src,
+	char32_t digitSeparator,
 	alu_func_wrChar32_t nextchar,
 	alu_func_flipstr_t flipstr,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 );
 
 int alu_str2uint

@@ -422,10 +422,13 @@ int alu_str2reg
 	alu_t *alu,
 	void *src,
 	uint_t dst,
+	char32_t digitSeparator,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 )
 {
 	size_t b, perN;
@@ -433,10 +436,12 @@ int alu_str2reg
 	alu_bit_t n;
 	int ret;
 	uint_t mul = -1, val = -1;
-	char32_t *V, c = 0;
-	char *base_str = lowercase ?
-		ALU_BASE_STR_0toztoZ :
-		ALU_BASE_STR_0toZtoz;
+	char32_t *V, c = -1;
+	bool neg = 0;
+	char
+		*base_upper = ALU_BASE_STR_0toZtoz "+-",
+		*base_lower = ALU_BASE_STR_0toztoZ "+-",
+		*base_str = lowercase ? base_lower : base_upper;
 	
 	if ( !nextpos )
 		return EDESTADDRREQ;
@@ -452,9 +457,69 @@ int alu_str2reg
 	if ( !val || !nextchar )
 		return EADDRNOTAVAIL;
 	
-	if ( base < 2 || base > strlen(base_str) )
-		return ERANGE;
+	switch ( digitSeparator )
+	{
+	case 0: case '\'': case '_': case ',': break;
+	default: return EINVAL;
+	}
 		
+	ret = nextchar( &c, src, nextpos );
+	if ( ret != 0 )
+		return ret;
+	
+	if ( c == '-' || c == '+' )
+	{
+		if ( noSign )
+			return EINVAL;
+		if ( c == '-' )
+			neg = true;
+		++(*nextpos);
+	}
+	
+	if ( !base )
+	{
+		if ( noPfx )
+			return ERANGE;
+		
+		ret = nextchar( &c, src, nextpos );
+		if ( ret != 0 )
+			return ret;
+			
+		if ( c > '0' && c <= '9' )
+		{
+			base = 10;
+			++(*nextpos);
+		}
+		else if ( c != '0' )
+			return EINVAL;
+		else
+		{
+			++(*nextpos);
+			
+			ret = nextchar( &c, src, nextpos );
+			if ( ret != 0 )
+				return ret;
+			
+			if ( c >= '0' && c <= '7' )
+			{
+				++(*nextpos);
+				base = 8;
+			}
+			else
+			{
+				switch ( c )
+				{
+				case 'b': case 'B': ++(*nextpos); base = 2; break;
+				case 'o': case 'O': ++(*nextpos); base = 8; break;
+				case 'x': case 'X': ++(*nextpos); base = 16; break;
+				default: return EINVAL;
+				}
+			}
+		}
+	}
+	
+	if ( base > strlen(base_str) )
+		return ERANGE;
 		
 	ret = alu_get_reg( alu, &val, sizeof(size_t) );
 		
@@ -495,14 +560,38 @@ int alu_str2reg
 		if ( ret != 0 && ret != EOF )
 			return ret;
 		
-		for ( b = 0; b < base; ++b )
+		if ( base > 36 )
 		{
-			if ( c == (char32_t)(base_str[b]) )
-				break;
+			for ( b = 0; b < base; ++b )
+			{
+				if ( c == (char32_t)(base_str[b]) )
+					break;
+			}
+		}
+		else
+		{
+			for ( b = 0; b < base; ++b )
+			{
+				if ( c == (char32_t)(base_upper[b]) )
+					break;
+			}
+			
+			for ( b = 0; b < base; ++b )
+			{
+				if ( c == (char32_t)(base_lower[b]) )
+					break;
+			}
 		}
 		
 		if ( b == base )
+		{
+			if ( c == digitSeparator )
+			{
+				++(*nextpos);
+				continue;
+			}
 			break;
+		}
 		
 		++(*nextpos);
 		
@@ -532,6 +621,9 @@ int alu_str2reg
 	alu_rem_reg( alu, mul );
 	alu_rem_reg( alu, val );
 	
+	if ( neg )
+		alu_neg( alu, dst );
+	
 	return 0;
 }
 
@@ -540,16 +632,20 @@ int alu_reg2str
 	alu_t *alu,
 	void *dst,
 	uint_t src,
+	char32_t digitSeparator,
 	alu_func_wrChar32_t nextchar,
 	alu_func_flipstr_t flipstr,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 )
 {
-	alu_reg_t *DIV, *VAL, *NUM;
+	alu_reg_t *DIV, *VAL, *NUM, *SRC;
 	int ret;
 	uint_t num = -1, div = -1, val = -1;
-	size_t *V, *N;
+	size_t *V, *N, digit = 0;
+	bool neg = false;
 	char *base_str = lowercase ?
 		ALU_BASE_STR_0toztoZ :
 		ALU_BASE_STR_0toZtoz;
@@ -559,10 +655,22 @@ int alu_reg2str
 	if ( ret != 0 )
 		return ret;
 	
+	SRC = alu->regv + src;
+	neg = (
+		(SRC->info & ALU_REG_F__SIGN)
+		&& (*(SRC->last.S) & SRC->last.B)
+	);
+	
+	if ( neg && noSign )
+		return EINVAL;
+	
 	if ( !val || !nextchar || !flipstr )
 		return EADDRNOTAVAIL;
+		
+	if ( !base )
+		base = 10;
 	
-	if ( base < 2 || base > strlen(base_str) )
+	if ( base > strlen(base_str) )
 		return ERANGE;
 	
 	ret = alu_get_reg( alu, &num, sizeof(size_t) );
@@ -597,14 +705,45 @@ int alu_reg2str
 	V = DIV->part;
 	*V = base;
 	
+	if ( neg )
+		(void)alu_neg( alu, num );
+	
 	N = NUM->part;
 	V = VAL->part;
 	
-	//alu_printf( "num = %zu", *N );
+	if ( !noPfx )
+	{
+		switch ( base )
+		{
+		case 2: case 8: case 10: case 16: break;
+		default:
+			ret = nextchar( ')', dst );
+			if ( ret != 0 )
+				return ret;
+		}
+	}
 
 	do
-	{	
+	{
 		(void)alu_divide( alu, num, div, val );
+		
+		if ( digit == 3 )
+		{
+			switch ( digitSeparator )
+			{
+			case '\'': case '_': case ',':
+				ret = nextchar( base_str[*V], dst );
+				if ( ret != 0 )
+				{
+					alu_rem_reg( alu, num );
+					alu_rem_reg( alu, div );
+					alu_rem_reg( alu, val );
+					return ret;
+				}
+			}
+			digit = 0;
+		}
+		
 		ret = nextchar( base_str[*V], dst );
 		
 		if ( ret != 0 )
@@ -614,6 +753,8 @@ int alu_reg2str
 			alu_rem_reg( alu, val );
 			return ret;
 		}
+		
+		++digit;
 	}
 	while ( alu_compare( *NUM, *DIV, NULL ) >= 0 );
 	
@@ -625,8 +766,71 @@ int alu_reg2str
 	
 	if ( ret != 0 )
 		return ret;
+		
+	if ( !noPfx && base != 10 )
+	{
+		if ( base == 2 )
+		{
+			ret = nextchar( 'b', dst );
+			if ( ret != 0 )
+				return ret;
+			
+			ret = nextchar( '0', dst );
+			if ( ret != 0 )
+				return ret;
+		}
+		else if ( base == 8 )
+		{
+			ret = nextchar( 'o', dst );
+			if ( ret != 0 )
+				return ret;
+			
+			ret = nextchar( '0', dst );
+			if ( ret != 0 )
+				return ret;
+		}
+		else if ( base == 16 )
+		{
+			ret = nextchar( 'x', dst );
+			if ( ret != 0 )
+				return ret;
+			
+			ret = nextchar( '0', dst );
+			if ( ret != 0 )
+				return ret;
+		}
+		else
+		{
+			ret = nextchar( '(', dst );
+			if ( ret != 0 )
+				return ret;
+			
+			while ( base > 10 )
+			{
+				ret = nextchar( base_str[base%10], dst );
+				if ( ret != 0 )
+					return ret;
+				base /= 10;
+			}
+			
+			ret = nextchar( base_str[base], dst );
+			if ( ret != 0 )
+				return ret;
+			
+			ret = nextchar( '~', dst );
+			if ( ret != 0 )
+				return ret;
+			
+			ret = nextchar( '0', dst );
+			if ( ret != 0 )
+				return ret;
+		}
+	}
+	
+	if ( neg )
+		ret = nextchar( '-', dst );
 	
 	flipstr( dst );
 	
-	return 0;
+	return ret;
 }
