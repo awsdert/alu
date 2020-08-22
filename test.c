@@ -10,7 +10,12 @@
 # define rol( NUM, BITS ) rotate( NUM, BITS, <<, >> )
 # define ror( NUM, BITS ) rotate( NUM, BITS, >>, << )
 
-int uint_compare( alu_t *alu, size_t _num, size_t _val )
+int uint_compare(
+	alu_t *alu,
+	size_t _num,
+	size_t _val,
+	bool print_anyways
+)
 {
 	int ret = 0, cmp = 0, expect = 0;
 	size_t N = _num, V = _val, bit = 0;
@@ -39,7 +44,7 @@ int uint_compare( alu_t *alu, size_t _num, size_t _val )
 		return ret;
 	}
 	
-	if ( expect != cmp )
+	if ( expect != cmp || print_anyways )
 	{
 		alu_printf(
 			"%zu vs %zu Expected %i, Got %i\n",
@@ -50,7 +55,12 @@ int uint_compare( alu_t *alu, size_t _num, size_t _val )
 	return ret;
 }
 
-int int_compare( alu_t *alu, ssize_t _num, ssize_t _val )
+int int_compare(
+	alu_t *alu,
+	ssize_t _num,
+	ssize_t _val,
+	bool print_anyways
+)
 {
 	int ret = 0, cmp = 0, expect = 0;
 	size_t N = _num, V = _val, bit = 0;
@@ -79,7 +89,7 @@ int int_compare( alu_t *alu, ssize_t _num, ssize_t _val )
 		return ret;
 	}
 	
-	if ( expect != cmp )
+	if ( expect != cmp || print_anyways )
 	{
 		alu_printf(
 			"%zi vs %zi Expected %i, Got %i\n",
@@ -92,7 +102,9 @@ int int_compare( alu_t *alu, ssize_t _num, ssize_t _val )
 
 int reg_compare(
 	alu_t *alu,
-	size_t _num, size_t _val
+	size_t _num,
+	size_t _val,
+	bool print_anyways
 )
 {
 	int ret = 0, cmp = 0, expect = 0;
@@ -140,7 +152,7 @@ int reg_compare(
 	}
 	
 	
-	if ( expect != cmp )
+	if ( expect != cmp || print_anyways )
 	{
 		alu_printf(
 			"0x%016zX vs 0x%016zX Expected %i, Got %i, Bit = %zu\n",
@@ -151,7 +163,13 @@ int reg_compare(
 	return ret;
 }
 
-int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
+int reg_modify(
+	alu_t *alu,
+	size_t _num,
+	size_t _val,
+	int op,
+	bool print_anyways
+)
 {
 	int ret = 0;
 	uint_t num = -1, val = -1;
@@ -300,14 +318,14 @@ int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
 		return ret;
 	}
 
-	if ( expect != *N )
+	if ( expect != *N || print_anyways )
 	{
 		alu_printf(
 			"%s, Expected 0x%016zX, Got 0x%016zX, op = '%c'\n",
 			pfx, expect, *N, op
 		);
 
-#if 1
+#if 0
 		alu_print_reg( "num#1", *NUM, 0 );
 		(void)memset( N, 0, alu->buff.perN );
 		*N = expect;
@@ -321,7 +339,13 @@ int reg_modify( alu_t *alu, size_t _num, size_t _val, int op )
 	return 0;
 }
 
-int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
+int uint_modify(
+	alu_t *alu,
+	size_t _num,
+	size_t _val,
+	int op,
+	bool print_anyways
+)
 {
 	int ret = 0;
 	size_t N = _num, V = _val, expect = 0;
@@ -436,7 +460,7 @@ int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
 		return ret;
 	}
 
-	if ( expect != N )
+	if ( expect != N || print_anyways )
 	{
 		alu_printf(
 			"%s, Expected %zu, Got %zu, op = '%c'\n",
@@ -447,7 +471,13 @@ int uint_modify( alu_t *alu, size_t _num, size_t _val, int op )
 	return 0;
 }
 
-int int_modify( alu_t *alu, ssize_t _num, ssize_t _val, int op )
+int int_modify(
+	alu_t *alu,
+	ssize_t _num,
+	ssize_t _val,
+	int op,
+	bool print_anyways
+)
 {
 	int ret = 0;
 	ssize_t expect = _num;
@@ -562,7 +592,7 @@ int int_modify( alu_t *alu, ssize_t _num, ssize_t _val, int op )
 		return ret;
 	}
 
-	if ( expect != *((ssize_t*)(&N)) )
+	if ( expect != *((ssize_t*)(&N)) || print_anyways )
 	{
 		alu_printf(
 			"%s, Expected %zi, Got %zi, op = '%c'\n",
@@ -685,94 +715,105 @@ void print_limits()
 	alu_puts( "===========================================" );
 }
 
-int compare( alu_t *alu )
+int compare( alu_t *alu, bool print_anyways )
 {
 	int ret = 0;
 	(void)alu_puts( "Comparing values..." );
 	(void)alu_puts( "===========================================" );
 
-	ret = reg_compare( alu, 2, 1 );
+	ret = reg_compare( alu, 2, 1, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = reg_compare( alu, 1, 1 );
+	ret = reg_compare( alu, 1, 1, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = reg_compare( alu, 0, 1 );
+	ret = reg_compare( alu, 0, 1, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = uint_compare( alu, 2, 1 );
+	ret = uint_compare( alu, 2, 1, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = uint_compare( alu, 1, 1 );
+	ret = uint_compare( alu, 1, 1, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = uint_compare( alu, 0, 1 );
+	ret = uint_compare( alu, 0, 1, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = int_compare( alu, 1, 0 );
+	ret = int_compare( alu, 1, 0, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = int_compare( alu, 0, 0 );
+	ret = int_compare( alu, 0, 0, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	return int_compare( alu, -1, 0 );
+	return int_compare( alu, -1, 0, print_anyways );
 }
 
-int modify( alu_t *alu, ssize_t _num, ssize_t _val, int op )
+int modify(
+	alu_t *alu,
+	ssize_t _num,
+	ssize_t _val,
+	int op,
+	bool print_anyways
+)
 {
 	int ret = 0;
-	ret = reg_modify( alu, _num, _val, op );
+	ret = reg_modify( alu, _num, _val, op, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = uint_modify( alu, _num, _val, op );
+	ret = uint_modify( alu, _num, _val, op, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = int_modify( alu, _num, _val, op );
+	ret = int_modify( alu, _num, _val, op, print_anyways );
 	return ret;
 }
 
-int bitwise( alu_t *alu, bool doShift, bool doRotate )
+int bitwise(
+	alu_t *alu,
+	bool doShift,
+	bool doRotate,
+	bool print_anyways
+)
 {
 	int ret = 0;
 	alu_puts( "Checking bitwise operations..." );
 	alu_puts( "===========================================" );
 	
-	ret = modify( alu, 0xDEADC0DE, 0, '~' );
+	ret = modify( alu, 0xDEADC0DE, 0, '~', print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 	
-	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '&' );
+	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '&', print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 	
-	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '|' );
+	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '|', print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 	
-	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '^' );
+	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '^', print_anyways );
 	
 	if ( doShift )
 	{
@@ -781,12 +822,12 @@ int bitwise( alu_t *alu, bool doShift, bool doRotate )
 		
 		alu_puts( "Shifting values..." );
 		
-		ret = modify( alu, 0xDEADC0DELL, 4, '<' );
+		ret = modify( alu, 0xDEADC0DELL, 4, '<', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 		
-		ret = modify( alu, -0xDEADC0DELL, 4, '>' );
+		ret = modify( alu, -0xDEADC0DELL, 4, '>', print_anyways );
 	}
 	
 	if ( doRotate )
@@ -796,103 +837,108 @@ int bitwise( alu_t *alu, bool doShift, bool doRotate )
 		
 		alu_puts( "Rotating values..." );
 			
-		ret = modify( alu, 0xDEADC0DE, 4, 'l' );
+		ret = modify( alu, 0xDEADC0DE, 4, 'l', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 		
-		ret = modify( alu, 0xDEADC0DE, 4, 'r' );
+		ret = modify( alu, 0xDEADC0DE, 4, 'r', print_anyways );
 	
 	}
 	
 	return ret;
 }
 
-int mathmatical( alu_t *alu, bool doInc, bool doDec )
+int mathmatical(
+	alu_t *alu,
+	bool doInc,
+	bool doDec,
+	bool print_anyways
+)
 {
 	int ret = 0;
 	alu_puts( "Mathematics values..." );
 	
 	if ( doInc )
 	{
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'i' );
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'i', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 		
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '+' );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '*' );
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '+', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '*' );
+		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '*', print_anyways );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '*', print_anyways );
 	}
 	
 	if ( doDec )
 	{
 		if ( ret != 0 )
 			return ret;
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'd' );
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'd', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 		
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '-' );
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '-', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 		
-		ret = modify( alu, 0xDEADC0DE, 0, '/' );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, 0xDEADC0DE, 0, '%' );
+		ret = modify( alu, 0xDEADC0DE, 0, '/', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, 12, 10, '/' );
+		ret = modify( alu, 0xDEADC0DE, 0, '%', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, 12, 10, '%' );
+		ret = modify( alu, 12, 10, '/', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '/' );
+		ret = modify( alu, 12, 10, '%', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '%' );
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '/', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '/' );
+		ret = modify( alu, 0xDEADC0DE, 0xBAD, '%', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '%' );
+		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '/', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '/' );
+		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '%', print_anyways );
 		
 		if ( ret != 0 )
 			return ret;
 			
-		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '%' );
+		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '/', print_anyways );
+		
+		if ( ret != 0 )
+			return ret;
+			
+		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '%', print_anyways );
 	}
 	
 	return ret;
@@ -940,14 +986,21 @@ void func_flipstr( alu_block_t *dst )
 	}
 }
 
-int print_value( alu_t *alu, char *num, size_t size, size_t base )
+int reg_print_value(
+	alu_t *alu,
+	alu_block_t _src,
+	alu_block_t *_dst,
+	char digsep,
+	size_t base,
+	bool lowercase,
+	bool print_anyways
+)
 {
 	uint_t tmp = -1;
 	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
-	alu_block_t src = {0};
+	char *src = _src.block, *dst = NULL;
 	long nextpos = 0;
-	bool lowercase = false, noSign = false, noPfx = false;
-	char32_t digitSeparator = '\'';
+	bool noSign = false, noPfx = false;
 	
 	if ( ret != 0 )
 	{
@@ -955,13 +1008,67 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 		return ret;
 	}
 	
-	src.block = num;
-	src.bytes.upto = size;
-	src.bytes.last = size - 1;
-	src.bytes.used = strnlen( num, size - 1 );
-	
 	ret = alu_str2reg(
-		alu, &src, tmp, digitSeparator,
+		alu, &_src, tmp, digsep,
+		(alu_func_rdChar32_t)func_rdChar32,
+		&nextpos,
+		base, lowercase, noPfx, noSign
+	);
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		goto fail;
+	}
+	
+	(void)memset( _dst->block, 0, _dst->bytes.upto );
+	ret = alu_reg2str(
+		alu, _dst, tmp, digsep,
+		(alu_func_wrChar32_t)func_wrChar32,
+		(alu_func_flipstr_t)func_flipstr,
+		base, lowercase, noPfx, noSign
+	);
+	
+	if ( ret != 0 )
+		alu_error(ret);
+	
+	dst = _src.block;
+	if ( strcmp( src, dst ) != 0 || print_anyways )
+		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
+	
+	fail:
+	alu_rem_reg( alu, tmp );
+	return ret;
+}
+
+int uint_print_value(
+	alu_t *alu,
+	alu_block_t _src,
+	alu_block_t *_dst,
+	char digsep,
+	size_t base,
+	bool lowercase,
+	bool print_anyways
+)
+{
+	size_t _tmp = 0;
+	alu_uint_t tmp = {0};
+	int ret = 0;
+	char *src = _src.block, *dst = NULL;
+	long nextpos = 0;
+	bool noSign = false, noPfx = false;
+	
+	tmp.perN = sizeof(size_t);
+	tmp.qty.used = 1;
+	tmp.qty.last = 0;
+	tmp.qty.upto = 1;
+	tmp.mem.block = &_tmp;
+	tmp.mem.bytes.used = sizeof(size_t);
+	tmp.mem.bytes.last = tmp.mem.bytes.used - 1;
+	tmp.mem.bytes.upto = tmp.mem.bytes.used;
+	
+	ret = alu_str2uint(
+		alu, &_src, tmp, digsep,
 		(alu_func_rdChar32_t)func_rdChar32,
 		&nextpos,
 		base, lowercase, noPfx, noSign
@@ -973,41 +1080,150 @@ int print_value( alu_t *alu, char *num, size_t size, size_t base )
 		return ret;
 	}
 	
-	(void)memset( &src, 0, sizeof(alu_block_t) );
-	ret = alu_block( &src, size, 0 );
-	
-	if ( ret != 0 )
-	{
-		alu_rem_reg( alu, tmp );
-		alu_error(ret);
-		return ret;
-	}
-	
-	ret = alu_reg2str(
-		alu, &src, tmp, digitSeparator,
+	(void)memset( _dst->block, 0, _dst->bytes.upto );
+	ret = alu_uint2str(
+		alu, _dst, tmp, digsep,
 		(alu_func_wrChar32_t)func_wrChar32,
 		(alu_func_flipstr_t)func_flipstr,
-		4, lowercase, noPfx, noSign
+		base, lowercase, noPfx, noSign
 	);
 	
 	if ( ret != 0 )
 		alu_error(ret);
 	
-	if ( strcmp( num, (char*)(src.block) ) != 0 )
-		(void)alu_printf(
-			"Expected = '%s', Got = '%s'",
-			num, (char*)(src.block)
-		);
-	alu_block_release( &src );
-	alu_rem_reg( alu, tmp );
+	dst = _src.block;
+	if ( strcmp( src, dst ) != 0 || print_anyways )
+		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	return ret;
 }
+
+int int_print_value(
+	alu_t *alu,
+	alu_block_t _src,
+	alu_block_t *_dst,
+	char digsep,
+	size_t base,
+	bool lowercase,
+	bool print_anyways
+)
+{
+	size_t _tmp = 0;
+	alu_int_t tmp = {0};
+	int ret = 0;
+	char *src = _src.block, *dst = NULL;
+	long nextpos = 0;
+	bool noSign = false, noPfx = false;
+	
+	tmp.perN = sizeof(size_t);
+	tmp.qty.used = 1;
+	tmp.qty.last = 0;
+	tmp.qty.upto = 1;
+	tmp.mem.block = &_tmp;
+	tmp.mem.bytes.used = sizeof(size_t);
+	tmp.mem.bytes.last = tmp.mem.bytes.used - 1;
+	tmp.mem.bytes.upto = tmp.mem.bytes.used;
+	
+	ret = alu_str2int(
+		alu, &_src, tmp, digsep,
+		(alu_func_rdChar32_t)func_rdChar32,
+		&nextpos,
+		base, lowercase, noPfx, noSign
+	);
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	(void)memset( _dst->block, 0, _dst->bytes.upto );
+	ret = alu_int2str(
+		alu, _dst, tmp, digsep,
+		(alu_func_wrChar32_t)func_wrChar32,
+		(alu_func_flipstr_t)func_flipstr,
+		base, lowercase, noPfx, noSign
+	);
+	
+	if ( ret != 0 )
+		alu_error(ret);
+	
+	dst = _src.block;
+	if ( strcmp( src, dst ) != 0 || print_anyways )
+		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
+	
+	return ret;
+}
+
+int print_value(
+	alu_t *alu,
+	char *src,
+	char digsep,
+	size_t size,
+	size_t base,
+	bool lowercase,
+	bool print_anyways
+)
+{
+	int ret = 0;
+	alu_block_t _src = {0}, _dst = {0};
+	
+	_src.block = src;
+	_src.bytes.used = strlen(src);
+	_src.bytes.last = _src.bytes.used;
+	_src.bytes.upto = size ? size : _src.bytes.used + 1;
+	
+	ret = alu_block_expand( &_dst, _src.bytes.upto * 2 );
+	if ( ret != 0 )
+		return ret;
+	
+	ret = reg_print_value(
+		alu,
+		_src,
+		&_dst,
+		digsep,
+		base,
+		lowercase,
+		print_anyways
+	);
+	
+	if ( ret != 0 )
+		goto fail;
+	
+	ret = uint_print_value(
+		alu,
+		_src,
+		&_dst,
+		digsep,
+		base,
+		lowercase,
+		print_anyways
+	);
+	
+	if ( ret != 0 )
+		goto fail;
+	
+	ret = int_print_value(
+		alu,
+		_src,
+		&_dst,
+		digsep,
+		base,
+		lowercase,
+		print_anyways
+	);
+	
+	fail:
+	alu_block_release( &_dst );
+	return ret;
+}
+
 
 int main()
 {
 	int ret = 0;
 	//uint_t seed = time(NULL);
+	bool print_anyways = false;
 	
 	alu_t alu;
 	
@@ -1019,11 +1235,11 @@ int main()
 	alu_puts( "Pre-allocating 16 ALU registers..." );
 	alu_setup_reg( &alu, 16, sizeof(size_t) );
 	
-	print_value( &alu, "123", 4, 10 );
+	print_value( &alu, "123", '\'', 4, 10, false, true );
 
-	compare( &alu );
-	bitwise( &alu, true, true );
-	mathmatical( &alu, false, true );
+	compare( &alu, print_anyways );
+	bitwise( &alu, true, true, print_anyways );
+	mathmatical( &alu, false, true, print_anyways );
 	
 	(void)alu_vec_shrink( &(alu.buff), 0, 0 );
 	(void)alu_vec_shrink( &(alu._regv), 0, 0 );

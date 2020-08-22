@@ -422,7 +422,7 @@ int alu_str2reg
 	alu_t *alu,
 	void *src,
 	uint_t dst,
-	char32_t digitSeparator,
+	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
@@ -457,7 +457,7 @@ int alu_str2reg
 	if ( !val || !nextchar )
 		return EADDRNOTAVAIL;
 	
-	switch ( digitSeparator )
+	switch ( digsep )
 	{
 	case 0: case '\'': case '_': case ',': break;
 	default: return EINVAL;
@@ -585,7 +585,7 @@ int alu_str2reg
 		
 		if ( b == base )
 		{
-			if ( c == digitSeparator )
+			if ( c == digsep )
 			{
 				++(*nextpos);
 				continue;
@@ -632,7 +632,7 @@ int alu_reg2str
 	alu_t *alu,
 	void *dst,
 	uint_t src,
-	char32_t digitSeparator,
+	char32_t digsep,
 	alu_func_wrChar32_t nextchar,
 	alu_func_flipstr_t flipstr,
 	size_t base,
@@ -729,7 +729,7 @@ int alu_reg2str
 		
 		if ( digit == 3 )
 		{
-			switch ( digitSeparator )
+			switch ( digsep )
 			{
 			case '\'': case '_': case ',':
 				ret = nextchar( base_str[*V], dst );

@@ -1,5 +1,5 @@
 #include "alu.h"
-int alu_uint_prep1( alu_t *alu, alu_uint_t num, int *reg )
+int alu_uint_prep1( alu_t *alu, alu_uint_t num, uint_t *reg )
 {
 	int ret = 0;
 	uint_t _reg = -1;
@@ -32,9 +32,10 @@ int alu_uint_prep1( alu_t *alu, alu_uint_t num, int *reg )
 int alu_uint_prep2(
 	alu_t *alu,
 	alu_uint_t num, alu_uint_t val,
-	int *nreg, int *vreg )
+	uint_t *nreg, uint_t *vreg )
 {
-	int ret = 0, _nreg = -1, _vreg = -1;
+	int ret = 0;
+	uint_t _nreg = -1, _vreg = -1;
 	
 	if ( !nreg || !vreg )
 	{
@@ -71,9 +72,10 @@ int alu_uint_prep2(
 int alu_uint_prep3(
 	alu_t *alu,
 	alu_uint_t num, alu_uint_t val, alu_uint_t rem,
-	int *nreg, int *vreg, int *rreg )
+	uint_t *nreg, uint_t *vreg, uint_t *rreg )
 {
-	int ret = 0, _nreg = -1, _vreg = -1, _rreg = -1;
+	int ret = 0;
+	uint_t _nreg = -1, _vreg = -1, _rreg = -1;
 	
 	if ( !nreg || !vreg || !rreg )
 	{
@@ -111,7 +113,8 @@ int alu_uint_prep3(
 
 int alu_uint_cmp( alu_t *alu, alu_uint_t num, alu_uint_t val, int *cmp, size_t *bit )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -121,8 +124,6 @@ int alu_uint_cmp( alu_t *alu, alu_uint_t num, alu_uint_t val, int *cmp, size_t *
 		return ret;
 	}
 	
-	(void)alu_mov( alu, _num, (uintptr_t)&num );
-	(void)alu_mov( alu, _val, (uintptr_t)&val );
 	ret = alu_cmp( alu, _num, _val, cmp, bit );
 	(void)alu_mov( alu, (uintptr_t)&num, _num );
 	
@@ -134,7 +135,8 @@ int alu_uint_cmp( alu_t *alu, alu_uint_t num, alu_uint_t val, int *cmp, size_t *
 
 int alu_uint_neg( alu_t *alu, alu_uint_t num )
 {
-	int ret = 0, _num = -1;
+	int ret = 0;
+	uint_t _num = -1;
 	
 	ret = alu_uint_prep1( alu, num, &_num );
 	
@@ -155,7 +157,8 @@ int alu_uint_neg( alu_t *alu, alu_uint_t num )
 
 int alu_uint_not( alu_t *alu, alu_uint_t num )
 {
-	int ret = 0, _num = -1;
+	int ret = 0;
+	uint_t _num = -1;
 	
 	ret = alu_uint_prep1( alu, num, &_num );
 	
@@ -176,7 +179,8 @@ int alu_uint_not( alu_t *alu, alu_uint_t num )
 
 int alu_uint_and( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -199,7 +203,8 @@ int alu_uint_and( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint__or( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -222,7 +227,8 @@ int alu_uint__or( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_xor( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -245,7 +251,8 @@ int alu_uint_xor( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_shl( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -268,7 +275,8 @@ int alu_uint_shl( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_shr( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -291,7 +299,8 @@ int alu_uint_shr( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_rol( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -314,7 +323,8 @@ int alu_uint_rol( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_ror( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -337,7 +347,8 @@ int alu_uint_ror( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_inc( alu_t *alu, alu_uint_t num )
 {
-	int ret = 0, _num = -1;
+	int ret = 0;
+	uint_t _num = -1;
 	
 	ret = alu_uint_prep1( alu, num, &_num );
 	
@@ -358,7 +369,8 @@ int alu_uint_inc( alu_t *alu, alu_uint_t num )
 
 int alu_uint_add( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -381,7 +393,8 @@ int alu_uint_add( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_mul( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -404,7 +417,8 @@ int alu_uint_mul( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_dec( alu_t *alu, alu_uint_t num )
 {
-	int ret = 0, _num = -1;
+	int ret = 0;
+	uint_t _num = -1;
 	
 	ret = alu_uint_prep1( alu, num, &_num );
 	
@@ -425,7 +439,8 @@ int alu_uint_dec( alu_t *alu, alu_uint_t num )
 
 int alu_uint_sub( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -448,7 +463,8 @@ int alu_uint_sub( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_divide( alu_t *alu, alu_uint_t num, alu_uint_t val, alu_uint_t rem )
 {
-	int ret = 0, _num = -1, _val = -1, _rem = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1, _rem = -1;
 	
 	ret = alu_uint_prep3( alu, num, val, rem, &_num, &_val, &_rem );
 	
@@ -473,7 +489,8 @@ int alu_uint_divide( alu_t *alu, alu_uint_t num, alu_uint_t val, alu_uint_t rem 
 
 int alu_uint_div( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -496,7 +513,8 @@ int alu_uint_div( alu_t *alu, alu_uint_t num, alu_uint_t val )
 
 int alu_uint_rem( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
-	int ret = 0, _num = -1, _val = -1;
+	int ret = 0;
+	uint_t _num = -1, _val = -1;
 	
 	ret = alu_uint_prep2( alu, num, val, &_num, &_val );
 	
@@ -513,6 +531,94 @@ int alu_uint_rem( alu_t *alu, alu_uint_t num, alu_uint_t val )
 	
 	(void)alu_rem_reg( alu, _val );
 	(void)alu_rem_reg( alu, _num );
+	
+	return ret;
+}
+
+int alu_str2uint
+(
+	alu_t *alu,
+	void *src,
+	alu_uint_t dst,
+	char32_t digsep,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
+	size_t base,
+	bool lowercase,
+	bool noPfx,
+	bool noSign
+)
+{
+	int ret = 0;
+	uint_t _dst = -1;
+	
+	ret = alu_get_reg( alu, &_dst, sizeof(size_t) );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	ret = alu_str2reg(
+		alu,
+		src,
+		_dst,
+		digsep,
+		nextchar,
+		nextpos,
+		base,
+		lowercase,
+		noPfx,
+		noSign
+	);
+	(void)alu_mov( alu, (uintptr_t)&dst, _dst );
+	
+	(void)alu_rem_reg( alu, _dst );
+	
+	return ret;
+}
+
+int alu_uint2str
+(
+	alu_t *alu,
+	void *dst,
+	alu_uint_t src,
+	char32_t digsep,
+	alu_func_wrChar32_t nextchar,
+	alu_func_flipstr_t flipstr,
+	size_t base,
+	bool lowercase,
+	bool noPfx,
+	bool noSign
+)
+{
+	int ret = 0;
+	uint_t _src = -1;
+	
+	ret = alu_get_reg( alu, &_src, sizeof(size_t) );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
+	
+	ret = alu_reg2str(
+		alu,
+		dst,
+		_src,
+		digsep,
+		nextchar,
+		flipstr,
+		base,
+		lowercase,
+		noPfx,
+		noSign
+	);
+	(void)alu_mov( alu, (uintptr_t)&src, _src );
+	
+	(void)alu_rem_reg( alu, _src );
 	
 	return ret;
 }

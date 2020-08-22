@@ -182,7 +182,7 @@ int alu_str2reg
 	alu_t *alu,
 	void *src,
 	uint_t dst,
-	char32_t digitSeparator,
+	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
@@ -196,7 +196,7 @@ int alu_reg2str
 	alu_t *alu,
 	void *dst,
 	uint_t src,
-	char32_t digitSeparator,
+	char32_t digsep,
 	alu_func_wrChar32_t nextchar,
 	alu_func_flipstr_t flipstr,
 	size_t base,
@@ -209,22 +209,42 @@ int alu_str2uint
 (
 	alu_t *alu,
 	void *src,
-	alu_uint_t *dst,
+	alu_uint_t dst,
+	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
+);
+
+int alu_uint2str
+(
+	alu_t *alu,
+	void *dst,
+	alu_uint_t src,
+	char32_t digsep,
+	alu_func_wrChar32_t nextchar,
+	alu_func_flipstr_t flipstr,
+	size_t base,
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 );
 
 int alu_str2int
 (
 	alu_t *alu,
 	void *src,
-	alu_int_t *dst,
+	alu_int_t dst,
+	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 );
 
 int alu_str2fpn
@@ -232,10 +252,27 @@ int alu_str2fpn
 	alu_t *alu,
 	void *val,
 	alu_fpn_t *dst,
+	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	size_t *nextpos,
 	size_t base,
-	bool lowercase
+	bool lowercase,
+	bool noPfx,
+	bool noSign
+);
+
+int alu_int2str
+(
+	alu_t *alu,
+	void *dst,
+	alu_int_t src,
+	char32_t digsep,
+	alu_func_wrChar32_t nextchar,
+	alu_func_flipstr_t flipstr,
+	size_t base,
+	bool lowercase,
+	bool noPfx,
+	bool noSign
 );
 
 int alu_uint2fpn( alu_t *alu, alu_uint_t *val );
