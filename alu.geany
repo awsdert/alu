@@ -28,18 +28,18 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=10
+current_page=9
 FILE_NAME_0=105;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2F1st.mak;0;4
 FILE_NAME_1=1877;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Fmain.mak;0;4
-FILE_NAME_2=5305;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu.h;0;4
+FILE_NAME_2=5440;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu.h;0;4
 FILE_NAME_3=58;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_mem.c;0;4
 FILE_NAME_4=184;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_vec.c;0;4
 FILE_NAME_5=550;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Fdst_cc.mak;0;4
 FILE_NAME_6=1027;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_bit.c;0;4
 FILE_NAME_7=33;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Fdst_sys.mak;0;4
 FILE_NAME_8=10649;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_math.c;0;4
-FILE_NAME_9=20590;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Ftest.c;0;4
-FILE_NAME_10=8213;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_main.c;0;4
+FILE_NAME_9=23670;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Ftest.c;0;4
+FILE_NAME_10=732;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_main.c;0;4
 FILE_NAME_11=560;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Frng%2Fmain.c;0;4
 FILE_NAME_12=0;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Fchar.mak;0;4
 FILE_NAME_13=516;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Ffunc.mak;0;4
@@ -47,8 +47,8 @@ FILE_NAME_14=640;Make;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Fgasp%2Fmakefile;0;
 FILE_NAME_15=15472;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Ffbstdc%2Finclude%2Ffbstdint.h;0;4
 FILE_NAME_16=714;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Ffbstdc%2Finclude%2Ffblimits.h;0;4
 FILE_NAME_17=1087;C++;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Ffbstdc%2Finclude%2Ffbarch.h;0;4
-FILE_NAME_18=100;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_uint.c;0;4
-FILE_NAME_19=107;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_int.c;0;4
+FILE_NAME_18=11146;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_uint.c;0;4
+FILE_NAME_19=8634;C;0;EUTF-8;1;1;0;%2Fmnt%2FHOME%2Fgithub%2Falu%2Falu_int.c;0;4
 
 [VTE]
 last_dir=/mnt/HOME/github/alu

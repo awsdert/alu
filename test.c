@@ -1155,63 +1155,197 @@ int int_print_value(
 	return ret;
 }
 
+char *pos_int[] = {
+	"123",
+	"+145",
+	"0xA",
+	"0b1",
+NULL };
+
+char *neg_int[] = {
+	"-123",
+	"-0xA",
+	"-0b1",
+NULL };
+
+char *pos_fpn[] = {
+	"0",
+	"1",
+	"1.0",
+	"0.1",
+	"1.1",
+	"1e+10",
+	"1.0e+10",
+	"0.1e+10",
+	"1.1e+10",
+	"1e-10",
+	"1.0e-10",
+	"0.1e-10",
+	"1.1e-10",
+	"0xA",
+	"0xA.0",
+	"0x0.A",
+	"0xA.A",
+	"0xAp+10",
+	"0xA.0p+10",
+	"0x0.Ap+10",
+	"0xA.Ap+10",
+	"0xAp-10",
+	"0xA.0p-10",
+	"0x0.Ap-10",
+	"0xA.Ap-10",
+	"0b1",
+	"0b1.0",
+	"0b0.1",
+	"0b1.1",
+	"0b1e+10",
+	"0b1.0e+10",
+	"0b0.1e+10",
+	"0b1.1e+10",
+	"0b1e-10",
+	"0b1.0e-10",
+	"0b0.1e-10",
+	"0b1.1e-10",
+NULL };
+
+char *neg_fpn[] = {
+	"-0.0",
+	"-1",
+	"-1.0",
+	"-0.1",
+	"-1.1",
+	"-1e+10",
+	"-1.0e+10",
+	"-0.1e+10",
+	"-1.1e+10",
+	"-1e-10",
+	"-1.0e-10",
+	"-0.1e-10",
+	"-1.1e-10",
+	"-0xA",
+	"-0xA.0",
+	"-0x0.A",
+	"-0xA.A",
+	"-0xAp+10",
+	"-0xA.0p+10",
+	"-0x0.Ap+10",
+	"-0xA.Ap+10",
+	"-0xAp-10",
+	"-0xA.0p-10",
+	"-0x0.Ap-10",
+	"-0xA.Ap-10",
+	"-0b1",
+	"-0b1.0",
+	"-0b0.1",
+	"-0b1.1",
+	"-0b1e+10",
+	"-0b1.0e+10",
+	"-0b0.1e+10",
+	"-0b1.1e+10",
+	"-0b1e-10",
+	"-0b1.0e-10",
+	"-0b0.1e-10",
+	"-0b1.1e-10",
+NULL };
+
 int print_value(
 	alu_t *alu,
-	char *src,
-	char digsep,
-	size_t size,
-	size_t base,
-	bool lowercase,
 	bool print_anyways
 )
 {
-	int ret = 0;
+	int ret = 0, i;
 	alu_block_t _src = {0}, _dst = {0};
+	char digsep = '\'', *src;
+	size_t base = 10, size;
+	bool lowercase = false;
 	
-	_src.block = src;
-	_src.bytes.used = strlen(src);
-	_src.bytes.last = _src.bytes.used;
-	_src.bytes.upto = size ? size : _src.bytes.used + 1;
+	for ( i = 0; pos_int[i]; ++i )
+	{
+		src = pos_int[i];
+		size = strlen(src);
+		switch ( src[1] )
+		{
+		case 'x': case 'X': base = 16; break;
+		case 'b': case 'B': base = 2; break;
+		default: base = 10;
+		}
+		
+		_src.block = src;
+		_src.bytes.used = strlen(src);
+		_src.bytes.last = _src.bytes.used;
+		_src.bytes.upto = size ? size : _src.bytes.used + 1;
+		
+		ret = alu_block_expand( &_dst, _src.bytes.upto * 2 );
+		if ( ret != 0 )
+			return ret;
+		
+		ret = reg_print_value(
+			alu,
+			_src,
+			&_dst,
+			digsep,
+			base,
+			lowercase,
+			print_anyways
+		);
+		
+		if ( ret != 0 )
+			goto fail;
+		
+		ret = uint_print_value(
+			alu,
+			_src,
+			&_dst,
+			digsep,
+			base,
+			lowercase,
+			print_anyways
+		);
+		
+		if ( ret != 0 )
+			goto fail;
+		
+		ret = int_print_value(
+			alu,
+			_src,
+			&_dst,
+			digsep,
+			base,
+			lowercase,
+			print_anyways
+		);
+	}
 	
-	ret = alu_block_expand( &_dst, _src.bytes.upto * 2 );
-	if ( ret != 0 )
-		return ret;
-	
-	ret = reg_print_value(
-		alu,
-		_src,
-		&_dst,
-		digsep,
-		base,
-		lowercase,
-		print_anyways
-	);
-	
-	if ( ret != 0 )
-		goto fail;
-	
-	ret = uint_print_value(
-		alu,
-		_src,
-		&_dst,
-		digsep,
-		base,
-		lowercase,
-		print_anyways
-	);
-	
-	if ( ret != 0 )
-		goto fail;
-	
-	ret = int_print_value(
-		alu,
-		_src,
-		&_dst,
-		digsep,
-		base,
-		lowercase,
-		print_anyways
-	);
+	for ( i = 0; neg_int[i]; ++i )
+	{
+		src = neg_int[i];
+		size = strlen(src);
+		switch ( src[1] )
+		{
+		case 'x': case 'X': base = 16; break;
+		case 'b': case 'B': base = 2; break;
+		default: base = 10;
+		}
+		
+		_src.block = src;
+		_src.bytes.used = strlen(src);
+		_src.bytes.last = _src.bytes.used;
+		_src.bytes.upto = size ? size : _src.bytes.used + 1;
+		
+		ret = alu_block_expand( &_dst, _src.bytes.upto * 2 );
+		if ( ret != 0 )
+			return ret;
+		
+		ret = int_print_value(
+			alu,
+			_src,
+			&_dst,
+			digsep,
+			base,
+			lowercase,
+			print_anyways
+		);
+	}
 	
 	fail:
 	alu_block_release( &_dst );
@@ -1235,7 +1369,7 @@ int main()
 	alu_puts( "Pre-allocating 16 ALU registers..." );
 	alu_setup_reg( &alu, 16, sizeof(size_t) );
 	
-	print_value( &alu, "123", '\'', 4, 10, false, true );
+	print_value( &alu, true );
 
 	compare( &alu, print_anyways );
 	bitwise( &alu, true, true, print_anyways );
