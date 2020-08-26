@@ -4,6 +4,8 @@
 #include <fbstdint.h>
 #include <errno.h>
 #include <uchar.h>
+#include <float.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -127,9 +129,9 @@ typedef enum ALU_REG_ID {
 	(((((MIN)>>(POS))^-1)<<1) & ((MIN)>>(POS)))
 # define BIT_FROM_END( NEG_MIN, POS ) _BIT_FROM_END( NEG_MIN, POS )
 
-# define ALU_REG_F_VALID 1
-# define ALU_REG_F__SIGN 2
-# define ALU_REG_F_FLOAT 4
+# define ALU_INFO_VALID 1
+# define ALU_INFO__SIGN 2
+# define ALU_INFO_FLOAT 4
 
 typedef struct alu_reg
 {
@@ -181,14 +183,25 @@ int alu_str2reg
 (
 	alu_t *alu,
 	void *src,
-	uint_t dst,
+	uint_t reg_dst,
+	uint_t reg_base,
+	uint_t reg_mod,
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	bool lowercase
+);
+
+int alu_lit2reg
+(
+	alu_t *alu,
+	void *src,
+	uint_t dst,
+	char32_t digsep,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
+	bool lowercase
 );
 
 int alu_reg2str
@@ -213,10 +226,7 @@ int alu_str2uint
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	bool lowercase
 );
 
 int alu_uint2str
@@ -241,10 +251,7 @@ int alu_str2int
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	bool lowercase
 );
 
 int alu_str2fpn
@@ -254,11 +261,8 @@ int alu_str2fpn
 	alu_fpn_t *dst,
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
-	size_t *nextpos,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	long *nextpos,
+	bool lowercase
 );
 
 int alu_int2str

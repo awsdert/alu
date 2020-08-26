@@ -119,7 +119,7 @@ int alu_check_reg( alu_t *alu, uint_t reg )
 	}
 	
 	REG = alu->regv + reg;
-	if ( REG->info & ALU_REG_F_VALID )
+	if ( REG->info & ALU_INFO_VALID )
 	{
 		ret = EADDRINUSE;
 		return ret;
@@ -287,7 +287,7 @@ int alu_setup_reg( alu_t *alu, uint_t want, size_t perN )
 	for ( i = 0; i < ALU_REG_ID_NEED; ++i )
 	{
 		REG = alu->regv + i;
-		REG->info = ALU_REG_F_VALID;
+		REG->info = ALU_INFO_VALID;
 		alu_reset_reg( alu, i, 0 );
 	}
 	
@@ -298,12 +298,12 @@ int alu_setup_reg( alu_t *alu, uint_t want, size_t perN )
 	(void)memset( REG->part, -1, perN );
 	
 	REG = alu->regv + ALU_REG_ID_IMAX;
-	REG->info |= ALU_REG_F__SIGN;
+	REG->info |= ALU_INFO__SIGN;
 	(void)memset( REG->part, -1, perN );
 	*(REG->last.S) ^= REG->last.B;
 	
 	REG = alu->regv + ALU_REG_ID_IMIN;
-	REG->info |= ALU_REG_F__SIGN;
+	REG->info |= ALU_INFO__SIGN;
 	(void)memset( REG->part, 0, perN );
 	*(REG->last.S) |= REG->last.B;
 	
@@ -345,7 +345,7 @@ int alu_get_reg( alu_t *alu, uint_t *reg, size_t size )
 	for ( r = 0; r < count; ++r )
 	{
 		REG = alu->regv + r;
-		if ( REG->info & ALU_REG_F_VALID )
+		if ( REG->info & ALU_INFO_VALID )
 			continue;
 		goto done;
 	}
@@ -362,7 +362,7 @@ int alu_get_reg( alu_t *alu, uint_t *reg, size_t size )
 	alu->_regv.qty.used = alu->buff.qty.used = r + 1;
 	
 	done:
-	REG->info = ALU_REG_F_VALID;
+	REG->info = ALU_INFO_VALID;
 	(void)alu_reset_reg( alu, r, 0 );
 	(void)memset( REG->part, 0, alu->buff.perN );
 	*reg = r;
@@ -416,28 +416,25 @@ int alu_set_constants( alu_t *alu )
 	return 0;
 }
 
-
 int alu_str2reg
 (
 	alu_t *alu,
 	void *src,
-	uint_t dst,
+	uint_t reg_dst,
+	uint_t reg_base,
+	uint_t reg_mod,
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
 	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	bool lowercase
 )
 {
 	size_t b, perN;
-	alu_reg_t *MUL, *VAL, *DST;
+	alu_reg_t *BASE, *MOD, *DST;
 	alu_bit_t n;
 	int ret;
-	uint_t mul = -1, val = -1;
-	char32_t *V, c = -1;
-	bool neg = 0;
+	char32_t *M, c = -1;
 	char
 		*base_upper = ALU_BASE_STR_0toZtoz "+-",
 		*base_lower = ALU_BASE_STR_0toztoZ "+-",
@@ -449,12 +446,12 @@ int alu_str2reg
 	if ( *nextpos < 0 )
 		*nextpos = 0;
 	
-	ret = alu_check1( alu, dst );
+	ret = alu_check3( alu, reg_dst, reg_base, reg_mod );
 	
 	if ( ret != 0 )
 		return ret;
 	
-	if ( !val || !nextchar )
+	if ( !nextchar )
 		return EADDRNOTAVAIL;
 	
 	switch ( digsep )
@@ -462,93 +459,25 @@ int alu_str2reg
 	case 0: case '\'': case '_': case ',': break;
 	default: return EINVAL;
 	}
-		
-	ret = nextchar( &c, src, nextpos );
-	if ( ret != 0 )
-		return ret;
 	
-	if ( c == '-' || c == '+' )
-	{
-		if ( noSign )
-			return EINVAL;
-		if ( c == '-' )
-			neg = true;
-		++(*nextpos);
-	}
-	
-	if ( !base )
-	{
-		if ( noPfx )
-			return ERANGE;
-		
-		ret = nextchar( &c, src, nextpos );
-		if ( ret != 0 )
-			return ret;
-			
-		if ( c > '0' && c <= '9' )
-		{
-			base = 10;
-			++(*nextpos);
-		}
-		else if ( c != '0' )
-			return EINVAL;
-		else
-		{
-			++(*nextpos);
-			
-			ret = nextchar( &c, src, nextpos );
-			if ( ret != 0 )
-				return ret;
-			
-			if ( c >= '0' && c <= '7' )
-			{
-				++(*nextpos);
-				base = 8;
-			}
-			else
-			{
-				switch ( c )
-				{
-				case 'b': case 'B': ++(*nextpos); base = 2; break;
-				case 'o': case 'O': ++(*nextpos); base = 8; break;
-				case 'x': case 'X': ++(*nextpos); base = 16; break;
-				default: return EINVAL;
-				}
-			}
-		}
-	}
-	
-	if ( base > strlen(base_str) )
+	if ( !base || base > strlen(base_str) )
 		return ERANGE;
-		
-	ret = alu_get_reg( alu, &val, sizeof(size_t) );
-		
-	if ( ret != 0 )
-		return ret;
-	
-	ret = alu_get_reg( alu, &mul, sizeof(size_t) );
-		
-	if ( ret != 0 )
-	{
-		alu_rem_reg( alu, val );
-		return ret;
-	}
-	
+
 	/* Hook registers */
-	MUL = alu->regv + mul;
-	VAL = alu->regv + val;
-	DST = alu->regv + dst;
+	BASE = alu->regv + reg_base;
+	MOD = alu->regv + reg_mod;
+	DST = alu->regv + reg_dst;
 
 	/* Clear all registers in direct use */
 	perN = alu->buff.perN;
 	
-	V = MUL->part;
-	*V = base;
+	M = BASE->part;
+	*M = base;
 	
-	V = VAL->part;
+	M = MOD->part;
 	n = DST->last;
 	
-	alu_reset_reg( alu, dst, false );
+	alu_reset_reg( alu, reg_dst, false );
 	memset( DST->part, 0, alu->buff.perN );
 
 	do
@@ -604,25 +533,395 @@ int alu_str2reg
 			if ( ret != 0 )
 				return ret;
 				
-			(void)alu_reset_reg( alu, dst, false );
+			(void)alu_reset_reg( alu, reg_dst, false );
 			
 			perN = alu->buff.perN;
-			V = VAL->part;
+			M = MOD->part;
 			n = DST->last;
 		}
 		
-		*V = b;
+		*M = b;
 		
-		(void)alu_mul( alu, dst, mul );
-		(void)alu_add( alu, dst, val );
+		(void)alu_mul( alu, reg_dst, reg_base );
+		(void)alu_add( alu, reg_dst, reg_mod );
 	}
 	while ( ret == 0 );
 	
-	alu_rem_reg( alu, mul );
-	alu_rem_reg( alu, val );
+	return 0;
+}
+
+enum
+{
+	ALU_LIT2REG_BASE = 0,
+	ALU_LIT2REG_NUM,
+	ALU_LIT2REG_DOT,
+	ALU_LIT2REG_ONE,
+	ALU_LIT2REG_EXP,
+	ALU_LIT2REG_MAN,
+	ALU_LIT2REG_VAL,
+	ALU_LIT2REG_COUNT
+};
+
+int alu_lit2reg
+(
+	alu_t *alu,
+	void *src,
+	uint_t dst,
+	char32_t digsep,
+	alu_func_rdChar32_t nextchar,
+	long *nextpos,
+	bool lowercase
+)
+{
+	size_t base, perN, bits, exp_bits, man_bits;
+	alu_reg_t *_REGV[ALU_LIT2REG_COUNT], *DST;
+	alu_bit_t n;
+	int ret, i;
+	long prevpos;
+	const int regc = 3;
+	uint_t _regv[ALU_LIT2REG_COUNT] = {-1};
+	char32_t *M, c = -1, exponent_char = 'e';
+	bool neg = false, exp_neg = false, closing_bracket = true;
 	
-	if ( neg )
-		alu_neg( alu, dst );
+	if ( !nextpos )
+		return EDESTADDRREQ;
+	
+	if ( *nextpos < 0 )
+		*nextpos = 0;
+	
+	ret = alu_check1( alu, dst );
+	
+	if ( ret != 0 )
+		return ret;
+	
+	if ( !nextchar )
+		return EADDRNOTAVAIL;
+	
+	switch ( digsep )
+	{
+	case 0: case '\'': case '_': case ',': break;
+	default: return EINVAL;
+	}
+		
+	ret = nextchar( &c, src, nextpos );
+	if ( ret != 0 )
+		return ret;
+	
+	if ( c == '-' || c == '+' )
+	{
+		if ( c == '-' )
+			neg = true;
+		++(*nextpos);
+	}
+		
+	ret = nextchar( &c, src, nextpos );
+	if ( ret != 0 )
+		return ret;
+		
+	if ( c > '0' && c <= '9' )
+	{
+		base = 10;
+		++(*nextpos);
+	}
+	else if ( c != '0' )
+		return EINVAL;
+	else
+	{
+		++(*nextpos);
+		
+		ret = nextchar( &c, src, nextpos );
+		if ( ret != 0 )
+			return ret;
+		
+		if ( c >= '0' && c <= '7' )
+		{
+			++(*nextpos);
+			base = 8;
+		}
+		else
+		{
+			switch ( c )
+			{
+			case '~':
+				base = 0;
+				++(*nextpos);
+				ret = nextchar( &c, src, nextpos );
+				if ( ret != 0 )
+					return ret;
+				if ( c == 'l' || c == 'L' )
+				{
+					++(*nextpos);
+					lowercase = true;
+				}
+				while ( 1 )
+				{
+					ret = nextchar( &c, src, nextpos );
+					if ( ret != 0 || c <= '0' || c >= '9' )
+						break;
+					
+					base *= 10;
+					base += (c - '0');
+					++(*nextpos);
+				}
+				if ( ret != 0 && ret != EOF )
+					return ret;
+				if ( !base )
+					return EINVAL;
+				break;
+			case 'b': case 'B': base = 2; ++(*nextpos); break;
+			case 'o': case 'O': base = 8; ++(*nextpos); break;
+			case 'x': case 'X':
+				base = 16;
+				++(*nextpos);
+				exponent_char = 'p';
+				break;
+			default: return EINVAL;
+			}
+		}
+	}
+	
+	for ( i = 0; i < regc; ++i )
+	{
+		ret = alu_get_reg( alu, _regv + i, sizeof(size_t) );
+		
+		if ( ret != 0 )
+		{
+			while ( i > 0 )
+			{
+				--i;
+				alu_rem_reg( alu, _regv[i] );
+			}
+			return ret;
+		}
+	}
+	
+	/* Hook registers */
+	for ( i = 0; i < regc; ++i )
+		_REGV[i] = alu->regv + _regv[i];
+	DST = alu->regv + dst;
+	
+	M = _REGV[ALU_LIT2REG_BASE]->part;
+	*M = base;
+	
+	ret = alu_str2reg(
+		alu,
+		src,
+		_regv[ALU_LIT2REG_NUM],
+		_regv[ALU_LIT2REG_BASE],
+		_regv[ALU_LIT2REG_VAL],
+		digsep,
+		nextchar,
+		nextpos,
+		base,
+		lowercase
+	);
+	
+	switch ( ret )
+	{
+	case 0: case EOF: c = 0; break;
+	case EINVAL:
+		(void)nextchar( &c, src, nextpos );
+		break;
+	default: return ret;
+	}
+
+	perN = alu->buff.perN;
+	
+	/* Check if reading a floating point number */
+	if ( c == '.' )
+	{
+		++(*nextpos);
+		prevpos = *nextpos;
+		
+		ret = alu_str2reg(
+			alu,
+			src,
+			_regv[ALU_LIT2REG_DOT],
+			_regv[ALU_LIT2REG_BASE],
+			_regv[ALU_LIT2REG_VAL],
+			digsep,
+			nextchar,
+			nextpos,
+			base,
+			lowercase
+		);
+		
+		switch ( ret )
+		{
+		case 0: case EOF: c = 0; break;
+		case EINVAL:
+			(void)nextchar( &c, src, nextpos );
+			break;
+		default:
+			return ret;
+		}
+		
+		/* Make sure have enough space for later calculations */
+		bits = DST->upto.b - DST->init.b;
+		if ( bits == (perN * CHAR_BIT) )
+		{
+			ret = alu_setup_reg( alu, alu->buff.qty.upto, perN * 2 );
+			if ( ret != 0 )
+			{
+				alu_error(ret);
+				return ret;
+			}
+			perN = alu->buff.perN;
+			
+			/* Reset pointers */
+			for ( i = 0; i < regc; ++i )
+				_REGV[i] = alu->regv + _regv[i];
+			DST = alu->regv + dst;
+			
+			M = _REGV[ALU_LIT2REG_BASE]->part;
+			*M = base;
+		}
+		
+		/* Check how many bits to assign to exponent & mantissa */
+		if ( bits < bitsof(float) )
+		{
+			if ( perN > 1 )
+				man_bits = CHAR_BIT - 1;
+			else
+				man_bits = (CHAR_BIT / 2) - 1;
+		}
+		else if ( bits < bitsof(double) )
+			man_bits = FLT_MANT_DIG;
+		else if ( bits < bitsof(long double) )
+			man_bits = DBL_MANT_DIG;
+		else if ( bits == bitsof(long double) )
+			man_bits = LDBL_MANT_DIG;
+		else
+			man_bits = (bits / 4) - 1;
+		
+		exp_bits = ((perN * CHAR_BIT) - man_bits) - 1;
+		
+		/* Update Exponent & Mantissa Registers */
+		n = alu_bit_set_bit( _REGV[ALU_LIT2REG_EXP]->part, exp_bits - 1 );
+		_REGV[ALU_LIT2REG_EXP]->upto = n;
+		_REGV[ALU_LIT2REG_EXP]->last = alu_bit_dec(n);
+		_REGV[ALU_LIT2REG_EXP]->info |= ALU_INFO__SIGN;
+		
+		n = alu_bit_set_bit( _REGV[ALU_LIT2REG_MAN]->part, man_bits );
+		_REGV[ALU_LIT2REG_MAN]->upto = n;
+		_REGV[ALU_LIT2REG_MAN]->last = alu_bit_dec(n);
+		
+		/* Set '0.1' */
+		alu_zero( alu, _regv[ALU_LIT2REG_ONE] );
+		M = _REGV[ALU_LIT2REG_ONE]->part;
+		*M = 1u;
+		
+		/* Multiply '0.1' by base to get '1.0' */
+		M = _REGV[ALU_LIT2REG_BASE]->part;
+		/* Faster than calling alu_mul(alu,one,base) multiple times  */
+		for ( ; prevpos < *nextpos; ++prevpos ) *M *= base;
+		alu_mul( alu, _regv[ALU_LIT2REG_ONE], _regv[ALU_LIT2REG_BASE] );
+		/* Restore base to what it should be */
+		*M = base;
+		
+		/* Only universal number literals need this, example of one:
+		 * 0~L36(A.z)e+10 */
+		if ( closing_bracket )
+		{
+			if ( c == ')' )
+			{
+				++(*nextpos);
+				ret = nextchar( &c, src, nextpos );
+				if ( ret != 0 && ret != EOF )
+					return ret;
+			}
+			else
+				return EINVAL;
+		}
+		
+		if ( c == exponent_char || c == (char32_t)toupper(exponent_char) )
+		{
+			++(nextpos);
+			ret = nextchar( &c, src, nextpos );
+			if ( ret != 0 && ret != EOF )
+				return ret;
+			
+			if ( c == '-' || c == '+' )
+			{
+				if ( c == '-' )
+					neg_exp = true;
+				++(nextpos);
+			}
+			
+			*M = 10;
+			ret = alu_str2reg(
+				alu,
+				src,
+				_regv[ALU_LIT2REG_EXP],
+				_regv[ALU_LIT2REG_BASE],
+				_regv[ALU_LIT2REG_VAL],
+				digsep,
+				nextchar,
+				nextpos,
+				10,
+				lowercase
+			);
+			*M = base;
+			
+			switch ( ret )
+			{
+			case 0: case EOF: c = 0; break;
+			case EINVAL:
+				(void)nextchar( &c, src, nextpos );
+				break;
+			default:
+				return ret;
+			}
+		}
+		
+		/* Exponent had 1 bit less to prevent reading to much */
+		n = alu_bit_set_bit( _REGV[ALU_LIT2REG_EXP]->part, exp_bits );
+		_REGV[ALU_LIT2REG_EXP]->upto = n;
+		_REGV[ALU_LIT2REG_EXP]->last = alu_bit_dec(n);
+		_REGV[ALU_LIT2REG_EXP]->info |= ALU_INFO__SIGN;
+		
+		/* TODO: Continue referencing code made in mitsy to build fpn */
+		
+		/* Construct FPN from modified values */
+		alu__or( alu, dst, _regv[ALU_LIT2REG_MAN] );
+		append_exponent:
+		alu__shl( alu, _regv[ALU_LIT2REG_EXP], man_bits );
+		alu__or( alu, dst, _regv[ALU_LIT2REG_EXP] );
+		append_sign:
+		if ( neg )
+		{
+			alu_zero( alu, _regv[ALU_LIT2REG_ONE] );
+			M = _REGV[ALU_LIT2REG_ONE]->part;
+			*M = 1u;
+			alu__shl( alu, _regv[ALU_LIT2REG_ONE], exp_bits + man_bits );
+			alu__or( alu, dst, _regv[ALU_LIT2REG_ONE] );
+		}
+	}
+	else 
+	{
+		if ( closing_bracket )
+		{
+			if ( c == ')' )
+			{
+				++(*nextpos);
+				ret = nextchar( &c, src, nextpos );
+				if ( ret != 0 && ret != EOF )
+					return ret;
+			}
+			else
+				return EINVAL;
+		}
+		if ( neg )
+			alu_neg( alu, dst );
+		
+		alu_mov( alu, dst, _regv[ALU_LIT2REG_NUM] );
+	}
+	
+	for ( i = ALU_LIT2REG_COUNT; i > 0; )
+	{
+		--i;
+		alu_rem_reg( alu, _regv[i] );
+	}
 	
 	return 0;
 }
@@ -657,7 +956,7 @@ int alu_reg2str
 	
 	SRC = alu->regv + src;
 	neg = (
-		(SRC->info & ALU_REG_F__SIGN)
+		(SRC->info & ALU_INFO__SIGN)
 		&& (*(SRC->last.S) & SRC->last.B)
 	);
 	

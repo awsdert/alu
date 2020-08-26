@@ -96,8 +96,8 @@ int alu_compare( alu_reg_t num, alu_reg_t val, size_t *bit )
 	n = alu_end_bit( num );
 	v = alu_end_bit( val );
 	
-	nNeg = ( num.info & ALU_REG_F__SIGN && n.b == num.last.b );
-	vNeg = ( val.info & ALU_REG_F__SIGN && v.b == val.last.b );
+	nNeg = ( num.info & ALU_INFO__SIGN && n.b == num.last.b );
+	vNeg = ( val.info & ALU_INFO__SIGN && v.b == val.last.b );
 	
 	if ( nNeg != vNeg )
 	{
@@ -486,7 +486,7 @@ int alu__shr( alu_t *alu, uint_t num, size_t by )
 	if ( by < (e.b - n.b) )
 		v = alu_bit_set_bit( N->part, n.b + by );
 	
-	if ( (N->info & ALU_REG_F__SIGN) && (*(N->last.S) & N->last.B) )
+	if ( (N->info & ALU_INFO__SIGN) && (*(N->last.S) & N->last.B) )
 		neg = ~neg;
 	
 	while ( v.b < e.b )
@@ -665,8 +665,8 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 	
 	TR = *R;
 	
-	nNeg = ((N->info & ALU_REG_F__SIGN) && (*(N->last.S) & N->last.B));
-	vNeg = ((V->info & ALU_REG_F__SIGN) && (*(V->last.S) & V->last.B));
+	nNeg = ((N->info & ALU_INFO__SIGN) && (*(N->last.S) & N->last.B));
+	vNeg = ((V->info & ALU_INFO__SIGN) && (*(V->last.S) & V->last.B));
 	
 	if ( nNeg )
 		(void)alu_neg( alu, num );

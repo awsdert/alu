@@ -543,10 +543,7 @@ int alu_str2uint
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	bool lowercase
 )
 {
 	int ret = 0;
@@ -560,17 +557,14 @@ int alu_str2uint
 		return ret;
 	}
 	
-	ret = alu_str2reg(
+	ret = alu_lit2reg(
 		alu,
 		src,
 		_dst,
 		digsep,
 		nextchar,
 		nextpos,
-		base,
-		lowercase,
-		noPfx,
-		noSign
+		lowercase
 	);
 	(void)alu_mov( alu, (uintptr_t)&dst, _dst );
 	

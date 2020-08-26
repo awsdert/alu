@@ -22,7 +22,7 @@ int alu_int_prep1( alu_t *alu, alu_int_t num, uint_t *reg )
 	}
 	
 	REG = alu->regv + _reg;
-	REG->info |= ALU_REG_F__SIGN;
+	REG->info |= ALU_INFO__SIGN;
 	
 	(void)alu_mov( alu, _reg, (uintptr_t)&num );
 	
@@ -524,10 +524,7 @@ int alu_str2int
 	char32_t digsep,
 	alu_func_rdChar32_t nextchar,
 	long *nextpos,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	bool lowercase
 )
 {
 	int ret = 0;
@@ -541,21 +538,19 @@ int alu_str2int
 		alu_error(ret);
 		return ret;
 	}
-	DST = alu->regv + _dst;
-	DST->info |= ALU_REG_F__SIGN;
 	
-	ret = alu_str2reg(
+	ret = alu_lit2reg(
 		alu,
 		src,
 		_dst,
 		digsep,
 		nextchar,
 		nextpos,
-		base,
-		lowercase,
-		noPfx,
-		noSign
+		lowercase
 	);
+	DST = alu->regv + _dst;
+	DST->info |= ALU_INFO__SIGN;
+	
 	(void)alu_mov( alu, (uintptr_t)&dst, _dst );
 	
 	(void)alu_rem_reg( alu, _dst );
@@ -589,7 +584,7 @@ int alu_int2str
 		return ret;
 	}
 	SRC = alu->regv + _src;
-	SRC->info |= ALU_REG_F__SIGN;
+	SRC->info |= ALU_INFO__SIGN;
 	
 	ret = alu_reg2str(
 		alu,

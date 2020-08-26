@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-# define bitsof(T) (sizeof(T) * CHAR_BIT)
 # define rotate( NUM, BITS, OP1, OP2 ) \
 	(((NUM) OP1 (BITS))|((NUM) OP2 (bitsof(NUM) - (BITS))))
 # define rol( NUM, BITS ) rotate( NUM, BITS, <<, >> )
@@ -1008,11 +1007,10 @@ int reg_print_value(
 		return ret;
 	}
 	
-	ret = alu_str2reg(
+	ret = alu_lit2reg(
 		alu, &_src, tmp, digsep,
 		(alu_func_rdChar32_t)func_rdChar32,
-		&nextpos,
-		base, lowercase, noPfx, noSign
+		&nextpos, lowercase
 	);
 	
 	if ( ret != 0 )
@@ -1070,8 +1068,7 @@ int uint_print_value(
 	ret = alu_str2uint(
 		alu, &_src, tmp, digsep,
 		(alu_func_rdChar32_t)func_rdChar32,
-		&nextpos,
-		base, lowercase, noPfx, noSign
+		&nextpos, lowercase
 	);
 	
 	if ( ret != 0 )
@@ -1127,8 +1124,7 @@ int int_print_value(
 	ret = alu_str2int(
 		alu, &_src, tmp, digsep,
 		(alu_func_rdChar32_t)func_rdChar32,
-		&nextpos,
-		base, lowercase, noPfx, noSign
+		&nextpos, lowercase
 	);
 	
 	if ( ret != 0 )
