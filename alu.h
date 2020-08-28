@@ -136,6 +136,7 @@ typedef enum ALU_REG_ID {
 typedef struct alu_reg
 {
 	uint_t info;
+	size_t man_dig;
 	alu_bit_t upto, last, init;
 	alu_int_t regv;
 	void *part;
@@ -166,10 +167,15 @@ typedef int (*alu_func_wrChar32_t)( char32_t src, void *dst );
 typedef void (*alu_func_flipstr_t)( void *dst );
 
 int alu_setup_reg( alu_t *alu, uint_t want, size_t perN );
-int alu_reset_reg( alu_t *alu, uint_t reg, bool preserve_positions );
+int alu_reset_bounds( alu_t *alu, uint_t reg );
+int alu_reg_reset_bounds( alu_t *alu, alu_reg_t *reg );
+int alu_update_bounds( alu_t *alu, uint_t reg );
+int alu_reg_update_bounds( alu_t *alu, alu_reg_t *reg );
+void alu_reg_set_bounds( alu_reg_t *reg, size_t init, size_t upto );
 void alu_print_reg( char *pfx, alu_reg_t reg, bool print_info );
 int alu_get_reg( alu_t *alu, uint_t *reg, size_t need );
 int alu_rem_reg( alu_t *alu, uint_t reg );
+alu_bit_t alu_end_bit( alu_reg_t reg );
 
 # define ALU_BASE_STR_0to9 "0123456789"
 # define ALU_BASE_STR_atoz "abcdefghijklmnopqrstuvwxyz"
@@ -303,6 +309,8 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit );
  * will be utilized with a temporary register to prevent misaligned
  * values
 **/
+bool alu_reg_is_zero( alu_reg_t reg, alu_bit_t *end_bit );
+
 int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val );
 int alu_zero( alu_t *alu, uint_t num );
 int alu_not( alu_t *alu, uint_t num );

@@ -62,7 +62,7 @@ int alu_uint_prep2(
 	}
 	
 	/* Register size may have changed */
-	(void)alu_reset_reg( alu, _nreg, 0 );
+	(void)alu_reset_bounds( alu, _nreg );
 	
 	*nreg = _nreg;
 	*vreg = _vreg;
@@ -102,8 +102,8 @@ int alu_uint_prep3(
 	}
 	
 	/* Register size may have changed */
-	(void)alu_reset_reg( alu, _nreg, 0 );
-	(void)alu_reset_reg( alu, _vreg, 0 );
+	(void)alu_reset_bounds( alu, _nreg );
+	(void)alu_reset_bounds( alu, _vreg );
 	
 	*nreg = _nreg;
 	*vreg = _vreg;
