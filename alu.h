@@ -312,7 +312,10 @@ int alu_cmp( alu_t *alu, uint_t num, uint_t val, int *cmp, size_t *bit );
 bool alu_reg_is_zero( alu_reg_t reg, alu_bit_t *end_bit );
 
 int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val );
-int alu_zero( alu_t *alu, uint_t num );
+int alu_fill( alu_t *alu, uint_t num, bool value_for_all_bits );
+#define alu_set_nil( alu, num ) alu_fill( alu, num, 0 )
+#define alu_set_max( alu, num ) alu_fill( alu, num, 1 )
+int alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info );
 int alu_not( alu_t *alu, uint_t num );
 int alu_and( alu_t *alu, uint_t num, uint_t val );
 int alu__or( alu_t *alu, uint_t num, uint_t val );

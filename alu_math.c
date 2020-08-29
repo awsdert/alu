@@ -1,6 +1,6 @@
 #include "alu.h"
 
-int alu_zero( alu_t *alu, uint_t num )
+int alu_fill( alu_t *alu, uint_t num, bool value_for_all_bits )
 {
 	alu_reg_t *N;
 	alu_bit_t n;
@@ -14,8 +14,51 @@ int alu_zero( alu_t *alu, uint_t num )
 	
 	N = alu->regv + num;
 	
+	/* !! has the effect of turning any
+	 * non 0 value to 1 without a branch
+	 * instruction
+	 * */
+	value_for_all_bits = !!value_for_all_bits;
+	
 	for ( n = N->init; n.b < N->upto.b; n = alu_bit_inc(n) )
+	{
+		/* First make sure a 0 is where our target bit is */
 		*(n.S) &= ~(n.B);
+		/* Use the nature of num * 0 and num * 1 to avoid branching */
+		*(n.S) |= (value_for_all_bits * n.B);
+	}
+		
+	return 0;
+}
+
+int alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info )
+{
+	alu_reg_t *N;
+	alu_bit_t n;
+	int ret = alu_set_nil( alu, num );
+	size_t b;
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return ret;
+	}
+	
+	N = alu->regv + num;
+	N->info = ALU_INFO_VALID | info;
+	
+	for (
+		b = 1, n = N->init
+		; b && n.b < N->upto.b
+		; b <<= 1, n = alu_bit_inc(n)
+	)
+	{
+		/* !! has the effect of turning any
+		 * non 0 value to 1 without a branch
+		 * instruction
+		 * */
+		*(n.S) |= (!!(raw & b) * n.B);
+	}
 		
 	return 0;
 }
@@ -32,7 +75,7 @@ int alu_copy( alu_t *alu, uint_t num, uint_t val )
 		return ret;
 	}
 	
-	(void)alu_zero( alu, num );
+	(void)alu_set_nil( alu, num );
 	
 	N = alu->regv + num;
 	V = alu->regv + val;
@@ -674,9 +717,9 @@ int alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
 	if ( vNeg )
 		(void)alu_neg( alu, val );
 	
-	(void)alu_zero( alu, rem );
+	(void)alu_set_nil( alu, rem );
 	(void)alu__or( alu, rem, num );
-	(void)alu_zero( alu, num );
+	(void)alu_set_nil( alu, num );
 
 	n = alu_end_bit( *R );
 	
@@ -794,7 +837,7 @@ int alu__rol( alu_t *alu, uint_t num, size_t by )
 	T = alu->regv + tmp;
 	
 	memcpy( T->part, N->part, alu->buff.perN );
-	(void)alu_zero( alu, num );
+	(void)alu_set_nil( alu, num );
 	
 	T->upto = alu_bit_set_bit( T->part, N->upto.b );
 	T->last = alu_bit_set_bit( T->part, N->last.b );
@@ -857,7 +900,7 @@ int alu__ror( alu_t *alu, uint_t num, size_t by )
 	T = alu->regv + tmp;
 	
 	memcpy( T->part, N->part, alu->buff.perN );
-	(void)alu_zero( alu, num );
+	(void)alu_set_nil( alu, num );
 	
 	T->upto = alu_bit_set_bit( T->part, N->upto.b );
 	T->last = alu_bit_set_bit( T->part, N->last.b );

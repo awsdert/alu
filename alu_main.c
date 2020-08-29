@@ -95,7 +95,7 @@ int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val )
 		return 0;
 	}
 	
-	alu_zero( alu, num );
+	alu_set_nil( alu, num );
 	alu__or( alu, num, val );
 	
 	return ret;
@@ -493,7 +493,7 @@ int alu_str2reg
 	n = DST->last;
 	
 	(void)alu_reset_bounds( alu, reg_dst );
-	(void)alu_zero( alu, reg_dst );
+	(void)alu_set_nil( alu, reg_dst );
 
 	do
 	{	
@@ -567,14 +567,15 @@ int alu_str2reg
 
 enum
 {
-	ALU_LIT2REG_BASE = 0,
-	ALU_LIT2REG_NUM,
-	ALU_LIT2REG_DOT,
-	ALU_LIT2REG_ONE,
-	ALU_LIT2REG_EXP,
-	ALU_LIT2REG_MAN,
-	ALU_LIT2REG_VAL,
-	ALU_LIT2REG_COUNT
+	ALU_L2R_BASE = 0,
+	ALU_L2R_NUM,
+	ALU_L2R_DOT,
+	ALU_L2R_ONE,
+	ALU_L2R_EXP,
+	ALU_L2R_EXP_BIAS,
+	ALU_L2R_MAN,
+	ALU_L2R_VAL,
+	ALU_L2R_COUNT
 };
 
 bool alu_reg_is_zero( alu_reg_t reg, alu_bit_t *end_bit )
@@ -595,15 +596,13 @@ int alu_lit2reg
 	bool lowercase
 )
 {
-	size_t base, perN, bits, exp_bits, man_bits, *BASE;
-	alu_reg_t *_REGV[ALU_LIT2REG_COUNT], *DST;
+	size_t i, base, perN, bits, *BASE;
+	alu_reg_t *_REGV[ALU_L2R_COUNT], *DST, *NIL;
 	alu_bit_t n;
-	int ret, i;
-	long pos, prevpos;
-	ssize_t *EXP, min_exp = 0, max_exp = 0;
-	const int regc = 3;
-	uint_t _regv[ALU_LIT2REG_COUNT] = {-1};
-	char32_t *M, c = -1, exponent_char = 'e';
+	int ret;
+	long pos, prevpos, exp_dig, man_dig;
+	uint_t _regv[ALU_L2R_COUNT] = {-1};
+	char32_t c = -1, exponent_char = 'e';
 	bool neg = false, exp_neg = false, closing_bracket = true;
 	
 	if ( !nextpos )
@@ -703,7 +702,7 @@ int alu_lit2reg
 		}
 	}
 	
-	for ( i = 0; i < regc; ++i )
+	for ( i = 0; i < ALU_L2R_COUNT; ++i )
 	{
 		ret = alu_get_reg( alu, _regv + i, sizeof(size_t) );
 		
@@ -719,20 +718,21 @@ int alu_lit2reg
 	}
 	
 	/* Hook registers */
-	for ( i = 0; i < regc; ++i )
+	for ( i = 0; i < ALU_L2R_COUNT; ++i )
 		_REGV[i] = alu->regv + _regv[i];
-	DST = alu->regv + dst;
 	
-	EXP = _REGV[ALU_LIT2REG_EXP]->part;
-	BASE = _REGV[ALU_LIT2REG_BASE]->part;
+	DST = alu->regv + dst;
+	NIL = alu->regv + ALU_REG_ID_ZERO;
+	
+	BASE = _REGV[ALU_L2R_BASE]->part;
 	*BASE = base;
 	
 	ret = alu_str2reg(
 		alu,
 		src,
 		dst,
-		_regv[ALU_LIT2REG_BASE],
-		_regv[ALU_LIT2REG_VAL],
+		_regv[ALU_L2R_BASE],
+		_regv[ALU_L2R_VAL],
 		digsep,
 		nextchar,
 		nextpos,
@@ -760,9 +760,9 @@ int alu_lit2reg
 		ret = alu_str2reg(
 			alu,
 			src,
-			_regv[ALU_LIT2REG_DOT],
-			_regv[ALU_LIT2REG_BASE],
-			_regv[ALU_LIT2REG_VAL],
+			_regv[ALU_L2R_DOT],
+			_regv[ALU_L2R_BASE],
+			_regv[ALU_L2R_VAL],
 			digsep,
 			nextchar,
 			nextpos,
@@ -793,56 +793,49 @@ int alu_lit2reg
 			perN = alu->buff.perN;
 			
 			/* Reset pointers */
-			for ( i = 0; i < regc; ++i )
+			for ( i = 0; i < ALU_L2R_COUNT; ++i )
 				_REGV[i] = alu->regv + _regv[i];
-			DST = alu->regv + dst;
 			
-			EXP = _REGV[ALU_LIT2REG_EXP]->part;
-			BASE = _REGV[ALU_LIT2REG_BASE]->part;
+			DST = alu->regv + dst;
+			NIL = alu->regv + ALU_REG_ID_ZERO;
+			BASE = _REGV[ALU_L2R_BASE]->part;
 		}
 		
 		/* Check how many bits to assign to exponent & mantissa */
 		if ( bits < bitsof(float) )
 		{
 			if ( perN > 1 )
-				man_bits = CHAR_BIT - 1;
+				man_dig = CHAR_BIT - 1;
 			else
-				man_bits = (CHAR_BIT / 2) - 1;
+				man_dig = (CHAR_BIT / 2) - 1;
 		}
 		else if ( bits < bitsof(double) )
-			man_bits = FLT_MANT_DIG;
+			man_dig = FLT_MANT_DIG;
 		else if ( bits < bitsof(long double) )
-			man_bits = DBL_MANT_DIG;
+			man_dig = DBL_MANT_DIG;
 		else if ( bits == bitsof(long double) )
-			man_bits = LDBL_MANT_DIG;
+			man_dig = LDBL_MANT_DIG;
 		else
-			man_bits = (bits / 4) - 1;
+			man_dig = (bits / 4) - 1;
 		
-		exp_bits = ((perN * CHAR_BIT) - man_bits) - 1;
-		max_exp = ~(~max_exp << (bitsof(ssize_t) - exp_bits));
-		min_exp = (-max_exp - 1);
+		exp_dig = ((perN * CHAR_BIT) - man_dig) - 1;
 		
-		/* Update Exponent & Mantissa Registers */
-		n = alu_bit_set_bit( _REGV[ALU_LIT2REG_EXP]->part, exp_bits - 1 );
-		_REGV[ALU_LIT2REG_EXP]->upto = n;
-		_REGV[ALU_LIT2REG_EXP]->last = alu_bit_dec(n);
-		_REGV[ALU_LIT2REG_EXP]->info |= ALU_INFO__SIGN;
+		/* Update Exponent & Mantissa Bounds */
+		(void)alu_reg_set_bounds( _REGV[ALU_L2R_EXP_BIAS], 0, exp_dig );
+		(void)alu_reg_set_bounds( _REGV[ALU_L2R_EXP], 0, exp_dig );
+		(void)alu_reg_set_bounds( _REGV[ALU_L2R_MAN], 0, man_dig );
 		
-		n = alu_bit_set_bit( _REGV[ALU_LIT2REG_MAN]->part, man_bits );
-		_REGV[ALU_LIT2REG_MAN]->upto = n;
-		_REGV[ALU_LIT2REG_MAN]->last = alu_bit_dec(n);
+		/* Setup bias for exponent */
+		(void)alu_set_max( alu, _regv[ALU_L2R_EXP_BIAS] );
+		(void)alu__shr( alu, _regv[ALU_L2R_EXP_BIAS], 1 );
 		
 		/* Set '0.1' */
-		alu_zero( alu, _regv[ALU_LIT2REG_ONE] );
-		M = _REGV[ALU_LIT2REG_ONE]->part;
-		*M = 1u;
+		(void)alu_set_raw( alu, _regv[ALU_L2R_ONE], 1, 0 );
 		
 		/* Multiply '0.1' by base to get '1.0',
 		 * maybe be more digits than size_t supports */
 		for ( pos = prevpos; pos < *nextpos; ++pos )
-			alu_mul( alu, _regv[ALU_LIT2REG_ONE], _regv[ALU_LIT2REG_BASE] );
-		/* Restore base to what it should be */
-		*M = base;
+			(void)alu_mul( alu, _regv[ALU_L2R_ONE], _regv[ALU_L2R_BASE] );
 		
 		/* Only universal number literals need this, example of one:
 		 * 0~L36(A.z)e+10 */
@@ -877,9 +870,9 @@ int alu_lit2reg
 			ret = alu_str2reg(
 				alu,
 				src,
-				_regv[ALU_LIT2REG_EXP],
-				_regv[ALU_LIT2REG_BASE],
-				_regv[ALU_LIT2REG_VAL],
+				_regv[ALU_L2R_EXP],
+				_regv[ALU_L2R_BASE],
+				_regv[ALU_L2R_VAL],
 				digsep,
 				nextchar,
 				nextpos,
@@ -899,95 +892,103 @@ int alu_lit2reg
 			}
 			
 			if ( exp_neg )
-				*EXP = -(*EXP);
+				(void)alu_neg( alu, _regv[ALU_L2R_EXP] );
 		}
 		
-		/* Exponent had 1 bit less to prevent reading to much */
-		n = alu_bit_set_bit( _REGV[ALU_LIT2REG_EXP]->part, exp_bits );
-		_REGV[ALU_LIT2REG_EXP]->upto = n;
-		_REGV[ALU_LIT2REG_EXP]->last = alu_bit_dec(n);
-		_REGV[ALU_LIT2REG_EXP]->info |= ALU_INFO__SIGN;
-		
-		if ( alu_reg_is_zero( *(_REGV[ALU_LIT2REG_DOT]), &n ) )
-		{
-			alu_zero( alu, _regv[ALU_LIT2REG_ONE] );
-			*M = 1u;
-		}
+		if ( alu_reg_is_zero( *(_REGV[ALU_L2R_DOT]), &n ) )
+			alu_set_raw( alu, _regv[ALU_L2R_ONE], 1, 0 );
 		
 		pos = 0;
-		for ( ; *EXP > 0; --(*EXP), ++pos )
+		for
+		(
+			; alu_compare( *(_REGV[ALU_L2R_EXP]), *NIL, NULL ) > 0
+			; (void)alu_dec( alu, _regv[ALU_L2R_EXP] ), ++pos )
 		{
 			/* Check we haven't hit 1 */
 			if ( pos == 0
-				|| alu_reg_is_zero( *(_REGV[ALU_LIT2REG_ONE]), &n )
+				|| alu_reg_is_zero( *(_REGV[ALU_L2R_ONE]), &n )
 			)
 			{
 				break;
 			}
 		}
 		
-		if ( *EXP < min_exp )
+		if
+		(
+			alu_compare
+			(
+				*(_REGV[ALU_L2R_EXP]),
+				*(_REGV[ALU_L2R_EXP_BIAS]),
+				NULL
+			) > 0
+		)
 		{
-			set_nil:
-			(void)alu_zero( alu, dst );
-			goto set_sign;
+			if ( exp_neg )
+			{
+				set_nil:
+				(void)alu_set_nil( alu, dst );
+				goto set_sign;
+			}
+			else
+			{
+				set_inf:
+				(void)alu_set_nil( alu, dst );
+				(void)alu_set_max( alu, _regv[ALU_L2R_EXP] );
+				goto set_exp;
+			}
 		}
 		
-		if ( *EXP > max_exp )
-		{
-			set_inf:
-			(void)alu_zero( alu, dst );
-			(void)alu_not( alu, dst );
-			(void)alu_shl( alu, dst, man_bits );
-			*(DST->last.S) ^= DST->last.B;
-			goto set_sign;
-		}
 		
-		for ( ; *EXP > 0; --(*EXP) )
+		for
+		(
+			; alu_compare( *(_REGV[ALU_L2R_EXP]), *NIL, NULL ) > 0
+			; (void)alu_dec( alu, _regv[ALU_L2R_EXP] )
+		)
 		{
-			ret = alu_mul( alu, dst, _regv[ALU_LIT2REG_BASE] );
+			ret = alu_mul( alu, dst, _regv[ALU_L2R_BASE] );
 			if ( ret == EOVERFLOW )
 				goto set_inf;
 		}
 		
-		for ( ; *EXP < 0; ++(*EXP) )
+		for
+		(
+			; alu_compare( *(_REGV[ALU_L2R_EXP]), *NIL, NULL ) < 0
+			; (void)alu_inc( alu, _regv[ALU_L2R_EXP] )
+		)
 		{
-			ret = alu_mul( alu, _regv[ALU_LIT2REG_ONE], _regv[ALU_LIT2REG_BASE] );
+			ret = alu_mul( alu, _regv[ALU_L2R_ONE], _regv[ALU_L2R_BASE] );
 			if ( ret == EOVERFLOW )
 				goto set_nil;
 		}
 		
-		if ( alu_reg_is_zero( *(_REGV[ALU_LIT2REG_ONE]), &n ) )
+		if ( alu_reg_is_zero( *(_REGV[ALU_L2R_ONE]), &n ) )
 			goto set_nil;
 			
 		(void)alu_divide(
 			alu,
 			dst,
-			_regv[ALU_LIT2REG_ONE],
-			_regv[ALU_LIT2REG_DOT]
+			_regv[ALU_L2R_ONE],
+			_regv[ALU_L2R_DOT]
 		);
 		
-		if ( alu_reg_is_zero( *(_REGV[ALU_LIT2REG_DOT]), &n ) )
-		{
-			alu_zero( alu, _regv[ALU_LIT2REG_ONE] );
-			*M = 1u;
-		}
+		if ( alu_reg_is_zero( *(_REGV[ALU_L2R_DOT]), &n ) )
+			alu_set_raw( alu, _regv[ALU_L2R_ONE], 1, 0 );
 		
 		pos = 0;
 		
 		/* Calculate final exponent */
 		
-		if ( alu_compare( *DST, *(_REGV[ALU_LIT2REG_ONE]), NULL ) >= 0 )
+		if ( alu_compare( *DST, *(_REGV[ALU_L2R_ONE]), NULL ) >= 0 )
 		{
 			for
 			(
-				alu_mov( alu, _regv[ALU_LIT2REG_NUM], dst )
+				alu_mov( alu, _regv[ALU_L2R_VAL], dst )
 				; alu_compare(
-					*(_REGV[ALU_LIT2REG_NUM]),
-					*(_REGV[ALU_LIT2REG_ONE]),
+					*(_REGV[ALU_L2R_VAL]),
+					*(_REGV[ALU_L2R_ONE]),
 					NULL
 				) > 0
-				; ++pos, alu__shr( alu, _regv[ALU_LIT2REG_NUM], 1 )
+				; ++pos, alu__shr( alu, _regv[ALU_L2R_VAL], 1 )
 			);
 		}
 		else
@@ -997,23 +998,23 @@ int alu_lit2reg
 				alu_mov
 				(
 					alu,
-					_regv[ALU_LIT2REG_NUM],
-					_regv[ALU_LIT2REG_ONE]
+					_regv[ALU_L2R_VAL],
+					_regv[ALU_L2R_ONE]
 				)
 				; alu_compare
 				(
-					*(_REGV[ALU_LIT2REG_NUM]),
-					*(_REGV[ALU_LIT2REG_DOT]),
+					*(_REGV[ALU_L2R_VAL]),
+					*(_REGV[ALU_L2R_DOT]),
 					NULL
 				) > 0
-				; --pos, alu__shr( alu, _regv[ALU_LIT2REG_NUM], 1 )
+				; --pos, alu__shr( alu, _regv[ALU_L2R_VAL], 1 )
 			);
 			if
 			(
 				alu_compare
 				(
-					*(_REGV[ALU_LIT2REG_NUM]),
-					*(_REGV[ALU_LIT2REG_DOT]),
+					*(_REGV[ALU_L2R_VAL]),
+					*(_REGV[ALU_L2R_DOT]),
 					NULL
 				) == 0
 			)
@@ -1022,24 +1023,103 @@ int alu_lit2reg
 			}
 		}
 		
-		*EXP = pos;
+		/* Set bias */
+		alu_mov( alu, dst, _regv[ALU_L2R_EXP_BIAS] );
+		alu_set_raw( alu, _regv[ALU_L2R_VAL], man_dig, 0 );
+		
+		if ( pos > man_dig )
+		{
+			pos -= man_dig;
+			(void)alu_set_max( alu, _regv[ALU_L2R_DOT] );
+			(void)alu__shl( alu, _regv[ALU_L2R_DOT], pos );
+			(void)alu_not( alu, _regv[ALU_L2R_DOT] );
+			(void)alu_and( alu, _regv[ALU_L2R_DOT], dst );
+			(void)alu__shl( alu, _regv[ALU_L2R_ONE], pos );
+			(void)alu_mov( alu, _regv[ALU_L2R_MAN], _regv[ALU_L2R_VAL] );
+			(void)alu_mov( alu, _regv[ALU_L2R_VAL], _regv[ALU_L2R_ONE] );
+			(void)alu__shr( alu, _regv[ALU_L2R_VAL], 1 );
+			
+			i = alu_compare
+			(
+				*(_REGV[ALU_L2R_DOT]),
+				*(_REGV[ALU_L2R_VAL]),
+				NULL
+			);
+			
+			if ( i > 0 )
+				(void)alu_inc( alu, _regv[ALU_L2R_MAN] );
+			else if ( i == 0 )
+			{
+				switch ( FLT_ROUNDS )
+				{
+				case 1:
+					n = _REGV[ALU_L2R_MAN]->init;
+					if ( *(n.S) & n.B )
+						(void)alu_inc( alu, _regv[ALU_L2R_MAN] );
+					break;
+				}
+			}
+		}
+		else
+		{
+			(void)alu_mov
+			(
+				alu,
+				_regv[ALU_L2R_MAN],
+				dst
+			);
+			(void)alu_mov
+			(
+				alu,
+				_regv[ALU_L2R_VAL],
+				_regv[ALU_L2R_DOT]
+			);
+			
+			n = _REGV[ALU_L2R_MAN]->init;
+			for ( bits = 0; pos < man_dig; ++pos )
+			{
+				bits++;
+				if
+				(
+					alu_compare
+					(
+						*(_REGV[ALU_L2R_VAL]),
+						*(_REGV[ALU_L2R_ONE]),
+						NULL
+					) >= 0
+				)
+				{
+					(void)alu_sub
+					(
+						alu,
+						_regv[ALU_L2R_VAL],
+						_regv[ALU_L2R_ONE]
+					);
+					(void)alu_shl( alu, _regv[ALU_L2R_MAN], bits );
+					*(n.S) |= n.B;
+					bits = 0;
+				}
+			}
+			
+			if ( bits )
+				(void)alu_shl( alu, _regv[ALU_L2R_MAN], bits );
+		}
 		
 		/* TODO: Continue referencing code made in mitsy to build fpn */
 		
 		/* Construct FPN from modified values */
-		alu__or( alu, dst, _regv[ALU_LIT2REG_MAN] );
-		//set_exp:
-		alu_reg_set_bounds( _REGV[ALU_LIT2REG_EXP], 0, (perN * CHAR_BIT) );
-		alu__shl( alu, _regv[ALU_LIT2REG_EXP], man_bits );
-		alu__or( alu, dst, _regv[ALU_LIT2REG_EXP] );
+		alu_mov( alu, dst, _regv[ALU_L2R_MAN] );
+		set_exp:
+		/* Align and append Exponent */
+		alu_reg_set_bounds( _REGV[ALU_L2R_EXP], 0, perN * CHAR_BIT );
+		alu__shl( alu, _regv[ALU_L2R_EXP], man_dig );
+		alu__or( alu, dst, _regv[ALU_L2R_EXP] );
 		set_sign:
 		if ( neg )
 		{
-			alu_zero( alu, _regv[ALU_LIT2REG_ONE] );
-			M = _REGV[ALU_LIT2REG_ONE]->part;
-			*M = 1u;
-			alu__shl( alu, _regv[ALU_LIT2REG_ONE], exp_bits + man_bits );
-			alu__or( alu, dst, _regv[ALU_LIT2REG_ONE] );
+			alu_set_raw( alu, _regv[ALU_L2R_ONE], 1, 0 );
+			alu__shl( alu, _regv[ALU_L2R_ONE], exp_dig + man_dig );
+			alu__or( alu, dst, _regv[ALU_L2R_ONE] );
 		}
 	}
 	else 
@@ -1058,11 +1138,9 @@ int alu_lit2reg
 		}
 		if ( neg )
 			alu_neg( alu, dst );
-		
-		alu_mov( alu, dst, _regv[ALU_LIT2REG_NUM] );
 	}
 	
-	for ( i = ALU_LIT2REG_COUNT; i > 0; )
+	for ( i = ALU_L2R_COUNT; i > 0; )
 	{
 		--i;
 		alu_rem_reg( alu, _regv[i] );
