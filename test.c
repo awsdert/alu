@@ -20,15 +20,15 @@ int uint_compare(
 	size_t N = _num, V = _val, bit = 0;
 	alu_uint_t num = {0}, val = {0};
 	
-	num.perN = sizeof(size_t);
-	num.qty.last = 0;
-	num.qty.upto = num.qty.used = 1;
-	num.mem.block = &N;
-	num.mem.bytes.last = sizeof(size_t) - 1;
-	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	num.vec.perN = sizeof(size_t);
+	num.vec.qty.last = 0;
+	num.vec.qty.upto = num.vec.qty.used = 1;
+	num.vec.mem.block = &N;
+	num.vec.mem.bytes.last = sizeof(size_t) - 1;
+	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
 	
 	val = num;
-	val.mem.block = &V;
+	val.vec.mem.block = &V;
 	
 	if ( _num > _val )
 		expect = 1;
@@ -65,15 +65,15 @@ int int_compare(
 	size_t N = _num, V = _val, bit = 0;
 	alu_int_t num = {0}, val = {0};
 	
-	num.perN = sizeof(size_t);
-	num.qty.last = 0;
-	num.qty.upto = num.qty.used = 1;
-	num.mem.block = &N;
-	num.mem.bytes.last = sizeof(size_t) - 1;
-	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	num.vec.perN = sizeof(size_t);
+	num.vec.qty.last = 0;
+	num.vec.qty.upto = num.vec.qty.used = 1;
+	num.vec.mem.block = &N;
+	num.vec.mem.bytes.last = sizeof(size_t) - 1;
+	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
 	
 	val = num;
-	val.mem.block = &V;
+	val.vec.mem.block = &V;
 	
 	if ( _num > _val )
 		expect = 1;
@@ -107,11 +107,10 @@ int reg_compare(
 )
 {
 	int ret = 0, cmp = 0, expect = 0;
-	uint_t num = -1, val = -1;
-	alu_reg_t *NUM, *VAL;
+	alu_register_t regv[2], num = {0}, val = {0};
 	size_t *N, *V, bit = 0;
 	
-	ret = alu_get_reg( alu, &num, sizeof(size_t) );
+	ret = alu_get_regv( alu, regv, 2, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -119,20 +118,11 @@ int reg_compare(
 		return ret;
 	}
 	
-	ret = alu_get_reg( alu, &val, sizeof(size_t) );
+	num = regv[0];
+	val = regv[1];
 	
-	if ( ret != 0 )
-	{
-		alu_rem_reg( alu, num );
-		alu_error( ret );
-		return ret;
-	}
-	
-	NUM = alu->regv + num;
-	VAL = alu->regv + val;
-	
-	N = NUM->part;
-	V = VAL->part;
+	N = ALU_PART( *alu, num.node );
+	V = ALU_PART( *alu, val.node );
 	
 	*N = _num;
 	*V = _val;
@@ -143,13 +133,7 @@ int reg_compare(
 	if ( _num < _val )
 		expect = -1;
 
-	ret = alu_cmp( alu, num, val, &cmp, &bit );
-	if ( ret != 0 )
-	{
-		alu_error( ret );
-		return ret;
-	}
-	
+	cmp = alu_reg_cmp( *alu, num, val, &bit );
 	
 	if ( expect != cmp || print_anyways )
 	{
@@ -171,12 +155,11 @@ int reg_modify(
 )
 {
 	int ret = 0;
-	uint_t num = -1, val = -1;
-	alu_reg_t *NUM, *VAL;
+	alu_register_t regv[3], num = {0}, val = {0}, tmp = {0};
 	size_t *N, *V, expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	ret = alu_get_reg( alu, &num, sizeof(size_t) );
+	ret = alu_get_regv( alu, regv, 3, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -184,20 +167,12 @@ int reg_modify(
 		return ret;
 	}
 	
-	ret = alu_get_reg( alu, &val, sizeof(size_t) );
+	num = regv[0];
+	val = regv[1];
+	tmp = regv[2];
 	
-	if ( ret != 0 )
-	{
-		alu_rem_reg( alu, num );
-		alu_error( ret );
-		return ret;
-	}
-	
-	NUM = alu->regv + num;
-	VAL = alu->regv + val;
-	
-	N = NUM->part;
-	V = VAL->part;
+	N = ALU_PART( *alu, num.node );
+	V = ALU_PART( *alu, val.node );
 	
 	*N = _num;
 	*V = _val;
@@ -216,72 +191,72 @@ int reg_modify(
 	case 'n':
 		sprintf( pfx, "-0x%016zX", _num );
 		expect = -expect;
-		ret = alu_neg( alu, num );
+		alu_reg_neg( *alu, num );
 		break;
 	case '~':
 		sprintf( pfx, "~0x%016zX", _num );
 		expect = ~expect;
-		ret = alu_not( alu, num );
+		alu_reg_not( *alu, num );
 		break;
 	case '&':
 		sprintf( pfx, "0x%016zX & 0x%016zX", _num, _val );
 		expect &= _val;
-		ret = alu_and( alu, num, val );
+		alu_reg_and( *alu, num, val );
 		break;
 	case '|':
 		sprintf( pfx, "0x%016zX | 0x%016zX", _num, _val );
 		expect |= _val;
-		ret = alu__or( alu, num, val );
+		alu_reg__or( *alu, num, val );
 		break;
 	case '^':
 		sprintf( pfx, "0x%016zX ^ 0x%016zX", _num, _val );
 		expect ^= _val;
-		ret = alu_xor( alu, num, val );
+		alu_reg_xor( *alu, num, val );
 		break;
 	case 'i':
 		sprintf( pfx, "0x%016zX++", _num );
 		expect++;
-		ret = alu_inc( alu, num );
+		ret = alu_reg_inc( *alu, num );
 		break;
 	case 'd':
 		sprintf( pfx, "0x%016zX--", _num );
 		expect--;
-		ret = alu_dec( alu, num );
+		ret = alu_reg_dec( *alu, num );
 		break;
 	case '+':
 		sprintf( pfx, "0x%016zX + 0x%016zX", _num, _val );
 		expect += _val;
-		ret = alu_add( alu, num, val );
+		ret = alu_reg_add( *alu, num, val );
 		break;
 	case '-':
 		sprintf( pfx, "0x%016zX - 0x%016zX", _num, _val );
 		expect -= _val;
-		ret = alu_sub( alu, num, val );
+		ret = alu_reg_sub( *alu, num, val );
 		break;
 	case 'l':
 		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
 		expect = rol( expect, _val );
-		ret = alu_rol( alu, num, val );
+		alu_reg_rol( *alu, num, val, tmp );
 		break;
 	case '<':
 		sprintf( pfx, "0x%016zX << 0x%016zX", _num, _val );
 		expect <<= _val;
-		ret = alu_shl( alu, num, val );
+		alu_reg_shl( *alu, num, val, tmp );
 		break;
 	case 'r':
 		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
 		expect = ror( expect, _val );
-		ret = alu_ror( alu, num, val );
+		alu_reg_ror( *alu, num, val, tmp );
 		break;
 	case '>':
 		sprintf( pfx, "0x%016zX >> 0x%016zX", _num, _val );
 		expect >>= _val;
-		ret = alu_shr( alu, num, val );
+		alu_reg_shr( *alu, num, val, tmp );
 		break;
 	case '*':
 		sprintf( pfx, "0x%016zX * 0x%016zX", _num, _val );
 		expect *= _val;
-		ret = alu_mul( alu, num, val );
+		ret = alu_reg_mul( *alu, num, val, tmp );
 		break;
 	case '/':
 		sprintf( pfx, "0x%016zX / 0x%016zX", _num, _val );
@@ -289,30 +264,28 @@ int reg_modify(
 			expect /= _val;
 		else
 			expect = 0;
-		ret = alu_div( alu, num, val );
+		ret = alu_reg_div( *alu, num, val, tmp );
 		break;
 	case '%':
 		sprintf( pfx, "0x%016zX %% 0x%016zX", _num, _val );
 		if ( _val )
 			expect %= _val;
-		ret = alu_rem( alu, num, val );
+		ret = alu_reg_rem( *alu, num, val, tmp );
 		break;
 	default: ret = ENOSYS;
 	}
 	
 	/* Pointers may have changed, catch a copy */
-	NUM = alu->regv + num;
-	VAL = alu->regv + val;
 	
-	N = NUM->part;
-	V = VAL->part;
+	N = ALU_PART( *alu, num.node );
+	V = ALU_PART( *alu, val.node );
 	
 	switch ( ret )
 	{
 	case 0: case ENODATA: case EOVERFLOW: break;
 	default:
-		alu_rem_reg( alu, num );
-		alu_rem_reg( alu, val );
+		alu_rem_reg( *alu, num );
+		alu_rem_reg( *alu, val );
 		alu_error( ret );
 		return ret;
 	}
@@ -332,8 +305,7 @@ int reg_modify(
 #endif
 	}
 	
-	alu_rem_reg( alu, num );
-	alu_rem_reg( alu, val );
+	alu_rem_regv( *alu, regv, 3 );
 	
 	return 0;
 }
@@ -351,15 +323,15 @@ int uint_modify(
 	alu_uint_t num = {0}, val = {0};
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	num.perN = sizeof(size_t);
-	num.qty.last = 0;
-	num.qty.upto = num.qty.used = 1;
-	num.mem.block = &N;
-	num.mem.bytes.last = sizeof(size_t) - 1;
-	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	num.vec.perN = sizeof(size_t);
+	num.vec.qty.last = 0;
+	num.vec.qty.upto = num.vec.qty.used = 1;
+	num.vec.mem.block = &N;
+	num.vec.mem.bytes.last = sizeof(size_t) - 1;
+	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
 	
 	val = num;
-	val.mem.block = &V;
+	val.vec.mem.block = &V;
 	
 	expect = _num;
 	switch ( op )
@@ -484,15 +456,15 @@ int int_modify(
 	alu_int_t num = {0}, val = {0};
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	num.perN = sizeof(size_t);
-	num.qty.last = 0;
-	num.qty.upto = num.qty.used = 1;
-	num.mem.block = &N;
-	num.mem.bytes.last = sizeof(size_t) - 1;
-	num.mem.bytes.upto = num.mem.bytes.used = sizeof(size_t);
+	num.vec.perN = sizeof(size_t);
+	num.vec.qty.last = 0;
+	num.vec.qty.upto = num.vec.qty.used = 1;
+	num.vec.mem.block = &N;
+	num.vec.mem.bytes.last = sizeof(size_t) - 1;
+	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
 	
 	val = num;
-	val.mem.block = &V;
+	val.vec.mem.block = &V;
 	
 	switch ( op )
 	{
@@ -995,7 +967,7 @@ int reg_print_value(
 	bool print_anyways
 )
 {
-	uint_t tmp = -1;
+	alu_register_t tmp = {0};
 	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	char *src = _src.block, *dst = NULL;
 	long nextpos = 0;
@@ -1035,7 +1007,7 @@ int reg_print_value(
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	fail:
-	alu_rem_reg( alu, tmp );
+	alu_rem_reg( *alu, tmp );
 	return ret;
 }
 
@@ -1056,14 +1028,14 @@ int uint_print_value(
 	long nextpos = 0;
 	bool noSign = false, noPfx = false;
 	
-	tmp.perN = sizeof(size_t);
-	tmp.qty.used = 1;
-	tmp.qty.last = 0;
-	tmp.qty.upto = 1;
-	tmp.mem.block = &_tmp;
-	tmp.mem.bytes.used = sizeof(size_t);
-	tmp.mem.bytes.last = tmp.mem.bytes.used - 1;
-	tmp.mem.bytes.upto = tmp.mem.bytes.used;
+	tmp.vec.perN = sizeof(size_t);
+	tmp.vec.qty.used = 1;
+	tmp.vec.qty.last = 0;
+	tmp.vec.qty.upto = 1;
+	tmp.vec.mem.block = &_tmp;
+	tmp.vec.mem.bytes.used = sizeof(size_t);
+	tmp.vec.mem.bytes.last = tmp.vec.mem.bytes.used - 1;
+	tmp.vec.mem.bytes.upto = tmp.vec.mem.bytes.used;
 	
 	ret = alu_str2uint(
 		alu, &_src, tmp, digsep,
@@ -1112,14 +1084,14 @@ int int_print_value(
 	long nextpos = 0;
 	bool noSign = false, noPfx = false;
 	
-	tmp.perN = sizeof(size_t);
-	tmp.qty.used = 1;
-	tmp.qty.last = 0;
-	tmp.qty.upto = 1;
-	tmp.mem.block = &_tmp;
-	tmp.mem.bytes.used = sizeof(size_t);
-	tmp.mem.bytes.last = tmp.mem.bytes.used - 1;
-	tmp.mem.bytes.upto = tmp.mem.bytes.used;
+	tmp.vec.perN = sizeof(size_t);
+	tmp.vec.qty.used = 1;
+	tmp.vec.qty.last = 0;
+	tmp.vec.qty.upto = 1;
+	tmp.vec.mem.block = &_tmp;
+	tmp.vec.mem.bytes.used = sizeof(size_t);
+	tmp.vec.mem.bytes.last = tmp.vec.mem.bytes.used - 1;
+	tmp.vec.mem.bytes.upto = tmp.vec.mem.bytes.used;
 	
 	ret = alu_str2int(
 		alu, &_src, tmp, digsep,
