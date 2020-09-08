@@ -192,20 +192,16 @@ void alu_copy( alu_t alu, uint_t num, uint_t val )
 alu_bit_t alu_end_bit( alu_t alu, alu_register_t num )
 {
 	alu_bit_t n;
+	size_t b;
 	
 	num.node %= ALU_USED( alu );
+	n = alu_bit_set_bit( ALU_PART( alu, num.node ), num.upto - 1 );
+	b = n.b * !( *(n.S) & n.B );
 	
-	for
-	(
-		n = alu_bit_set_bit( ALU_PART( alu, num.node ), num.upto - 1 )
-		; n.b > num.from
-		; n = alu_bit_dec( n )
-	)
+	while ( b > num.from )
 	{
-		if ( !(*n.S & n.B) )
-			continue;
-		
-		break;
+		n = alu_bit_dec( n );
+		b = n.b * !( *(n.S) & n.B );
 	}
 	
 	return n;
@@ -228,6 +224,11 @@ int alu_reg_cmp(
 	
 	nNeg = !!(num.info & ALU_INFO__SIGN) & (n.b == num.upto - 1);
 	vNeg = !!(val.info & ALU_INFO__SIGN) & (v.b == val.upto - 1);
+	
+	alu_print_reg( "num", alu, num, 1, 1 );
+	alu_print_reg( "val", alu, val, 1, 1 );
+	alu_print_bit( "n", n, 1 );
+	alu_print_bit( "v", v, 1 );
 	
 	if ( nNeg != vNeg )
 	{

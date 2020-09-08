@@ -9,8 +9,8 @@ struct alu_bit alu_bit_set_bit
 {
 	alu_bit_t pos = {0};
 	pos.b = bit;
-	pos.p = bit % SIZE_T_WIDTH;
-	pos.s = bit / SIZE_T_WIDTH;
+	pos.p = bit % bitsof(size_t);
+	pos.s = bit / bitsof(size_t);
 	pos.S = init + pos.s;
 	pos.B = SIZE_T_C(1) << pos.p;
 	return pos;
@@ -51,7 +51,7 @@ struct alu_bit alu_bit_dec( struct alu_bit pos )
 	pos.B >>= 1;
 	if ( pos.B )
 		return pos;
-	pos.p = SIZE_T_WIDTH-1;
+	pos.p = bitsof(size_t) - 1;
 	pos.B = SIZE_END_BIT;
 	pos.s--;
 	pos.S--;

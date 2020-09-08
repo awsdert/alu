@@ -3,7 +3,7 @@ include dst_sys.mak
 include dst_cc.mak
 
 PRJ:=ALU
-ALL_GOALS:=info objects build run debug clean rebuild
+ALL_GOALS:=info objects build run debug gede clean rebuild
 
 PRJ_SRC_DIR:=
 PRJ_INC_DIR:=
@@ -72,6 +72,9 @@ run: build
 	
 debug: build
 	gdb -ex run ./$(PRJ_DST_BIN)
+
+gede: build
+	gede --args ./$(PRJ_DST_BIN)
 
 build: objects $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 

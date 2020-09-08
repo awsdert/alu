@@ -19,3 +19,8 @@ ifeq '$(filter debug,$(MAKECMDGOALS))' 'debug'
 DBG_FLAGS:=-ggdb $(COP)D _DEBUG
 DBG_SFX:=_d
 endif
+
+ifeq '$(filter gede,$(MAKECMDGOALS))' 'gede'
+DBG_FLAGS:=-ggdb $(COP)D _DEBUG
+DBG_SFX:=_d
+endif

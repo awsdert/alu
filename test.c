@@ -108,7 +108,7 @@ int reg_compare(
 {
 	int ret = 0, cmp = 0, expect = 0;
 	alu_register_t regv[2], num = {0}, val = {0};
-	size_t *N, *V, bit = 0;
+	size_t bit = 0;
 	
 	ret = alu_get_regv( alu, regv, 2, sizeof(size_t) );
 	
@@ -121,17 +121,16 @@ int reg_compare(
 	num = regv[0];
 	val = regv[1];
 	
-	N = ALU_PART( *alu, num.node );
-	V = ALU_PART( *alu, val.node );
-	
-	*N = _num;
-	*V = _val;
+	alu_reg_set_raw( *alu, num, _num, 0 );
+	alu_reg_set_raw( *alu, val, _val, 0 );
 	
 	if ( _num > _val )
 		expect = 1;
 	
 	if ( _num < _val )
 		expect = -1;
+		
+	alu_printf( "num.node = %u, val.node = %u", num.node, val.node );
 
 	cmp = alu_reg_cmp( *alu, num, val, &bit );
 	

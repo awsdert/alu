@@ -23,8 +23,8 @@
 /* Use boolean of 1 or 0 to either use or cancel a value,
  * also use | to use result in same value in the case A == B
  * */
-#define LOWEST( A, B ) ((((A) <= (B)) * (A)) | (((B) <= (A)) * (B)))
-#define HIGHEST( A, B ) ((((A) >= (B)) * (A)) | (((B) >= (A)) * (B)))
+#define LOWEST( A, B )  ( ((A) * ((A) <= (B))) | ((B) * ((B) <= (A))) )
+#define HIGHEST( A, B ) ( ((A) * ((A) >= (B))) | ((B) * ((B) >= (A))) )
 
 typedef struct alu_bytes {
 	size_t upto, used, last;
@@ -183,7 +183,7 @@ size_t alu_lowest_upto( alu_register_t num, alu_register_t val );
 #define ALU_PART( ALU, REG ) \
 	((ALU).buff.mem.block + ((REG) * (ALU).buff.perN))
 
-int alu_check_reg( alu_t *alu, uint_t reg );
+int alu_check_reg( alu_t alu, uint_t reg );
 int alu_check1( alu_t *alu, uint_t num );
 int alu_check2( alu_t *alu, uint_t num, uint_t val );
 int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem );
@@ -194,7 +194,7 @@ typedef int (*alu_func_wrChar32_t)( char32_t src, void *dst );
 typedef void (*alu_func_flipstr_t)( void *dst );
 
 int alu_setup_reg( alu_t *alu, uint_t want, size_t perN );
-void alu_print_reg( char *pfx, alu_t alu, alu_register_t reg, bool print_info );
+void alu_print_reg( char *pfx, alu_t alu, alu_register_t reg, bool print_info, bool print_value );
 size_t alu_set_bounds( alu_t alu, uint_t reg, size_t from, size_t upto );
 void alu_set_constants( alu_t alu );
 int alu_update_bounds( alu_t *alu, uint_t reg );
