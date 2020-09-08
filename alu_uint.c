@@ -473,7 +473,7 @@ int alu_uint_rem( alu_t *alu, alu_uint_t num, alu_uint_t val )
 	return ret;
 }
 
-int alu_str2int
+int alu_str2uint
 (
 	alu_t *alu,
 	void *src,
