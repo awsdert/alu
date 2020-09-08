@@ -47,6 +47,7 @@ int alu_block( struct alu_block *mem, size_t want, int_t dir )
 		mem->bytes.upto = want;
 		mem->bytes.last = want - 1;
 		memset( &(block[mem->bytes.used]), 0, want - mem->bytes.used );
+		mem->bytes.used = want;
 		return 0;
 	}
 	

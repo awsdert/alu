@@ -189,6 +189,8 @@ int alu_setup_reg( alu_t *alu, uint_t want, size_t perN )
 		return ret;
 	
 	alu->regv = alu->_regv.mem.block;
+	alu->buff.qty.used = HIGHEST( alu->buff.qty.used, ALU_REG_ID_NEED );
+	alu->_regv.qty.used = HIGHEST( alu->buff.qty.used, ALU_REG_ID_NEED );
 	
 	for ( i = 0; i < ALU_REG_ID_NEED; ++i )
 	{

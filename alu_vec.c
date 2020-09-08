@@ -60,10 +60,8 @@ int alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
 	vec->qty.upto = want;
 	vec->qty.last = want ? want - 1 : 0;
 	
-	if ( vec->qty.used < want )
+	if ( vec->qty.used > want )
 		vec->qty.used = want;
-	
-	vec->mem.bytes.used = vec->qty.used * perN;
 	
 	fail:
 	return ret;
