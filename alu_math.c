@@ -856,6 +856,17 @@ int alu_divide( alu_t alu, uint_t num, uint_t val, uint_t rem )
 	return alu_reg_divide( alu, alu.regv[num], alu.regv[val], alu.regv[rem] );
 }
 
+int alu_reg_div
+(
+	alu_t alu
+	, alu_register_t num
+	, alu_register_t val
+	, alu_register_t tmp
+)
+{
+	return alu_reg_divide( alu, num, val, tmp );
+}
+
 int alu_div( alu_t alu, uint_t num, uint_t val, uint_t tmp )
 {
 	num %= ALU_USED( alu );
@@ -864,19 +875,28 @@ int alu_div( alu_t alu, uint_t num, uint_t val, uint_t tmp )
 	return alu_reg_divide( alu, alu.regv[num], alu.regv[val], alu.regv[tmp] );
 }
 
-int alu_rem( alu_t alu, uint_t num, uint_t val, uint_t tmp )
+int alu_reg_rem
+(
+	alu_t alu
+	, alu_register_t num
+	, alu_register_t val
+	, alu_register_t tmp
+)
 {
-	int ret;
+	int ret = alu_reg_divide( alu, num, val, tmp );
 	
+	(void)alu_reg_copy( alu, num, tmp );
+	
+	return ret;
+}
+
+int alu_rem( alu_t alu, uint_t num, uint_t val, uint_t tmp )
+{	
 	num %= ALU_USED( alu );
 	val %= ALU_USED( alu );
 	tmp %= ALU_USED( alu );
 	
-	ret = alu_reg_divide( alu, alu.regv[num], alu.regv[val], alu.regv[tmp] );
-	
-	(void)alu_reg_copy( alu, alu.regv[num], alu.regv[tmp] );
-	
-	return ret;
+	return alu_reg_div( alu, alu.regv[num], alu.regv[val], alu.regv[tmp] );
 }
 
 void alu_reg__rol( alu_t alu, alu_register_t num, alu_register_t tmp, size_t by )
@@ -981,7 +1001,7 @@ void alu__ror( alu_t alu, uint_t num, uint_t tmp, size_t by )
 	alu_reg__ror( alu, alu.regv[num], alu.regv[tmp], by );
 }
 
-void alu_reg_rotate
+void alu_reg__rotate
 (
 	alu_t alu
 	, alu_register_t num
