@@ -9,41 +9,52 @@ int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val )
 	alu_uint_t *NUM = NULL, *VAL = NULL;
 	void *part;
 	
-	if ( num < ALU_USED( *alu ) )
+	if ( num < ALU_REG_ID_LIMIT )
+	{
+		num %= ALU_USED( *alu );
 		_num = alu->regv[num];
+	}
 	else
 	{
 		NUM = (alu_uint_t*)num;
-		ret = alu_get_reg( alu, regv, NUM->vec.mem.bytes.upto );
+		
+		ret = alu_get_reg( alu, &_num, NUM->vec.mem.bytes.upto );
 		
 		if ( ret != 0 )
 			return ret;
-			
-		_num = regv[0];
+		
 		_num.info = NUM->info | ALU_INFO_VALID;
 		part = ALU_PART( *alu, _num.node );
 		(void)memcpy( part, NUM->vec.mem.block, NUM->vec.mem.bytes.upto );
+		
+		regv[0] = _num;
 	}
 	
-	if ( val < ALU_USED( *alu ) )
+	if ( val < ALU_REG_ID_LIMIT )
+	{
+		val %= ALU_USED( *alu );
 		_val = alu->regv[val];
+	}
 	else
 	{
 		VAL = (alu_uint_t*)val;
-		ret = alu_get_reg( alu, regv + 1, VAL->vec.mem.bytes.upto );
+		ret = alu_get_reg( alu, &_val, VAL->vec.mem.bytes.upto );
+		
 		if ( ret != 0 )
 		{
-			alu_rem_reg( *alu, *regv );
+			alu_rem_reg( *alu, _num );
 			return ret;
 		}
 		
-		_val = regv[0];
 		_val.info = VAL->info | ALU_INFO_VALID;
 		part = ALU_PART( *alu, _val.node );
+		
 		(void)memcpy( part, VAL->vec.mem.block, VAL->vec.mem.bytes.upto );
+		
+		regv[1] = _val;
 	}
 	
-	(void)alu_reg_copy( *alu, _num, _val );
+	alu_reg_copy( *alu, _num, _val );
 	
 	if ( NUM )
 	{
@@ -171,38 +182,46 @@ int alu_setup_reg( alu_t *alu, uint_t want, size_t perN )
 	
 	/* Needed for alu_mov() to support both register numbers and
 	 * arbitrary addresses */
-	if ( want > ALU_REG_ID_LIMIT )
-		return ERANGE;
-	
-	perN =
-		(sizeof(size_t) * !perN)
-		| (perN * !(perN % sizeof(size_t)))
-		| ((perN / sizeof(size_t))+1) * !!(perN % sizeof(size_t))
-	;
-	
-	ret = alu_vec_expand( &(alu->buff), want, perN );
-	if ( ret != 0 )
-		return ret;
-		
-	ret = alu_vec_expand( &(alu->_regv), want, sizeof(alu_reg_t) );
-	if ( ret != 0 )
-		return ret;
-	
-	alu->regv = alu->_regv.mem.block;
-	alu->buff.qty.used = HIGHEST( alu->buff.qty.used, ALU_REG_ID_NEED );
-	alu->_regv.qty.used = HIGHEST( alu->buff.qty.used, ALU_REG_ID_NEED );
-	
-	for ( i = 0; i < ALU_REG_ID_NEED; ++i )
+	if ( want < ALU_REG_ID_LIMIT )
 	{
-		REG = alu->regv + i;
-		REG->node = i;
-		REG->info = ALU_INFO_VALID;
-		alu_set_bounds( *alu, i, 0, -1 );
+		perN =
+			(sizeof(size_t) * !perN)
+			| (perN * !(perN % sizeof(size_t)))
+			| ((perN / sizeof(size_t))+1) * !!(perN % sizeof(size_t))
+		;
+		
+		ret = alu_vec_expand( &(alu->buff), want, perN );
+		if ( ret == 0 )
+		{	
+			ret = alu_vec_expand( &(alu->_regv), want, sizeof(alu_register_t) );
+			if ( ret == 0 )
+			{
+				alu->regv = alu->_regv.mem.block;
+				alu->buff.qty.used = HIGHEST( alu->buff.qty.used, ALU_REG_ID_NEED );
+				alu->_regv.qty.used = HIGHEST( alu->buff.qty.used, ALU_REG_ID_NEED );
+				
+				for ( i = 0; i < ALU_REG_ID_NEED; ++i )
+				{
+					REG = alu->regv + i;
+					REG->node = i;
+					REG->info = ALU_INFO_VALID;
+					REG->from = 0;
+					REG->upto = perN * CHAR_BIT;
+				}
+				
+				alu_set_constants( *alu );
+			}
+			else alu_error( ret );
+		}
+		else alu_error( ret );
+	}
+	else
+	{
+		ret = ERANGE;
+		alu_error( ret );
 	}
 	
-	alu_set_constants( *alu );
-	
-	return 0;
+	return ret;
 }
 
 int alu_get_reg( alu_t *alu, alu_register_t *dst, size_t size )
@@ -291,19 +310,26 @@ void alu_rem_regv( alu_t alu, alu_register_t *regv, int count )
 	}
 }
 
-int alu_get_regv( alu_t *alu, alu_register_t *regv, int count, size_t need )
+int alu_get_regv( alu_t *alu, alu_register_t *regv, uint_t count, size_t need )
 {
-	int ret = 0, r;
+	int ret = 0;
+	uint_t r;
+	alu_register_t *REG;
+	
+	//alu_printf( "count = %u", count );
 	
 	for ( r = 0; r < count; ++r )
 	{
-		ret = alu_get_reg( alu, regv + r, need );
-		if ( ret != 0 )
-		{
-			alu_error( ret );
-			alu_rem_regv( *alu, regv, r );
-			break;
-		}
+		REG = regv + r;
+		ret = alu_get_reg( alu, REG, need );
+		count *= (ret == 0);
+		//alu_printf( "REG = %p, node = %u", REG, REG->node );
+	}
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		alu_rem_regv( *alu, regv, r );
 	}
 	
 	return ret;
@@ -358,86 +384,74 @@ void alu_set_constants( alu_t alu )
 
 int alu_str2reg
 (
-	alu_t *alu,
-	void *src,
-	alu_register_t reg_dst,
-	alu_register_t reg_base,
-	alu_register_t reg_mod,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	size_t base,
-	bool lowercase
+	alu_t *alu
+	, alu_src_t src
+	, alu_register_t dst
+	, alu_base_t base
 )
 {
 	size_t b, perN;
-	alu_register_t reg_tmp;
+	alu_register_t
+		num = base.regv[ALU_BASE_NUM]
+		, val = base.regv[ALU_BASE_VAL]
+		, tmp = base.regv[ALU_BASE_TMP]
+	;
 	alu_bit_t n;
 	int ret;
-	char32_t *M, c = -1;
+	char32_t c = -1;
 	char
 		*base_upper = ALU_BASE_STR_0toZtoz "+-",
 		*base_lower = ALU_BASE_STR_0toztoZ "+-",
-		*base_str = lowercase ? base_lower : base_upper;
+		*base_str = base.lowercase ? base_lower : base_upper;
 	
-	if ( !nextpos )
+	if ( !(src.nextpos) )
 		return EDESTADDRREQ;
 	
-	if ( *nextpos < 0 )
-		*nextpos = 0;
+	if ( *(src.nextpos) < 0 )
+		*(src.nextpos) = 0;
 	
-	ret = alu_check3( alu, reg_dst.node, reg_base.node, reg_mod.node );
+	ret = alu_check3( alu, num.node, val.node, tmp.node );
 	
 	if ( ret != 0 )
 		return ret;
 	
-	if ( !nextchar )
+	if ( !(src.next) )
 		return EADDRNOTAVAIL;
 	
-	switch ( digsep )
+	switch ( base.digsep )
 	{
 	case 0: case '\'': case '_': case ',': break;
-	default: return EINVAL;
-	}
-	
-	if ( !base || base > strlen(base_str) )
-		return ERANGE;
-	
-	ret = alu_get_reg( alu, &reg_tmp, sizeof(size_t) );
-	
-	if ( ret != 0 )
-	{
+	default:
 		alu_error(ret);
-		return ret;
+		alu_printf( "base.digsep = '%c'", base.digsep );
+		return EINVAL;
 	}
+	
+	if ( !(base.base) || base.base > strlen(base_str) )
+		return ERANGE;
 
 	/* Clear all registers in direct use */
 	perN = alu->buff.perN;
 	
-	M = ALU_PART( *alu, reg_base.node );
-	*M = base;
+	alu_set_raw( *alu, val.node, base.base, val.info );
 	
-	M = ALU_PART( *alu, reg_mod.node );
-	n = alu_bit_set_bit( ALU_PART( *alu, reg_dst.node ), reg_dst.upto - 1 );
+	n = alu_bit_set_bit( ALU_PART( *alu, num.node ), num.upto - 1 );
 	
-	alu_set_bounds( *alu, reg_dst.node, 0, -1 );
-	alu_reg_set_nil( *alu, reg_dst );
+	alu_set_bounds( *alu, num.node, 0, -1 );
+	alu_reg_set_nil( *alu, num );
 
 	do
 	{	
 		/* Failsafe if failed to get character but return code is 0 */
 		c = -1;
-		ret = nextchar( &c, src, nextpos );
+		ret = src.next( &c, src.src, src.nextpos );
 		
 		if ( ret != 0 && ret != EOF )
-		{
-			alu_rem_reg( *alu, reg_tmp );
 			return ret;
-		}
 		
-		if ( base > 36 )
+		if ( base.base > 36 )
 		{
-			for ( b = 0; b < base; ++b )
+			for ( b = 0; b < base.base; ++b )
 			{
 				if ( c == (char32_t)(base_str[b]) )
 					break;
@@ -445,30 +459,30 @@ int alu_str2reg
 		}
 		else
 		{
-			for ( b = 0; b < base; ++b )
+			for ( b = 0; b < base.base; ++b )
 			{
 				if ( c == (char32_t)(base_upper[b]) )
 					break;
 			}
 			
-			for ( b = 0; b < base; ++b )
+			for ( b = 0; b < base.base; ++b )
 			{
 				if ( c == (char32_t)(base_lower[b]) )
 					break;
 			}
 		}
 		
-		if ( b == base )
+		if ( b == base.base )
 		{
-			if ( c == digsep )
+			if ( c == base.digsep )
 			{
-				++(*nextpos);
+				++(*(src.nextpos));
 				continue;
 			}
 			break;
 		}
 		
-		++(*nextpos);
+		++(*(src.nextpos));
 		
 		if ( *(n.S) & n.B )
 		{
@@ -479,42 +493,25 @@ int alu_str2reg
 			if ( ret != 0 )
 				return ret;
 			
-			alu_set_bounds( *alu, reg_dst.node, 0, -1 );
+			alu_set_bounds( *alu, num.node, 0, -1 );
 			
 			perN = alu->buff.perN;
-			M = ALU_PART( *alu, reg_mod.node );
 			n = alu_bit_set_bit
 			(
-				ALU_PART( *alu, reg_dst.node )
-				, reg_dst.upto - 1
+				ALU_PART( *alu, num.node )
+				, num.upto - 1
 			);
 		}
 		
-		*M = b;
+		alu_reg_set_raw( *alu, num, b, num.info );
 		
-		(void)alu_reg_mul( *alu, reg_dst, reg_base, reg_tmp );
-		(void)alu_reg_add( *alu, reg_dst, reg_mod );
+		(void)alu_reg_mul( *alu, dst, val, tmp );
+		(void)alu_reg_add( *alu, dst, num );
 	}
 	while ( ret == 0 );
 	
-	alu_rem_reg( *alu, reg_tmp );
-	
 	return 0;
 }
-
-enum
-{
-	ALU_L2R_BASE = 0,
-	ALU_L2R_NUM,
-	ALU_L2R_DOT,
-	ALU_L2R_ONE,
-	ALU_L2R_EXP,
-	ALU_L2R_EXP_BIAS,
-	ALU_L2R_MAN,
-	ALU_L2R_VAL,
-	ALU_L2R_TMP,
-	ALU_L2R_COUNT
-};
 
 bool alu_reg_is_zero( alu_t alu, alu_register_t reg, alu_bit_t *end_bit )
 {
@@ -525,48 +522,51 @@ bool alu_reg_is_zero( alu_t alu, alu_register_t reg, alu_bit_t *end_bit )
 
 int alu_lit2reg
 (
-	alu_t *alu,
-	void *src,
-	alu_register_t dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
+	alu_t *alu
+	, alu_src_t src
+	, alu_register_t dst
+	, alu_base_t base
+	, alu_lit_t lit
 )
 {
-	size_t i, base, perN, bits, *BASE;
-	alu_register_t regv[ALU_L2R_COUNT], NIL;
+	size_t i, perN, bits, _base;
+	alu_register_t NIL, VAL, BASE, ONE, DOT, EXP, BIAS, MAN;
 	alu_bit_t n;
 	int ret;
 	long pos, prevpos, exp_dig, man_dig;
 	char32_t c = -1, exponent_char = 'e';
-	bool neg = false, exp_neg = false, closing_bracket = true;
+	bool neg = false, exp_neg = false, closing_bracket = false;
 	
-	if ( !nextpos )
+	if ( !(src.nextpos) )
 		return EDESTADDRREQ;
 	
-	if ( *nextpos < 0 )
-		*nextpos = 0;
-		
-	ret = alu_check1( alu, dst.node );
+	if ( *(src.nextpos) < 0 )
+		*(src.nextpos) = 0;
 	
-	if ( ret != 0 )
+	if ( !alu )
 	{
+		ret = EDESTADDRREQ;
 		alu_error( ret );
 		alu_print_reg( "dst", *alu, dst, true, false );
 		return ret;
 	}
 	
-	if ( !nextchar )
+	dst.node %= ALU_USED( *alu );
+	ret = alu_check1( alu, dst.node );
+	
+	if ( !(src.next) )
 		return EADDRNOTAVAIL;
 	
-	switch ( digsep )
+	switch ( base.digsep )
 	{
 	case 0: case '\'': case '_': case ',': break;
-	default: return EINVAL;
+	default:
+		alu_error(ret);
+		alu_printf( "base.digsep = '%c'", base.digsep );
+		return EINVAL;
 	}
 		
-	ret = nextchar( &c, src, nextpos );
+	ret = src.next( &c, src.src, src.nextpos );
 	if ( ret != 0 )
 		return ret;
 	
@@ -574,108 +574,101 @@ int alu_lit2reg
 	{
 		if ( c == '-' )
 			neg = true;
-		++(*nextpos);
+		++(*(src.nextpos));
 	}
 		
-	ret = nextchar( &c, src, nextpos );
+	ret = src.next( &c, src.src, src.nextpos );
 	if ( ret != 0 )
 		return ret;
 		
 	if ( c > '0' && c <= '9' )
 	{
-		base = 10;
-		++(*nextpos);
+		base.base = 10;
+		++(*(src.nextpos));
 	}
 	else if ( c != '0' )
-		return EINVAL;
+		return EILSEQ;
 	else
 	{
-		++(*nextpos);
+		++(*(src.nextpos));
 		
-		ret = nextchar( &c, src, nextpos );
+		ret = src.next( &c, src.src, src.nextpos );
 		if ( ret != 0 )
 			return ret;
 		
 		if ( c >= '0' && c <= '7' )
 		{
-			++(*nextpos);
-			base = 8;
+			++(*(src.nextpos));
+			base.base = 8;
 		}
 		else
 		{
 			switch ( c )
 			{
 			case '~':
-				base = 0;
-				++(*nextpos);
-				ret = nextchar( &c, src, nextpos );
+				closing_bracket = true;
+				base.base = 0;
+				++(*(src.nextpos));
+				ret = src.next( &c, src.src, src.nextpos );
 				if ( ret != 0 )
 					return ret;
 				if ( c == 'l' || c == 'L' )
 				{
-					++(*nextpos);
-					lowercase = true;
+					++(*(src.nextpos));
+					base.lowercase = true;
 				}
 				while ( 1 )
 				{
-					ret = nextchar( &c, src, nextpos );
+					ret = src.next( &c, src.src, src.nextpos );
 					if ( ret != 0 || c <= '0' || c >= '9' )
 						break;
 					
-					base *= 10;
-					base += (c - '0');
-					++(*nextpos);
+					base.base *= 10;
+					base.base += (c - '0');
+					++(*(src.nextpos));
 				}
 				if ( ret != 0 && ret != EOF )
 					return ret;
-				if ( !base )
-					return EINVAL;
+				if ( !base.base )
+				{
+					ret = EILSEQ;
+					alu_error(ret);
+					alu_puts( "Invalid base provided" );
+					return ret;
+				}
 				break;
-			case 'b': case 'B': base = 2; ++(*nextpos); break;
-			case 'o': case 'O': base = 8; ++(*nextpos); break;
+			case 'b': case 'B': base.base = 2; ++(*(src.nextpos)); break;
+			case 'o': case 'O': base.base = 8; ++(*(src.nextpos)); break;
 			case 'x': case 'X':
-				base = 16;
-				++(*nextpos);
+				base.base = 16;
+				++(*(src.nextpos));
 				exponent_char = 'p';
 				break;
-			default: return EINVAL;
+			default:
+				ret = EILSEQ;
+				alu_error(ret);
+				alu_puts( "Expected x, X, o, O, b, B, ~ or 1 to 9" );
+				return ret;
 			}
 		}
 	}
 	
-	ret = alu_get_regv( alu, regv, ALU_L2R_COUNT, sizeof(size_t) );
-	
-	if ( ret != 0 )
-	{
-		alu_error( ret );
-		return ret;
-	}
-	
-	
 	NIL = alu->regv[ALU_REG_ID_ZERO];
+	BASE = base.regv[ALU_BASE_VAL];
+	ONE = lit.regv[ALU_LIT_ONE];
+	VAL = lit.regv[ALU_LIT_VAL];
+	DOT = lit.regv[ALU_LIT_DOT];
+	EXP = lit.regv[ALU_LIT_EXP];
+	BIAS = lit.regv[ALU_LIT_EXP_BIAS];
+	MAN = lit.regv[ALU_LIT_MAN];
 	
-	BASE = ALU_PART( *alu, regv[ALU_L2R_BASE].node );
-	*BASE = base;
+	alu_reg_set_raw( *alu, BASE, base.base, BASE.info );
 	
-	ret = alu_str2reg(
-		alu,
-		src,
-		dst,
-		regv[ALU_L2R_BASE],
-		regv[ALU_L2R_VAL],
-		digsep,
-		nextchar,
-		nextpos,
-		base,
-		lowercase
-	);
+	ret = alu_str2reg( alu, src, dst, base );
 	
 	switch ( ret )
 	{
 	case 0: case EOF: c = 0; break;
-	case EINVAL:
-		(void)nextchar( &c, src, nextpos );
-		break;
 	default: return ret;
 	}
 
@@ -684,30 +677,15 @@ int alu_lit2reg
 	/* Check if reading a floating point number */
 	if ( c == '.' )
 	{
-		++(*nextpos);
-		prevpos = *nextpos;
+		++(*(src.nextpos));
+		prevpos = *(src.nextpos);
 		
-		ret = alu_str2reg(
-			alu,
-			src,
-			regv[ALU_L2R_DOT],
-			regv[ALU_L2R_BASE],
-			regv[ALU_L2R_VAL],
-			digsep,
-			nextchar,
-			nextpos,
-			base,
-			lowercase
-		);
+		ret = alu_str2reg( alu, src, DOT, base );
 		
 		switch ( ret )
 		{
 		case 0: case EOF: c = 0; break;
-		case EINVAL:
-			(void)nextchar( &c, src, nextpos );
-			break;
-		default:
-			return ret;
+		default: return ret;
 		}
 		
 		/* Make sure have enough space for later calculations */
@@ -722,7 +700,6 @@ int alu_lit2reg
 			}
 			
 			perN = alu->buff.perN;
-			BASE = ALU_PART( *alu, regv[ALU_L2R_BASE].node );
 		}
 		
 		/* Check how many bits to assign to exponent & mantissa */
@@ -745,21 +722,21 @@ int alu_lit2reg
 		exp_dig = ((perN * CHAR_BIT) - man_dig) - 1;
 		
 		/* Update Exponent & Mantissa Bounds */
-		alu_set_bounds( *alu, regv[ALU_L2R_EXP_BIAS].node, 0, exp_dig );
-		alu_set_bounds( *alu, regv[ALU_L2R_EXP].node, 0, exp_dig );
-		alu_set_bounds( *alu, regv[ALU_L2R_MAN].node, 0, man_dig );
+		alu_set_bounds( *alu, BIAS.node, 0, exp_dig );
+		alu_set_bounds( *alu, EXP.node, 0, exp_dig );
+		alu_set_bounds( *alu, MAN.node, 0, man_dig );
 		
 		/* Setup bias for exponent */
-		alu_reg_set_max( *alu, regv[ALU_L2R_EXP_BIAS] );
-		alu_reg__shr( *alu, regv[ALU_L2R_EXP_BIAS], 1 );
+		alu_reg_set_max( *alu, BIAS );
+		alu_reg__shr( *alu, BIAS, 1 );
 		
 		/* Set '0.1' */
-		alu_reg_set_raw( *alu, regv[ALU_L2R_ONE], 1, 0 );
+		alu_reg_set_raw( *alu, ONE, 1, 0 );
 		
 		/* Multiply '0.1' by base to get '1.0',
 		 * maybe be more digits than size_t supports */
-		for ( pos = prevpos; pos < *nextpos; ++pos )
-			(void)alu_reg_mul( *alu, regv[ALU_L2R_ONE], regv[ALU_L2R_BASE], regv[ALU_L2R_TMP] );
+		for ( pos = prevpos; pos < *(src.nextpos); ++pos )
+			(void)alu_reg_mul( *alu, ONE, BASE, base.regv[ALU_BASE_TMP] );
 		
 		/* Only universal number literals need this, example of one:
 		 * 0~L36(A.z)e+10 */
@@ -767,19 +744,19 @@ int alu_lit2reg
 		{
 			if ( c == ')' )
 			{
-				++(*nextpos);
-				ret = nextchar( &c, src, nextpos );
+				++(*(src.nextpos));
+				ret = src.next( &c, src.src, src.nextpos );
 				if ( ret != 0 && ret != EOF )
 					return ret;
 			}
 			else
-				return EINVAL;
+				return EILSEQ;
 		}
 		
 		if ( c == exponent_char || c == (char32_t)toupper(exponent_char) )
 		{
-			++(nextpos);
-			ret = nextchar( &c, src, nextpos );
+			++(*(src.nextpos));
+			ret = src.next( &c, src.src, src.nextpos );
 			if ( ret != 0 && ret != EOF )
 				return ret;
 			
@@ -787,76 +764,52 @@ int alu_lit2reg
 			{
 				if ( c == '-' )
 					exp_neg = true;
-				++(nextpos);
+				++(*(src.nextpos));
 			}
 			
-			*BASE = 10;
-			ret = alu_str2reg(
-				alu,
-				src,
-				regv[ALU_L2R_EXP],
-				regv[ALU_L2R_BASE],
-				regv[ALU_L2R_VAL],
-				digsep,
-				nextchar,
-				nextpos,
-				10,
-				lowercase
-			);
-			*BASE = base;
+			alu_reg_set_raw( *alu, BASE, 10, BASE.info );
+			_base = base.base;
+			base.base = 10;
+			
+			ret = alu_str2reg( alu, src, lit.regv[ALU_LIT_EXP], base );
+			
+			alu_reg_set_raw( *alu, BASE, _base, BASE.info );
+			base.base = _base;
 			
 			switch ( ret )
 			{
 			case 0: case EOF: c = 0; break;
-			case EINVAL:
-				(void)nextchar( &c, src, nextpos );
-				break;
-			default:
-				return ret;
+			default: return ret;
 			}
 		}
 		
 		/* Begin Constructing float */
 		
-		if ( alu_reg_is_zero( *alu, regv[ALU_L2R_DOT], &n ) )
+		if ( alu_reg_is_zero( *alu, DOT, &n ) )
 		{
 			pos = 0;
-			alu_reg_set_raw( *alu, regv[ALU_L2R_ONE], 1, 0 );
+			alu_reg_set_raw( *alu, ONE, 1, 0 );
 		}
 		
 		if ( !exp_neg )
 		{
 			for
 			(
-				; !alu_reg_is_zero( *alu, regv[ALU_L2R_EXP], NULL )
-				; ++pos, (void)alu_reg_dec( *alu, regv[ALU_L2R_EXP] ) )
+				; !alu_reg_is_zero( *alu, lit.regv[ALU_LIT_EXP], NULL )
+				; ++pos, (void)alu_reg_dec( *alu, lit.regv[ALU_LIT_EXP] ) )
 			{
 				/* Check we haven't hit 1 */
 				if ( pos == 0
-					|| alu_reg_is_zero( *alu, regv[ALU_L2R_ONE], &n )
+					|| alu_reg_is_zero( *alu, ONE, &n )
 				)
 				{
 					break;
 				}
-				(void)alu_reg_divide(
-					*alu
-					, regv[ALU_L2R_ONE]
-					, regv[ALU_L2R_BASE]
-					, regv[ALU_L2R_VAL]
-				);
+				(void)alu_reg_divide( *alu, ONE, BASE, VAL );
 			}
 		}
 		
-		if
-		(
-			alu_reg_cmp
-			(
-				*alu
-				, regv[ALU_L2R_EXP]
-				, regv[ALU_L2R_EXP_BIAS]
-				, NULL
-			) > 0
-		)
+		if ( alu_reg_cmp( *alu, EXP, BIAS, NULL ) > 0 )
 		{
 			if ( exp_neg )
 			{
@@ -868,7 +821,7 @@ int alu_lit2reg
 			{
 				set_inf:
 				alu_reg_set_nil( *alu, dst );
-				alu_reg_set_max( *alu, regv[ALU_L2R_EXP] );
+				alu_reg_set_max( *alu, EXP );
 				goto set_exp;
 			}
 		}
@@ -876,125 +829,85 @@ int alu_lit2reg
 		
 		for
 		(
-			; alu_reg_cmp( *alu, regv[ALU_L2R_EXP], NIL, NULL ) > 0
-			; (void)alu_reg_dec( *alu, regv[ALU_L2R_EXP] )
+			; alu_reg_cmp( *alu, EXP, NIL, NULL ) > 0
+			; (void)alu_reg_dec( *alu, EXP )
 		)
 		{
-			ret = alu_reg_mul( *alu, dst, regv[ALU_L2R_BASE], regv[ALU_L2R_TMP] );
+			ret = alu_reg_mul( *alu, dst, BASE, base.regv[ALU_BASE_TMP] );
 			if ( ret == EOVERFLOW )
 				goto set_inf;
 		}
 		
 		for
 		(
-			; alu_reg_cmp( *alu, regv[ALU_L2R_EXP], NIL, NULL ) < 0
-			; (void)alu_reg_inc( *alu, regv[ALU_L2R_EXP] )
+			; alu_reg_cmp( *alu, EXP, NIL, NULL ) < 0
+			; (void)alu_reg_inc( *alu, EXP )
 		)
 		{
-			ret = alu_reg_mul(
-				*alu
-				, regv[ALU_L2R_ONE]
-				, regv[ALU_L2R_BASE]
-				, regv[ALU_L2R_TMP]
-			);
+			ret = alu_reg_mul( *alu, ONE, BASE, base.regv[ALU_BASE_TMP] );
 			
 			if ( ret == EOVERFLOW )
 				goto set_nil;
 		}
 		
-		if ( alu_reg_is_zero( *alu, regv[ALU_L2R_ONE], &n ) )
+		if ( alu_reg_is_zero( *alu, ONE, &n ) )
 			goto set_nil;
 			
-		(void)alu_reg_divide(
-			*alu,
-			dst,
-			regv[ALU_L2R_ONE],
-			regv[ALU_L2R_DOT]
-		);
+		(void)alu_reg_divide( *alu, dst, ONE, DOT );
 		
-		if ( alu_reg_is_zero( *alu, regv[ALU_L2R_DOT], &n ) )
-			alu_reg_set_raw( *alu, regv[ALU_L2R_ONE], 1, 0 );
+		if ( alu_reg_is_zero( *alu, DOT, &n ) )
+			alu_reg_set_raw( *alu, ONE, 1, 0 );
 		
 		pos = 0;
 		
 		/* Calculate final exponent */
 		
-		if ( alu_reg_cmp( *alu, dst, regv[ALU_L2R_ONE], NULL ) >= 0 )
+		if ( alu_reg_cmp( *alu, dst, ONE, NULL ) >= 0 )
 		{
 			for
 			(
-				alu_mov( alu, regv[ALU_L2R_VAL].node, dst.node )
-				; alu_reg_cmp(
-					*alu
-					, regv[ALU_L2R_VAL]
-					, regv[ALU_L2R_ONE]
-					, NULL
-				) > 0
-				; ++pos, alu_reg__shr( *alu, regv[ALU_L2R_VAL], 1 )
+				alu_reg_copy( *alu, VAL, dst )
+				; alu_reg_cmp( *alu, VAL, ONE, NULL ) > 0
+				; ++pos, alu_reg__shr( *alu, VAL, 1 )
 			);
 		}
 		else
 		{
 			for
 			(
-				alu_mov
-				(
-					alu
-					, regv[ALU_L2R_VAL].node
-					, regv[ALU_L2R_ONE].node
-				)
-				; alu_reg_cmp
-				(
-					*alu
-					, regv[ALU_L2R_VAL]
-					, regv[ALU_L2R_DOT]
-					, NULL
-				) > 0
-				; --pos, alu_reg__shr( *alu, regv[ALU_L2R_VAL], 1 )
+				alu_reg_copy( *alu, VAL, ONE )
+				; alu_reg_cmp( *alu, VAL, DOT, NULL ) > 0
+				; --pos, alu_reg__shr( *alu, VAL, 1 )
 			);
-			if
-			(
-				alu_reg_cmp
-				(
-					*alu
-					, regv[ALU_L2R_VAL]
-					, regv[ALU_L2R_DOT]
-					, NULL
-				) == 0
-			)
+			
+			if ( alu_reg_cmp( *alu, VAL, DOT, NULL ) == 0 )
 			{
 				--pos;
 			}
 		}
 		
 		/* Set bias */
-		alu_mov( alu, dst.node, regv[ALU_L2R_EXP_BIAS].node );
-		alu_reg_set_raw( *alu, regv[ALU_L2R_VAL], man_dig, 0 );
+		alu_reg_copy( *alu, dst, BIAS );
+		alu_reg_set_raw( *alu, VAL, man_dig, 0 );
 		
 		
 		/* Construct Mantissa */
 		if ( pos > man_dig )
 		{
 			pos -= man_dig;
-			alu_reg_set_max( *alu, regv[ALU_L2R_DOT] );
-			alu_reg__shl( *alu, regv[ALU_L2R_DOT], pos );
-			alu_reg_not( *alu, regv[ALU_L2R_DOT] );
-			alu_reg_and( *alu, regv[ALU_L2R_DOT], dst );
-			alu_reg__shl( *alu, regv[ALU_L2R_ONE], pos );
-			(void)alu_mov( alu, regv[ALU_L2R_MAN].node, regv[ALU_L2R_VAL].node );
-			(void)alu_mov( alu, regv[ALU_L2R_VAL].node, regv[ALU_L2R_ONE].node );
-			alu_reg__shr( *alu, regv[ALU_L2R_VAL], 1 );
+			alu_reg_set_max( *alu, DOT );
+			alu_reg__shl( *alu, DOT, pos );
+			alu_reg_not( *alu, DOT );
+			alu_reg_and( *alu, DOT, dst );
+			alu_reg__shl( *alu, ONE, pos );
+			alu_reg_copy( *alu, MAN, VAL );
+			alu_reg_copy( *alu, VAL, ONE );
+			alu_reg__shr( *alu, VAL, 1 );
 			
-			i = alu_reg_cmp
-			(
-				*alu
-				, regv[ALU_L2R_DOT]
-				, regv[ALU_L2R_VAL]
-				, NULL
-			);
+			i = alu_reg_cmp( *alu, DOT, VAL, NULL );
 			
 			if ( i > 0 )
-				(void)alu_reg_inc( *alu, regv[ALU_L2R_MAN] );
+				(void)alu_reg_inc( *alu, MAN );
 			else if ( i == 0 )
 			{
 				switch ( FLT_ROUNDS )
@@ -1002,81 +915,59 @@ int alu_lit2reg
 				case 1:
 					n = alu_bit_set_bit
 					(
-						ALU_PART( *alu, regv[ALU_L2R_MAN].node )
-						, regv[ALU_L2R_MAN].from
+						ALU_PART( *alu, MAN.node )
+						, MAN.from
 					);
 					if ( *(n.S) & n.B )
-						(void)alu_reg_inc( *alu, regv[ALU_L2R_MAN] );
+						(void)alu_reg_inc( *alu, MAN );
 					break;
 				}
 			}
 		}
 		else
 		{
-			(void)alu_mov
-			(
-				alu
-				, regv[ALU_L2R_MAN].node
-				, dst.node
-			);
-			
-			(void)alu_mov
-			(
-				alu
-				, regv[ALU_L2R_VAL].node
-				, regv[ALU_L2R_DOT].node
-			);
+			(void)alu_reg_copy( *alu, MAN, dst );	
+			(void)alu_reg_copy( *alu, VAL, DOT );
 			
 			n = alu_bit_set_bit
 			(
-				ALU_PART( *alu, regv[ALU_L2R_MAN].node )
-				, regv[ALU_L2R_MAN].from
+				ALU_PART( *alu, MAN.node )
+				, MAN.from
 			);
 			for ( bits = 0; pos < man_dig; ++pos )
 			{
 				bits++;
-				if
-				(
-					alu_reg_cmp
-					(
-						*alu
-						, regv[ALU_L2R_VAL]
-						, regv[ALU_L2R_ONE]
-						, NULL
-					) >= 0
-				)
+				
+				if ( alu_reg_cmp( *alu, VAL, ONE, NULL ) >= 0 )
 				{
-					(void)alu_reg_sub
-					(
-						*alu
-						, regv[ALU_L2R_VAL]
-						, regv[ALU_L2R_ONE]
-					);
-					(void)alu_reg__shl( *alu, regv[ALU_L2R_MAN], bits );
+					(void)alu_reg_sub( *alu, VAL, ONE );
+					(void)alu_reg__shl( *alu, MAN, bits );
 					*(n.S) |= n.B;
 					bits = 0;
 				}
 			}
 			
 			if ( bits )
-				(void)alu_reg__shl( *alu, regv[ALU_L2R_MAN], bits );
+				(void)alu_reg__shl( *alu, MAN, bits );
 		}
 		
 		/* TODO: Continue referencing code made in mitsy to build fpn */
 		
 		/* Construct FPN from modified values */
-		alu_mov( alu, dst.node, regv[ALU_L2R_MAN].node );
+		alu_reg_copy( *alu, dst, MAN );
+		
 		set_exp:
 		/* Align and append Exponent */
-		(void)alu_set_bounds( *alu, regv[ALU_L2R_EXP].node, 0, -1 );
-		alu_reg__shl( *alu, regv[ALU_L2R_EXP], man_dig );
-		alu_reg__or( *alu, dst, regv[ALU_L2R_EXP] );
+		(void)alu_set_bounds( *alu, EXP.node, 0, -1 );
+		alu_reg__shl( *alu, EXP, man_dig );
+		alu_reg__or( *alu, dst, EXP );
+		
 		set_sign:
 		if ( neg )
 		{
-			alu_reg_set_raw( *alu, regv[ALU_L2R_ONE], 1, 0 );
-			alu_reg__shl( *alu, regv[ALU_L2R_ONE], exp_dig + man_dig );
-			alu_reg__or( *alu, dst, regv[ALU_L2R_ONE] );
+			alu_reg_set_raw( *alu, ONE, 1, 0 );
+			alu_reg__shl( *alu, ONE, exp_dig + man_dig );
+			alu_reg__or( *alu, dst, ONE );
 		}
 	}
 	else 
@@ -1085,44 +976,43 @@ int alu_lit2reg
 		{
 			if ( c == ')' )
 			{
-				++(*nextpos);
-				ret = nextchar( &c, src, nextpos );
+				++(*(src.nextpos));
+				ret = src.next( &c, src.src, src.nextpos );
 				if ( ret != 0 && ret != EOF )
 					return ret;
 			}
 			else
-				return EINVAL;
+			{
+				ret = EILSEQ;
+				alu_error(ret);
+				alu_puts( "Expected ')' to close Exponent or Float" );
+				alu_printf( "Current character is '%c'", c );
+				return ret;
+			}
 		}
+		
 		if ( neg )
 			alu_reg_neg( *alu, dst );
 	}
-	
-	
-	alu_rem_regv( *alu, regv, ALU_L2R_COUNT );
 	
 	return 0;
 }
 
 int alu_reg2str
 (
-	alu_t *alu,
-	void *dst,
-	alu_register_t src,
-	char32_t digsep,
-	alu_func_wrChar32_t nextchar,
-	alu_func_flipstr_t flipstr,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	alu_t *alu
+	, alu_dst_t dst
+	, alu_register_t src
+	, alu_base_t base
 )
 {
-	alu_register_t regv[3], num, div, val;
+	alu_register_t num, div, val;
 	alu_bit_t l;
 	int ret;
 	size_t *V, *N, digit = 0;
 	bool neg;
-	char *base_str = lowercase ? ALU_BASE_STR_0toztoZ : ALU_BASE_STR_0toZtoz;
+	char *base_str =
+		base.lowercase ? ALU_BASE_STR_0toztoZ : ALU_BASE_STR_0toZtoz;
 		
 	ret = alu_check1( alu, src.node );
 	
@@ -1132,31 +1022,22 @@ int alu_reg2str
 	l = alu_bit_set_bit( ALU_PART( *alu, src.node ), src.upto - 1 );
 	neg = !!(src.info & ALU_INFO__SIGN) & !!(*(l.S) & l.B);
 	
-	if ( neg && noSign )
-		return EINVAL;
-	
-	if ( !nextchar || !flipstr )
+	if ( !(dst.next) || !(dst.flip) )
 		return EADDRNOTAVAIL;
 		
-	if ( !base )
-		base = 10;
+	if ( !base.base )
+		base.base = 10;
 	
-	if ( base > strlen(base_str) )
+	if ( base.base > strlen(base_str) )
 		return ERANGE;
 	
-	ret = alu_get_regv( alu, regv, 3, sizeof(size_t) );
+	num = base.regv[ALU_BASE_NUM];
+	div = base.regv[ALU_BASE_VAL];
+	val = base.regv[ALU_BASE_TMP];
 	
-	if ( ret != 0 )
-		return ret;
+	alu_reg_copy( *alu, num, src );
 	
-	num = regv[0];
-	val = regv[1];
-	div = regv[2];
-	
-	(void)alu_mov( alu, num.node, src.node );
-	
-	V = ALU_PART( *alu, div.node );
-	*V = base;
+	alu_reg_set_raw( *alu, div, base.base, div.info );
 	
 	if ( neg )
 		(void)alu_reg_neg( *alu, num );
@@ -1164,16 +1045,13 @@ int alu_reg2str
 	N = ALU_PART( *alu, num.node );
 	V = ALU_PART( *alu, val.node );
 	
-	if ( !noPfx )
+	switch ( base.base )
 	{
-		switch ( base )
-		{
-		case 2: case 8: case 10: case 16: break;
-		default:
-			ret = nextchar( ')', dst );
-			if ( ret != 0 )
-				return ret;
-		}
+	case 2: case 8: case 10: case 16: break;
+	default:
+		ret = dst.next( ')', dst.dst );
+		if ( ret != 0 )
+			return ret;
 	}
 
 	do
@@ -1182,102 +1060,91 @@ int alu_reg2str
 		
 		if ( digit == 3 )
 		{
-			switch ( digsep )
+			switch ( base.digsep )
 			{
 			case '\'': case '_': case ',':
-				ret = nextchar( base_str[*V], dst );
+				ret = dst.next( base_str[*V], dst.dst );
 				if ( ret != 0 )
-				{
-					alu_rem_regv( *alu, regv, 3 );
 					return ret;
-				}
 			}
 			digit = 0;
 		}
 		
-		ret = nextchar( base_str[*V], dst );
+		ret = dst.next( base_str[*V], dst.dst );
 		
 		if ( ret != 0 )
-		{
-			alu_rem_regv( *alu, regv, 3 );
 			return ret;
-		}
 		
 		++digit;
 	}
 	while ( alu_reg_cmp( *alu, num, div, NULL ) >= 0 );
 	
-	ret = nextchar( base_str[*N], dst );
-	
-	alu_rem_regv( *alu, regv, 3 );
+	ret = dst.next( base_str[*N], dst.dst );
 	
 	if ( ret != 0 )
 		return ret;
 		
-	if ( !noPfx && base != 10 )
+	if ( base.base != 10 )
 	{
-		if ( base == 2 )
+		if ( base.base == 2 )
 		{
-			ret = nextchar( 'b', dst );
+			ret = dst.next( 'b', dst.dst );
 			if ( ret != 0 )
 				return ret;
 			
-			ret = nextchar( '0', dst );
+			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
 				return ret;
 		}
-		else if ( base == 8 )
+		else if ( base.base == 8 )
 		{
-			ret = nextchar( 'o', dst );
+			ret = dst.next( 'o', dst.dst );
 			if ( ret != 0 )
 				return ret;
 			
-			ret = nextchar( '0', dst );
+			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
 				return ret;
 		}
-		else if ( base == 16 )
+		else if ( base.base == 16 )
 		{
-			ret = nextchar( 'x', dst );
+			ret = dst.next( 'x', dst.dst );
 			if ( ret != 0 )
 				return ret;
 			
-			ret = nextchar( '0', dst );
+			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
 				return ret;
 		}
 		else
 		{
-			ret = nextchar( '(', dst );
+			ret = dst.next( '(', dst.dst );
 			if ( ret != 0 )
 				return ret;
 			
-			while ( base > 10 )
+			while ( base.base > 10 )
 			{
-				ret = nextchar( base_str[base%10], dst );
+				ret = dst.next( base_str[base.base%10], dst.dst );
 				if ( ret != 0 )
 					return ret;
-				base /= 10;
+				base.base /= 10;
 			}
 			
-			ret = nextchar( base_str[base], dst );
+			ret = dst.next( base_str[base.base], dst.dst );
 			if ( ret != 0 )
 				return ret;
 			
-			ret = nextchar( '~', dst );
+			ret = dst.next( '~', dst.dst );
 			if ( ret != 0 )
 				return ret;
 			
-			ret = nextchar( '0', dst );
+			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
 				return ret;
 		}
 	}
 	
-	if ( neg )
-		ret = nextchar( '-', dst );
-	
-	flipstr( dst );
+	dst.flip( dst.dst );
 	
 	return ret;
 }

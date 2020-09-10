@@ -473,21 +473,12 @@ int alu_uint_rem( alu_t *alu, alu_uint_t num, alu_uint_t val )
 	return ret;
 }
 
-int alu_str2uint
-(
-	alu_t *alu,
-	void *src,
-	alu_uint_t dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
-)
+int alu_str2uint( alu_t *alu, alu_src_t src, alu_uint_t *dst, alu_base_t base )
 {
 	int ret = 0;
-	alu_register_t _dst = {0}, *DST;
+	alu_register_t tmp = {0};
 	
-	ret = alu_get_reg( alu, &_dst, sizeof(size_t) );
+	ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -495,43 +486,27 @@ int alu_str2uint
 		return ret;
 	}
 	
-	ret = alu_lit2reg(
-		alu,
-		src,
-		_dst,
-		digsep,
-		nextchar,
-		nextpos,
-		lowercase
-	);
-	DST = alu->regv + _dst.node;
-	DST->info |= ALU_INFO__SIGN;
+	ret = alu_str2reg( alu, src, tmp, base );
 	
-	(void)alu_mov( alu, (uintptr_t)&dst, _dst.node );
+	(void)alu_mov( alu, (uintptr_t)&dst, tmp.node );
 	
-	(void)alu_rem_reg( *alu, _dst );
+	alu_rem_reg( *alu, tmp );
 	
 	return ret;
 }
 
 int alu_uint2str
 (
-	alu_t *alu,
-	void *dst,
-	alu_uint_t src,
-	char32_t digsep,
-	alu_func_wrChar32_t nextchar,
-	alu_func_flipstr_t flipstr,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
+	alu_t *alu
+	, alu_dst_t dst
+	, alu_uint_t src
+	, alu_base_t base
 )
 {
 	int ret = 0;
-	alu_register_t _src = {0}, *SRC;
+	alu_register_t tmp = {0};
 	
-	ret = alu_get_reg( alu, &_src, sizeof(size_t) );
+	ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -539,25 +514,11 @@ int alu_uint2str
 		return ret;
 	}
 	
-	SRC = alu->regv + _src.node;
-	SRC->info |= ALU_INFO__SIGN;
+	ret = alu_reg2str( alu, dst, tmp, base );
 	
-	ret = alu_reg2str(
-		alu,
-		dst,
-		_src,
-		digsep,
-		nextchar,
-		flipstr,
-		base,
-		lowercase,
-		noPfx,
-		noSign
-	);
+	(void)alu_mov( alu, (uintptr_t)&src, tmp.node );
 	
-	(void)alu_mov( alu, (uintptr_t)&src, _src.node );
-	
-	alu_rem_reg( *alu, _src );
+	alu_rem_reg( *alu, tmp );
 	
 	return ret;
 }

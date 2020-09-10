@@ -145,15 +145,6 @@ typedef enum ALU_REG_ID {
 # define ALU_INFO__SIGN 2
 # define ALU_INFO_FLOAT 4
 
-typedef struct alu_reg
-{
-	uint_t info;
-	size_t man_dig;
-	alu_bit_t upto, last, init;
-	alu_int_t regv;
-	void *part;
-} alu_reg_t;
-
 typedef struct alu_register
 {
 	uint_t node;
@@ -188,10 +179,23 @@ int alu_check1( alu_t *alu, uint_t num );
 int alu_check2( alu_t *alu, uint_t num, uint_t val );
 int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem );
 
-typedef int (*alu_func_rdChar32_t)
-	( char32_t *dst, void *src, long *nextpos );
+typedef int (*alu_func_rdChar32_t)( char32_t *dst, void *src, long *nextpos );
 typedef int (*alu_func_wrChar32_t)( char32_t src, void *dst );
 typedef void (*alu_func_flipstr_t)( void *dst );
+
+typedef struct alu_src
+{
+	void *src;
+	alu_func_rdChar32_t next;
+	long *nextpos;
+} alu_src_t;
+
+typedef struct alu_dst
+{
+	void *dst;
+	alu_func_wrChar32_t next;
+	alu_func_flipstr_t flip;
+} alu_dst_t;
 
 int alu_setup_reg( alu_t *alu, uint_t want, size_t perN );
 void alu_print_reg( char *pfx, alu_t alu, alu_register_t reg, bool print_info, bool print_value );
@@ -200,7 +204,7 @@ void alu_set_constants( alu_t alu );
 int alu_update_bounds( alu_t *alu, uint_t reg );
 int alu_reg_update_bounds( alu_t alu, alu_register_t reg );
 int alu_get_reg( alu_t *alu, alu_register_t *reg, size_t need );
-int alu_get_regv( alu_t *alu, alu_register_t *regv, int count, size_t need );
+int alu_get_regv( alu_t *alu, alu_register_t *regv, uint_t count, size_t need );
 void alu_rem_reg( alu_t alu, alu_register_t reg );
 void alu_rem_regv( alu_t alu, alu_register_t *regv, int count );
 alu_bit_t alu_end_bit( alu_t alu, alu_register_t reg );
@@ -213,105 +217,58 @@ alu_bit_t alu_end_bit( alu_t alu, alu_register_t reg );
 # define ALU_BASE_STR_0toztoZ \
 	ALU_BASE_STR_0to9 ALU_BASE_STR_atoz ALU_BASE_STR_AtoZ
 
-int alu_str2reg
-(
-	alu_t *alu,
-	void *src,
-	alu_register_t reg_dst,
-	alu_register_t reg_base,
-	alu_register_t reg_mod,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	size_t base,
-	bool lowercase
-);
+enum
+{
+	ALU_BASE_NUM = 0,
+	ALU_BASE_VAL,
+	ALU_BASE_TMP,
+	ALU_BASE_COUNT
+};
+
+typedef struct alu_base
+{
+	bool lowercase;
+	size_t base;
+	char32_t digsep;
+	alu_register_t regv[ALU_BASE_COUNT];
+} alu_base_t;
+
+enum
+{
+	ALU_LIT_NUM = 0,
+	ALU_LIT_VAL,
+	ALU_LIT_DOT,
+	ALU_LIT_ONE,
+	ALU_LIT_EXP,
+	ALU_LIT_EXP_BIAS,
+	ALU_LIT_MAN,
+	ALU_LIT_COUNT
+};
+
+typedef struct alu_lit
+{
+	int _quickinit;
+	alu_register_t regv[ALU_LIT_COUNT];
+} alu_lit_t;
+
+int alu_str2reg( alu_t *alu, alu_src_t src, alu_register_t dst, alu_base_t base );
+int alu_str2uint( alu_t *alu, alu_src_t src, alu_uint_t *dst, alu_base_t base );
+int alu_str2int( alu_t *alu, alu_src_t src, alu_int_t *dst, alu_base_t base );
+int alu_str2fpn( alu_t *alu, alu_src_t src, alu_fpn_t *dst, alu_base_t base );
 
 int alu_lit2reg
 (
 	alu_t *alu,
-	void *src,
+	alu_src_t src,
 	alu_register_t dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
+	alu_base_t base,
+	alu_lit_t lit
 );
 
-int alu_reg2str
-(
-	alu_t *alu,
-	void *dst,
-	alu_register_t src,
-	char32_t digsep,
-	alu_func_wrChar32_t nextchar,
-	alu_func_flipstr_t flipstr,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
-);
-
-int alu_str2uint
-(
-	alu_t *alu,
-	void *src,
-	alu_uint_t dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
-);
-
-int alu_uint2str
-(
-	alu_t *alu,
-	void *dst,
-	alu_uint_t src,
-	char32_t digsep,
-	alu_func_wrChar32_t nextchar,
-	alu_func_flipstr_t flipstr,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
-);
-
-int alu_str2int
-(
-	alu_t *alu,
-	void *src,
-	alu_int_t dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
-);
-
-int alu_str2fpn
-(
-	alu_t *alu,
-	void *val,
-	alu_fpn_t *dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
-);
-
-int alu_int2str
-(
-	alu_t *alu,
-	void *dst,
-	alu_int_t src,
-	char32_t digsep,
-	alu_func_wrChar32_t nextchar,
-	alu_func_flipstr_t flipstr,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
-);
+int alu_reg2str( alu_t *alu, alu_dst_t dst, alu_register_t src, alu_base_t base );
+int alu_uint2str( alu_t *alu, alu_dst_t dst, alu_uint_t src, alu_base_t base );
+int alu_int2str( alu_t *alu, alu_dst_t dst, alu_int_t src, alu_base_t base );
+int alu_fpn2str( alu_t *alu, alu_dst_t dst, alu_fpn_t src, alu_base_t base );
 
 int alu_uint2fpn( alu_t *alu, alu_uint_t *val );
 int alu_int2fpn( alu_t *alu, alu_int_t *val );

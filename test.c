@@ -956,21 +956,20 @@ void func_flipstr( alu_block_t *dst )
 	}
 }
 
-int reg_print_value(
-	alu_t *alu,
-	alu_block_t _src,
-	alu_block_t *_dst,
-	char digsep,
-	size_t base,
-	bool lowercase,
-	bool print_anyways
+int reg_print_value
+(
+	alu_t *alu
+	, alu_src_t _src
+	, alu_dst_t _dst
+	, alu_base_t base
+	, alu_lit_t lit
+	, bool print_anyways
 )
 {
 	alu_register_t tmp = {0};
-	int ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
-	char *src = _src.block, *dst = NULL;
-	long nextpos = 0;
-	bool noSign = false, noPfx = false;
+	int ret = alu_get_reg( alu, &tmp, 0 );
+	alu_block_t *__src = _src.src, *__dst = _dst.dst;
+	char *src = __src->block, *dst = NULL;
 	
 	if ( ret != 0 )
 	{
@@ -978,11 +977,15 @@ int reg_print_value(
 		return ret;
 	}
 	
-	ret = alu_lit2reg(
-		alu, &_src, tmp, digsep,
-		(alu_func_rdChar32_t)func_rdChar32,
-		&nextpos, lowercase
-	);
+	ret = alu_lit2reg( alu, _src, tmp, base, lit );
+	
+	switch ( ret )
+	{
+	case 0: case EILSEQ: break;
+	default:
+		alu_error(ret);
+		goto fail;
+	}
 	
 	if ( ret != 0 )
 	{
@@ -990,18 +993,13 @@ int reg_print_value(
 		goto fail;
 	}
 	
-	(void)memset( _dst->block, 0, _dst->bytes.upto );
-	ret = alu_reg2str(
-		alu, _dst, tmp, digsep,
-		(alu_func_wrChar32_t)func_wrChar32,
-		(alu_func_flipstr_t)func_flipstr,
-		base, lowercase, noPfx, noSign
-	);
+	(void)memset( __dst->block, 0, __dst->bytes.upto );
+	ret = alu_reg2str( alu, _dst, tmp, base );
 	
 	if ( ret != 0 )
 		alu_error(ret);
 	
-	dst = _src.block;
+	dst = __src->block;
 	if ( strcmp( src, dst ) != 0 || print_anyways )
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
@@ -1010,22 +1008,22 @@ int reg_print_value(
 	return ret;
 }
 
-int uint_print_value(
-	alu_t *alu,
-	alu_block_t _src,
-	alu_block_t *_dst,
-	char digsep,
-	size_t base,
-	bool lowercase,
-	bool print_anyways
+int uint_print_value
+(
+	alu_t *alu
+	, alu_src_t _src
+	, alu_dst_t _dst
+	, alu_base_t base
+	, alu_lit_t lit
+	, bool print_anyways
 )
 {
 	size_t _tmp = 0;
 	alu_uint_t tmp = {0};
 	int ret = 0;
-	char *src = _src.block, *dst = NULL;
-	long nextpos = 0;
-	bool noSign = false, noPfx = false;
+	alu_block_t *__src = _src.src, *__dst = _dst.dst;
+	char *src = __src->block, *dst = NULL;
+	(void)lit;
 	
 	tmp.vec.perN = sizeof(size_t);
 	tmp.vec.qty.used = 1;
@@ -1036,11 +1034,7 @@ int uint_print_value(
 	tmp.vec.mem.bytes.last = tmp.vec.mem.bytes.used - 1;
 	tmp.vec.mem.bytes.upto = tmp.vec.mem.bytes.used;
 	
-	ret = alu_str2uint(
-		alu, &_src, tmp, digsep,
-		(alu_func_rdChar32_t)func_rdChar32,
-		&nextpos, lowercase
-	);
+	ret = alu_str2uint( alu, _src, &tmp, base );
 	
 	if ( ret != 0 )
 	{
@@ -1048,40 +1042,35 @@ int uint_print_value(
 		return ret;
 	}
 	
-	(void)memset( _dst->block, 0, _dst->bytes.upto );
-	ret = alu_uint2str(
-		alu, _dst, tmp, digsep,
-		(alu_func_wrChar32_t)func_wrChar32,
-		(alu_func_flipstr_t)func_flipstr,
-		base, lowercase, noPfx, noSign
-	);
+	(void)memset( __dst->block, 0, __dst->bytes.upto );
+	ret = alu_uint2str( alu, _dst, tmp, base );
 	
 	if ( ret != 0 )
 		alu_error(ret);
 	
-	dst = _src.block;
+	dst = __src->block;
 	if ( strcmp( src, dst ) != 0 || print_anyways )
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	return ret;
 }
 
-int int_print_value(
-	alu_t *alu,
-	alu_block_t _src,
-	alu_block_t *_dst,
-	char digsep,
-	size_t base,
-	bool lowercase,
-	bool print_anyways
+int int_print_value
+(
+	alu_t *alu
+	, alu_src_t _src
+	, alu_dst_t _dst
+	, alu_base_t base
+	, alu_lit_t lit
+	, bool print_anyways
 )
 {
 	size_t _tmp = 0;
 	alu_int_t tmp = {0};
 	int ret = 0;
-	char *src = _src.block, *dst = NULL;
-	long nextpos = 0;
-	bool noSign = false, noPfx = false;
+	alu_block_t *__src = _src.src, *__dst = _dst.dst;
+	char *src = __src->block, *dst = NULL;
+	(void)lit;
 	
 	tmp.vec.perN = sizeof(size_t);
 	tmp.vec.qty.used = 1;
@@ -1092,11 +1081,7 @@ int int_print_value(
 	tmp.vec.mem.bytes.last = tmp.vec.mem.bytes.used - 1;
 	tmp.vec.mem.bytes.upto = tmp.vec.mem.bytes.used;
 	
-	ret = alu_str2int(
-		alu, &_src, tmp, digsep,
-		(alu_func_rdChar32_t)func_rdChar32,
-		&nextpos, lowercase
-	);
+	ret = alu_str2int( alu, _src, &tmp, base );
 	
 	if ( ret != 0 )
 	{
@@ -1104,18 +1089,13 @@ int int_print_value(
 		return ret;
 	}
 	
-	(void)memset( _dst->block, 0, _dst->bytes.upto );
-	ret = alu_int2str(
-		alu, _dst, tmp, digsep,
-		(alu_func_wrChar32_t)func_wrChar32,
-		(alu_func_flipstr_t)func_flipstr,
-		base, lowercase, noPfx, noSign
-	);
+	(void)memset( __dst->block, 0, __dst->bytes.upto );
+	ret = alu_int2str( alu, _dst, tmp, base );
 	
 	if ( ret != 0 )
 		alu_error(ret);
 	
-	dst = _src.block;
+	dst = __src->block;
 	if ( strcmp( src, dst ) != 0 || print_anyways )
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
@@ -1215,16 +1195,44 @@ char *neg_fpn[] = {
 	"-0b1.1e-10",
 NULL };
 
-int print_value(
-	alu_t *alu,
-	bool print_anyways
-)
+int print_value( alu_t *alu, bool print_anyways )
 {
 	int ret = 0, i;
-	alu_block_t _src = {0}, _dst = {0};
-	char digsep = '\'', *src;
-	size_t base = 10, size;
-	bool lowercase = false;
+	alu_src_t _src = {NULL};
+	alu_dst_t _dst = {NULL};
+	alu_base_t base = {0};
+	alu_lit_t lit = {0};
+	alu_block_t __src = {0}, __dst = {0};
+	char *src;
+	size_t size;
+	long nextpos;
+	
+	base.digsep = '\'';
+	base.base = 10;
+	ret = alu_get_regv( alu, base.regv, ALU_BASE_COUNT, 0 );
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return ret;
+	}
+	
+	ret = alu_get_regv( alu, lit.regv, ALU_LIT_COUNT, 0 );
+	
+	if ( ret != 0 )
+	{
+		alu_rem_regv( *alu, base.regv, ALU_BASE_COUNT );
+		alu_error( ret );
+		return ret;
+	}
+	
+	_src.src = &__src;
+	_src.next = (alu_func_rdChar32_t)func_rdChar32;
+	_src.nextpos = &nextpos;
+	
+	_dst.dst = &__dst;
+	_dst.next = (alu_func_wrChar32_t)func_wrChar32;
+	_dst.flip = (alu_func_flipstr_t)func_flipstr;
 	
 	for ( i = 0; pos_int[i]; ++i )
 	{
@@ -1232,55 +1240,32 @@ int print_value(
 		size = strlen(src);
 		switch ( src[1] )
 		{
-		case 'x': case 'X': base = 16; break;
-		case 'b': case 'B': base = 2; break;
-		default: base = 10;
+		case 'x': case 'X': base.base = 16; break;
+		case 'b': case 'B': base.base = 2; break;
+		default: base.base = 10;
 		}
 		
-		_src.block = src;
-		_src.bytes.used = strlen(src);
-		_src.bytes.last = _src.bytes.used;
-		_src.bytes.upto = size ? size : _src.bytes.used + 1;
+		nextpos = 0;
+		__src.block = src;
+		__src.bytes.used = strlen(src);
+		__src.bytes.last = __src.bytes.used;
+		__src.bytes.upto = size ? size : __src.bytes.used + 1;
 		
-		ret = alu_block_expand( &_dst, _src.bytes.upto * 2 );
+		ret = alu_block_expand( &__dst, __src.bytes.upto * 2 );
 		if ( ret != 0 )
 			return ret;
 		
-		ret = reg_print_value(
-			alu,
-			_src,
-			&_dst,
-			digsep,
-			base,
-			lowercase,
-			print_anyways
-		);
+		ret = reg_print_value( alu, _src, _dst, base, lit, print_anyways );
 		
 		if ( ret != 0 )
 			goto fail;
 		
-		ret = uint_print_value(
-			alu,
-			_src,
-			&_dst,
-			digsep,
-			base,
-			lowercase,
-			print_anyways
-		);
+		ret = uint_print_value( alu, _src, _dst, base, lit, print_anyways );
 		
 		if ( ret != 0 )
 			goto fail;
 		
-		ret = int_print_value(
-			alu,
-			_src,
-			&_dst,
-			digsep,
-			base,
-			lowercase,
-			print_anyways
-		);
+		ret = int_print_value( alu, _src, _dst, base, lit, print_anyways );
 	}
 	
 	for ( i = 0; neg_int[i]; ++i )
@@ -1289,33 +1274,26 @@ int print_value(
 		size = strlen(src);
 		switch ( src[1] )
 		{
-		case 'x': case 'X': base = 16; break;
-		case 'b': case 'B': base = 2; break;
-		default: base = 10;
+		case 'x': case 'X': base.base = 16; break;
+		case 'b': case 'B': base.base = 2; break;
+		default: base.base = 10;
 		}
 		
-		_src.block = src;
-		_src.bytes.used = strlen(src);
-		_src.bytes.last = _src.bytes.used;
-		_src.bytes.upto = size ? size : _src.bytes.used + 1;
+		nextpos = 0;
+		__src.block = src;
+		__src.bytes.used = strlen(src);
+		__src.bytes.last = __src.bytes.used;
+		__src.bytes.upto = size ? size : __src.bytes.used + 1;
 		
-		ret = alu_block_expand( &_dst, _src.bytes.upto * 2 );
+		ret = alu_block_expand( &__dst, __src.bytes.upto * 2 );
 		if ( ret != 0 )
 			return ret;
 		
-		ret = int_print_value(
-			alu,
-			_src,
-			&_dst,
-			digsep,
-			base,
-			lowercase,
-			print_anyways
-		);
+		ret = int_print_value( alu, _src, _dst, base, lit, print_anyways );
 	}
 	
 	fail:
-	alu_block_release( &_dst );
+	alu_block_release( &__dst );
 	return ret;
 }
 

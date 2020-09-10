@@ -7,12 +7,7 @@ int alu_int_cmp( alu_t *alu, alu_int_t num, alu_int_t val, int *cmp, size_t *bit
 	
 	if ( cmp )
 	{	
-		ret = alu_get_regv(
-			alu
-			, regv
-			, 2
-			, HIGHEST( n, v )
-		);
+		ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
 		
 		if ( ret != 0 )
 		{
@@ -92,12 +87,7 @@ int alu_int_and( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[2], _num, _val;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 2
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -127,12 +117,7 @@ int alu_int__or( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[2], _num, _val;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 2
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -162,12 +147,7 @@ int alu_int_xor( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[2], _num, _val;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 2
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -197,12 +177,7 @@ int alu_int_shl( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -233,12 +208,7 @@ int alu_int_shr( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -269,12 +239,7 @@ int alu_int_rol( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -305,12 +270,7 @@ int alu_int_ror( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -365,12 +325,7 @@ int alu_int_add( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[2], _num, _val;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 2
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -400,12 +355,7 @@ int alu_int_mul( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -461,13 +411,7 @@ int alu_int_sub( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[2], _num, _val;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv
-	(
-		alu
-		, regv
-		, 2
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -497,12 +441,7 @@ int alu_int_divide( alu_t *alu, alu_int_t num, alu_int_t val, alu_int_t rem )
 	alu_register_t regv[3], _num, _val, _rem;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -535,12 +474,7 @@ int alu_int_div( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -572,12 +506,7 @@ int alu_int_rem( alu_t *alu, alu_int_t num, alu_int_t val )
 	alu_register_t regv[3], _num, _val, _tmp;
 	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
 	
-	ret = alu_get_regv(
-		alu
-		, regv
-		, 3
-		, HIGHEST( n, v )
-	);
+	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
 	
 	if ( ret != 0 )
 	{
@@ -603,21 +532,12 @@ int alu_int_rem( alu_t *alu, alu_int_t num, alu_int_t val )
 	return ret;
 }
 
-int alu_str2int
-(
-	alu_t *alu,
-	void *src,
-	alu_int_t dst,
-	char32_t digsep,
-	alu_func_rdChar32_t nextchar,
-	long *nextpos,
-	bool lowercase
-)
+int alu_str2int( alu_t *alu, alu_src_t src, alu_int_t *dst, alu_base_t base )
 {
 	int ret = 0;
-	alu_register_t _dst = {0}, *DST;
+	alu_register_t tmp = {0}, *TMP;
 	
-	ret = alu_get_reg( alu, &_dst, sizeof(size_t) );
+	ret = alu_get_reg( alu, &tmp, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -625,43 +545,24 @@ int alu_str2int
 		return ret;
 	}
 	
-	ret = alu_lit2reg(
-		alu,
-		src,
-		_dst,
-		digsep,
-		nextchar,
-		nextpos,
-		lowercase
-	);
-	DST = alu->regv + _dst.node;
-	DST->info |= ALU_INFO__SIGN;
+	ret = alu_str2reg( alu, src, tmp, base );
+	tmp.node %= ALU_USED( *alu );
+	TMP = alu->regv + tmp.node;
+	tmp.info = (TMP->info |= ALU_INFO__SIGN);
 	
-	(void)alu_mov( alu, (uintptr_t)&dst, _dst.node );
+	(void)alu_mov( alu, (uintptr_t)&dst, tmp.node );
 	
-	(void)alu_rem_reg( *alu, _dst );
+	(void)alu_rem_reg( *alu, tmp );
 	
 	return ret;
 }
 
-int alu_int2str
-(
-	alu_t *alu,
-	void *dst,
-	alu_int_t src,
-	char32_t digsep,
-	alu_func_wrChar32_t nextchar,
-	alu_func_flipstr_t flipstr,
-	size_t base,
-	bool lowercase,
-	bool noPfx,
-	bool noSign
-)
+int alu_int2str( alu_t *alu, alu_dst_t dst, alu_int_t src, alu_base_t base )
 {
 	int ret = 0;
-	alu_register_t _src = {0}, *SRC;
+	alu_register_t tmp = {0}, *TMP;
 	
-	ret = alu_get_reg( alu, &_src, sizeof(size_t) );
+	ret = alu_get_reg( alu, &tmp, sizeof(size_t) );
 	
 	if ( ret != 0 )
 	{
@@ -669,25 +570,13 @@ int alu_int2str
 		return ret;
 	}
 	
-	SRC = alu->regv + _src.node;
-	SRC->info |= ALU_INFO__SIGN;
+	TMP = alu->regv + tmp.node;
+	tmp.info = (TMP->info |= ALU_INFO__SIGN);
+	(void)alu_mov( alu, tmp.node, (uintptr_t)&src );
 	
-	ret = alu_reg2str(
-		alu,
-		dst,
-		_src,
-		digsep,
-		nextchar,
-		flipstr,
-		base,
-		lowercase,
-		noPfx,
-		noSign
-	);
+	ret = alu_reg2str( alu, dst, tmp, base );
 	
-	(void)alu_mov( alu, (uintptr_t)&src, _src.node );
-	
-	alu_rem_reg( *alu, _src );
+	alu_rem_reg( *alu, tmp );
 	
 	return ret;
 }

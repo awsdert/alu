@@ -225,10 +225,12 @@ int alu_reg_cmp(
 	nNeg = !!(num.info & ALU_INFO__SIGN) & (n.b == num.upto - 1);
 	vNeg = !!(val.info & ALU_INFO__SIGN) & (v.b == val.upto - 1);
 	
+#if 0
 	alu_print_reg( "num", alu, num, 1, 1 );
 	alu_print_reg( "val", alu, val, 1, 1 );
 	alu_print_bit( "n", n, 1 );
 	alu_print_bit( "v", v, 1 );
+#endif
 	
 	if ( nNeg != vNeg )
 	{

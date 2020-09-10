@@ -3,7 +3,7 @@ include dst_sys.mak
 include dst_cc.mak
 
 PRJ:=ALU
-ALL_GOALS:=info objects build run debug gede clean rebuild
+ALL_GOALS:=info objects build run debug gede clean rebuild rebuildall
 
 PRJ_SRC_DIR:=
 PRJ_INC_DIR:=
@@ -16,10 +16,6 @@ FBSTDC_INC_DIR:=$(FBSTDC_DIR)/include
 
 RPATH_FLAG=-Wl,-rpath=./
 
-SRC_FLAGS:=$(DBG_FLAGS) -fPIC -shared -Wall -Wextra -I $(FBSTDC_INC_DIR)
-LIB_FLAGS:=$(DBG_FLAGS) -fPIC -shared
-BIN_FLAGS:=$(DBG_FLAGS) -fPIE -L . -l alu
-
 PRJ_SRC_FILES:=test.c $(wildcard $(PRJ_SRC_DIR)alu*.c)
 PRJ_INC_FILES:=$(wildcard $(PRJ_INC_DIR)*.h)
 PRJ_OBJ_FILES:=$(PRJ_SRC_FILES:%.c=%)
@@ -29,6 +25,10 @@ PRJ_LIB_OBJ_FILES:=$(filter-out $(PRJ_BIN_OBJ_FILES),$(PRJ_OBJ_FILES))
 
 PRJ_DST_BIN:=alu$(DBG_SFX)$(DST_BIN_SFX)
 PRJ_DST_LIB:=$(DST_LIB_PFX)alu$(DBG_SFX)$(DST_LIB_SFX)
+
+SRC_FLAGS:=$(DBG_FLAGS) -fPIC -shared -Wall -Wextra -I $(FBSTDC_INC_DIR)
+LIB_FLAGS:=$(DBG_FLAGS) -fPIC -shared
+BIN_FLAGS:=$(DBG_FLAGS) -fPIE $(COP)L . $(COP)l alu$(DBG_SFX)
 
 COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG)
 COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG)
@@ -43,6 +43,9 @@ $(info Checking 3rd Party libraries are upto date)
 $(info $(call rebase,$(FBSTDC_DIR)))
 $(info $(shell $(call rebase,$(FBSTDC_DIR))))
 $(info Finished checking)
+
+$(info PRJ_DST_BIN=$(PRJ_DST_BIN))
+$(info PRJ_DST_LIB=$(PRJ_DST_LIB))
 
 info: .FORCE
 	@echo CC=$(CC)
@@ -59,8 +62,11 @@ info: .FORCE
 	@echo Goals make can process for $(PROJECT):
 	@echo $(TAB_CHAR) all $(ALL_GOALS)
 
-all: $(ALL_GOALS)
-	@echo all
+all:
+	make build
+	make debug
+
+rebuildall: clean all
 
 rebuild: clean build
 
@@ -68,10 +74,9 @@ clean:
 	rm -f *.AppImage *.exe *.so *.dll *.o *.obj
 
 run: build
-	./$(PRJ_DST_BIN)
+	$(call ifin,$(MAKECMDGOALS),debug,gdb -ex run,) ./$(PRJ_DST_BIN)
 	
 debug: build
-	gdb -ex run ./$(PRJ_DST_BIN)
 
 gede: build
 	gede --args ./$(PRJ_DST_BIN)
