@@ -25,3 +25,5 @@ WIN16_DST_OBJ_SFX:=$(call ifin,$(DST_SYS),win32,.16.obj,)
 WIN32_DST_OBJ_SFX:=$(call ifin,$(DST_SYS),win32,.32.obj,)
 WIN64_DST_OBJ_SFX:=$(call ifin,$(DST_SYS),win64,.64.obj,)
 DST_OBJ_SFX=$(strip $(LINUX_DST_OBJ_SFX) $(call MSWIN_VARS,OBJ_SFX))
+
+.LIBPATTERNS:=$(DST_LIB_PFX)%.$(DST_LIB_SFX) $(DST_LIB_PFX)%.a

@@ -25,6 +25,8 @@ PRJ_LIB_OBJ_FILES:=$(filter-out $(PRJ_BIN_OBJ_FILES),$(PRJ_OBJ_FILES))
 
 PRJ_DST_BIN:=alu$(DBG_SFX)$(DST_BIN_SFX)
 PRJ_DST_LIB:=$(DST_LIB_PFX)alu$(DBG_SFX)$(DST_LIB_SFX)
+PRJ_DST_OBJ:=$(PRJ_OBJ_FILES:%=%$(DBG_SFX)$(DST_OBJ_SFX))
+PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 
 SRC_FLAGS:=$(DBG_FLAGS) -fPIC -shared -Wall -Wextra -I $(FBSTDC_INC_DIR)
 LIB_FLAGS:=$(DBG_FLAGS) -fPIC -shared
@@ -73,17 +75,17 @@ rebuild: clean build
 clean:
 	rm -f *.AppImage *.exe *.so *.dll *.o *.obj
 
-run: build
+run: $(PRJ_TARGETS)
 	$(call ifin,$(MAKECMDGOALS),debug,gdb -ex run,) ./$(PRJ_DST_BIN)
 	
-debug: build
+debug: $(PRJ_TARGETS)
 
 gede: debug
 	gede --args ./$(PRJ_DST_BIN)
 
-build: objects $(PRJ_DST_LIB) $(PRJ_DST_BIN)
+build: $(PRJ_TARGETS)
 
-objects: $(PRJ_OBJ_FILES:%=%$(DBG_SFX)$(DST_OBJ_SFX))
+objects: $(PRJ_DST_OBJ)
 
 %$(DBG_SFX).AppImage: libalu$(DBG_SFX).so $(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).o)
 	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).o))
