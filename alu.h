@@ -145,39 +145,43 @@ typedef enum ALU_REG_ID {
 # define ALU_INFO__SIGN 2
 # define ALU_INFO_FLOAT 4
 
-typedef struct alu_register
+typedef struct alu_reg
 {
 	uint_t node;
 	uint_t info;
 	size_t from, upto, mant;
-} alu_register_t;
+} alu_reg_t;
 
 /** @brief Block of RAM based registers for optimal calculations
- * @param buff Manages the allocated memory block split into regv
- * @param count Records total available and the number used of regv
- * @param Registers the alu software math uses, always of equal size
+ * @param self To ensure source object is updated if pointers and counts change
+ * @param buff Manages the allocated register values
+ * @param _regv Manages the allocated register information
+ * @param regv Registers the alu software math uses, always of equal size
  * @note Reduces the need for RAM to load different nodes when the CPU
  * requests the blocks to peform software based math on.
  * Each thread MUST have it's own ALU to use, cannot be shared at this
  * time. **/
 typedef struct alu
 {
+	struct alu *self;
 	alu_vec_t buff, _regv;
-	alu_register_t *regv;
+	alu_reg_t *regv;
 } alu_t;
 
 
-size_t alu_lowest_upto( alu_register_t num, alu_register_t val );
+size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
 #define ALU_UPTO( ALU ) ((ALU)._regv.qty.upto)
 #define ALU_USED( ALU ) ((ALU)._regv.qty.used)
 #define ALU_PART( ALU, REG ) \
 	((ALU).buff.mem.block + ((REG) * (ALU).buff.perN))
 
-int alu_check_reg( alu_t alu, uint_t reg );
-int alu_check1( alu_t *alu, uint_t num );
-int alu_check2( alu_t *alu, uint_t num, uint_t val );
-int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem );
+bool alu_reg_valid( alu_t alu, alu_reg_t reg );
+bool alu_valid( alu_t alu, uint_t reg );
+
+int alu_check1( alu_t alu, uint_t num );
+int alu_check2( alu_t alu, uint_t num, uint_t val );
+int alu_check3( alu_t alu, uint_t num, uint_t val, uint_t rem );
 
 typedef int (*alu_func_rdChar32_t)( char32_t *dst, void *src, long *nextpos );
 typedef int (*alu_func_wrChar32_t)( char32_t src, void *dst );
@@ -197,17 +201,28 @@ typedef struct alu_dst
 	alu_func_flipstr_t flip;
 } alu_dst_t;
 
-int alu_setup_reg( alu_t *alu, uint_t want, size_t perN );
-void alu_print_reg( char *pfx, alu_t alu, alu_register_t reg, bool print_info, bool print_value );
+int alu_err_self_is_null();
+
+int alu_set_flag( alu_t alu, alu_reg_t *reg, uint_t info );
+int alu_rem_flag( alu_t alu, alu_reg_t *reg, uint_t info );
+#define alu_reg_valid( reg ) (!!((reg).info & ALU_INFO_VALID))
+#define alu_reg_floating( reg ) (!!((reg).info & ALU_INFO_FLOAT))
+#define alu_reg_signed( reg ) (!!((reg).info & ALU_INFO__SIGN))
+bool alu_reg__below0( alu_t alu, alu_reg_t reg );
+
+int alu_set_used( alu_t alu, uint_t used );
+int alu_setup_reg( alu_t alu, uint_t want, size_t perN );
+void alu_print_reg( char *pfx, alu_t alu, alu_reg_t reg, bool print_info, bool print_value );
+void alu_print_info( char *pfx, alu_t alu, alu_reg_t reg, uint_t flags );
 size_t alu_set_bounds( alu_t alu, uint_t reg, size_t from, size_t upto );
 void alu_set_constants( alu_t alu );
-int alu_update_bounds( alu_t *alu, uint_t reg );
-int alu_reg_update_bounds( alu_t alu, alu_register_t reg );
-int alu_get_reg( alu_t *alu, alu_register_t *reg, size_t need );
-int alu_get_regv( alu_t *alu, alu_register_t *regv, uint_t count, size_t need );
-void alu_rem_reg( alu_t alu, alu_register_t reg );
-void alu_rem_regv( alu_t alu, alu_register_t *regv, int count );
-alu_bit_t alu_end_bit( alu_t alu, alu_register_t reg );
+int alu_update_bounds( alu_t alu, uint_t reg );
+int alu_reg_update_bounds( alu_t alu, alu_reg_t reg );
+int alu_get_reg( alu_t alu, alu_reg_t *reg, size_t need );
+int alu_get_regv( alu_t alu, alu_reg_t *regv, uint_t count, size_t need );
+void alu_rem_reg( alu_t alu, alu_reg_t reg );
+void alu_rem_regv( alu_t alu, alu_reg_t *regv, int count );
+alu_bit_t alu_end_bit( alu_t alu, alu_reg_t reg );
 
 # define ALU_BASE_STR_0to9 "0123456789"
 # define ALU_BASE_STR_atoz "abcdefghijklmnopqrstuvwxyz"
@@ -230,7 +245,7 @@ typedef struct alu_base
 	bool lowercase;
 	size_t base;
 	char32_t digsep;
-	alu_register_t regv[ALU_BASE_COUNT];
+	alu_reg_t regv[ALU_BASE_COUNT];
 } alu_base_t;
 
 enum
@@ -248,40 +263,40 @@ enum
 typedef struct alu_lit
 {
 	int _quickinit;
-	alu_register_t regv[ALU_LIT_COUNT];
+	alu_reg_t regv[ALU_LIT_COUNT];
 } alu_lit_t;
 
-int alu_str2reg( alu_t *alu, alu_src_t src, alu_register_t dst, alu_base_t base );
-int alu_str2uint( alu_t *alu, alu_src_t src, alu_uint_t *dst, alu_base_t base );
-int alu_str2int( alu_t *alu, alu_src_t src, alu_int_t *dst, alu_base_t base );
-int alu_str2fpn( alu_t *alu, alu_src_t src, alu_fpn_t *dst, alu_base_t base );
+int alu_str2reg( alu_t alu, alu_src_t src, alu_reg_t dst, alu_base_t base );
+int alu_str2uint( alu_t alu, alu_src_t src, alu_uint_t *dst, alu_base_t base );
+int alu_str2int( alu_t alu, alu_src_t src, alu_int_t *dst, alu_base_t base );
+int alu_str2fpn( alu_t alu, alu_src_t src, alu_fpn_t *dst, alu_base_t base );
 
 int alu_lit2reg
 (
-	alu_t *alu,
+	alu_t alu,
 	alu_src_t src,
-	alu_register_t dst,
+	alu_reg_t dst,
 	alu_base_t base,
 	alu_lit_t lit
 );
 
-int alu_reg2str( alu_t *alu, alu_dst_t dst, alu_register_t src, alu_base_t base );
-int alu_uint2str( alu_t *alu, alu_dst_t dst, alu_uint_t src, alu_base_t base );
-int alu_int2str( alu_t *alu, alu_dst_t dst, alu_int_t src, alu_base_t base );
-int alu_fpn2str( alu_t *alu, alu_dst_t dst, alu_fpn_t src, alu_base_t base );
+int alu_reg2str( alu_t alu, alu_dst_t dst, alu_reg_t src, alu_base_t base );
+int alu_uint2str( alu_t alu, alu_dst_t dst, alu_uint_t src, alu_base_t base );
+int alu_int2str( alu_t alu, alu_dst_t dst, alu_int_t src, alu_base_t base );
+int alu_fpn2str( alu_t alu, alu_dst_t dst, alu_fpn_t src, alu_base_t base );
 
-int alu_uint2fpn( alu_t *alu, alu_uint_t *val );
-int alu_int2fpn( alu_t *alu, alu_int_t *val );
-int alu_fpn2uint( alu_t *alu, alu_fpn_t *val );
-int alu_fpn2int( alu_t *alu, alu_fpn_t *val );
+int alu_uint2fpn( alu_t alu, alu_uint_t *val );
+int alu_int2fpn( alu_t alu, alu_int_t *val );
+int alu_fpn2uint( alu_t alu, alu_fpn_t *val );
+int alu_fpn2int( alu_t alu, alu_fpn_t *val );
 
-int alu_check1( alu_t *alu, uint_t num );
-int alu_check2( alu_t *alu, uint_t num, uint_t val );
-int alu_check3( alu_t *alu, uint_t num, uint_t val, uint_t rem );
+int alu_check1( alu_t alu, uint_t num );
+int alu_check2( alu_t alu, uint_t num, uint_t val );
+int alu_check3( alu_t alu, uint_t num, uint_t val, uint_t rem );
 int alu_reg_cmp(
 	alu_t alu
-	, alu_register_t num
-	, alu_register_t val
+	, alu_reg_t num
+	, alu_reg_t val
 	, size_t *bit
 );
 
@@ -305,42 +320,42 @@ int alu_cmp(
  * will be utilized with a temporary register to prevent misaligned
  * values
 **/
-bool alu_reg_is_zero( alu_t alu, alu_register_t reg, alu_bit_t *end_bit );
+bool alu_reg_is_zero( alu_t alu, alu_reg_t reg, alu_bit_t *end_bit );
 
-int alu_mov( alu_t *alu, uintptr_t num, uintptr_t val );
-alu_bit_t alu_reg_copy( alu_t alu, alu_register_t dst, alu_register_t src );
-void alu_reg_fill( alu_t alu, alu_register_t num, bool fillwith );
+int alu_mov( alu_t alu, uintptr_t num, uintptr_t val );
+alu_bit_t alu_reg_copy( alu_t alu, alu_reg_t dst, alu_reg_t src );
+void alu_reg_fill( alu_t alu, alu_reg_t num, bool fillwith );
 void alu_fill( alu_t alu, uint_t num, bool fillwith );
 #define alu_reg_set_nil( alu, num ) alu_reg_fill( alu, num, 0 )
 #define alu_reg_set_max( alu, num ) alu_reg_fill( alu, num, 1 )
 #define alu_set_nil( alu, num ) alu_fill( alu, num, 0 )
 #define alu_set_max( alu, num ) alu_fill( alu, num, 1 )
-void alu_reg_set_raw( alu_t alu, alu_register_t num, size_t raw, uint_t info );
+void alu_reg_set_raw( alu_t alu, alu_reg_t num, size_t raw, uint_t info );
 void alu_set_raw( alu_t alu, uint_t num, size_t raw, uint_t info );
 
-void alu_reg__shl( alu_t alu, alu_register_t num, size_t by );
-void alu_reg__shr( alu_t alu, alu_register_t num, size_t by );
+void alu_reg__shl( alu_t alu, alu_reg_t num, size_t by );
+void alu_reg__shr( alu_t alu, alu_reg_t num, size_t by );
 void alu_reg__shift
 (
 	alu_t alu
-	, alu_register_t num
-	, alu_register_t val
-	, alu_register_t tmp
+	, alu_reg_t num
+	, alu_reg_t val
+	, alu_reg_t tmp
 	, bool left
 );
 void alu_reg__rotate
 (
 	alu_t alu
-	, alu_register_t num
-	, alu_register_t val
-	, alu_register_t tmp
+	, alu_reg_t num
+	, alu_reg_t val
+	, alu_reg_t tmp
 	, bool left
 );
 
-void alu_reg_not( alu_t alu, alu_register_t num );
-void alu_reg_and( alu_t alu, alu_register_t num, alu_register_t val );
-void alu_reg__or( alu_t alu, alu_register_t num, alu_register_t val );
-void alu_reg_xor( alu_t alu, alu_register_t num, alu_register_t val );
+void alu_reg_not( alu_t alu, alu_reg_t num );
+void alu_reg_and( alu_t alu, alu_reg_t num, alu_reg_t val );
+void alu_reg__or( alu_t alu, alu_reg_t num, alu_reg_t val );
+void alu_reg_xor( alu_t alu, alu_reg_t num, alu_reg_t val );
 
 # define alu_reg_shl( ALU, NUM, VAL, TMP ) \
 	alu_reg__shift( ALU, NUM, VAL, TMP, true )
@@ -351,15 +366,15 @@ void alu_reg_xor( alu_t alu, alu_register_t num, alu_register_t val );
 # define alu_reg_ror( ALU, NUM, VAL, TMP ) \
 	alu_reg__rotate( ALU, NUM, VAL, TMP, false )
 
-void alu_reg_neg( alu_t alu, alu_register_t num );
-int alu_reg_inc( alu_t alu, alu_register_t num );
-int alu_reg_dec( alu_t alu, alu_register_t num );
-int alu_reg_add( alu_t alu, alu_register_t num, alu_register_t val );
-int alu_reg_sub( alu_t alu, alu_register_t num, alu_register_t val );
-int alu_reg_mul( alu_t alu, alu_register_t num, alu_register_t val, alu_register_t tmp );
-int alu_reg_divide( alu_t alu, alu_register_t num, alu_register_t val, alu_register_t rem );
-int alu_reg_div( alu_t alu, alu_register_t num, alu_register_t val, alu_register_t tmp );
-int alu_reg_rem( alu_t alu, alu_register_t num, alu_register_t val, alu_register_t tmp );
+void alu_reg_neg( alu_t alu, alu_reg_t num );
+int alu_reg_inc( alu_t alu, alu_reg_t num );
+int alu_reg_dec( alu_t alu, alu_reg_t num );
+int alu_reg_add( alu_t alu, alu_reg_t num, alu_reg_t val );
+int alu_reg_sub( alu_t alu, alu_reg_t num, alu_reg_t val );
+int alu_reg_mul( alu_t alu, alu_reg_t num, alu_reg_t val, alu_reg_t tmp );
+int alu_reg_divide( alu_t alu, alu_reg_t num, alu_reg_t val, alu_reg_t rem );
+int alu_reg_div( alu_t alu, alu_reg_t num, alu_reg_t val, alu_reg_t tmp );
+int alu_reg_rem( alu_t alu, alu_reg_t num, alu_reg_t val, alu_reg_t tmp );
 
 
 void alu__shift( alu_t alu, uint_t num, uint_t val, uint_t tmp, bool left );
@@ -389,7 +404,7 @@ int alu_div( alu_t alu, uint_t num, uint_t val, uint_t tmp );
 int alu_rem( alu_t alu, uint_t num, uint_t val, uint_t tmp );
 
 int alu_uint_cmp(
-	alu_t *alu,
+	alu_t alu,
 	alu_uint_t num,
 	alu_uint_t val,
 	int *cmp,
@@ -397,26 +412,26 @@ int alu_uint_cmp(
 );
 
 /* Clamps between ALU_REG_ID_ZERO & ALU_REG_ID_UMAX */
-int alu_uint_not( alu_t *alu, alu_uint_t num );
-int alu_uint_and( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint__or( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_xor( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_shl( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_shr( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_rol( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_ror( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_neg( alu_t *alu, alu_uint_t num );
-int alu_uint_inc( alu_t *alu, alu_uint_t num );
-int alu_uint_dec( alu_t *alu, alu_uint_t num );
-int alu_uint_add( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_sub( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_mul( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_divide( alu_t *alu, alu_uint_t num, alu_uint_t val, alu_uint_t rem );
-int alu_uint_div( alu_t *alu, alu_uint_t num, alu_uint_t val );
-int alu_uint_rem( alu_t *alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_not( alu_t alu, alu_uint_t num );
+int alu_uint_and( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint__or( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_xor( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_shl( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_shr( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_rol( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_ror( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_neg( alu_t alu, alu_uint_t num );
+int alu_uint_inc( alu_t alu, alu_uint_t num );
+int alu_uint_dec( alu_t alu, alu_uint_t num );
+int alu_uint_add( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_sub( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_mul( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_divide( alu_t alu, alu_uint_t num, alu_uint_t val, alu_uint_t rem );
+int alu_uint_div( alu_t alu, alu_uint_t num, alu_uint_t val );
+int alu_uint_rem( alu_t alu, alu_uint_t num, alu_uint_t val );
 
 int alu_int_cmp(
-	alu_t *alu,
+	alu_t alu,
 	alu_int_t num,
 	alu_int_t val,
 	int *cmp,
@@ -425,27 +440,27 @@ int alu_int_cmp(
 
 /* Clamps between ALU_REG_ID_IMIN & ALU_REG_ID_IMAX */
 
-int alu_int_not( alu_t *alu, alu_int_t num );
-int alu_int_and( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int__or( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_xor( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_shl( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_shr( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_rol( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_ror( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_neg( alu_t *alu, alu_int_t num );
-int alu_int_inc( alu_t *alu, alu_int_t num );
-int alu_int_dec( alu_t *alu, alu_int_t num );
-int alu_int_add( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_sub( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_mul( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_divide( alu_t *alu, alu_int_t num, alu_int_t val, alu_int_t rem );
-int alu_int_div( alu_t *alu, alu_int_t num, alu_int_t val );
-int alu_int_rem( alu_t *alu, alu_int_t num, alu_int_t val );
+int alu_int_not( alu_t alu, alu_int_t num );
+int alu_int_and( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int__or( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_xor( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_shl( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_shr( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_rol( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_ror( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_neg( alu_t alu, alu_int_t num );
+int alu_int_inc( alu_t alu, alu_int_t num );
+int alu_int_dec( alu_t alu, alu_int_t num );
+int alu_int_add( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_sub( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_mul( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_divide( alu_t alu, alu_int_t num, alu_int_t val, alu_int_t rem );
+int alu_int_div( alu_t alu, alu_int_t num, alu_int_t val );
+int alu_int_rem( alu_t alu, alu_int_t num, alu_int_t val );
 
 /* Deals with +/-, +/-INF and NaN */
 int alu_fpn_cmp(
-	alu_t *alu,
+	alu_t alu,
 	alu_fpn_t num,
 	alu_fpn_t val,
 	int *cmp,
@@ -453,13 +468,13 @@ int alu_fpn_cmp(
 );
 
 /* Passes math differently where needed */
-int alu_fpn_inc( alu_t *alu, alu_fpn_t num );
-int alu_fpn_dec( alu_t *alu, alu_fpn_t num );
-int alu_fpn_add( alu_t *alu, alu_fpn_t num, alu_fpn_t val );
-int alu_fpn_sub( alu_t *alu, alu_fpn_t num, alu_fpn_t val );
-int alu_fpn_mul( alu_t *alu, alu_fpn_t num, alu_fpn_t val );
-int alu_fpn_divide( alu_t *alu, alu_fpn_t num, alu_fpn_t val, alu_fpn_t rem );
-int alu_fpn_div( alu_t *alu, alu_fpn_t num, alu_fpn_t val );
-int alu_fpn_rem( alu_t *alu, alu_fpn_t num, alu_fpn_t val );
+int alu_fpn_inc( alu_t alu, alu_fpn_t num );
+int alu_fpn_dec( alu_t alu, alu_fpn_t num );
+int alu_fpn_add( alu_t alu, alu_fpn_t num, alu_fpn_t val );
+int alu_fpn_sub( alu_t alu, alu_fpn_t num, alu_fpn_t val );
+int alu_fpn_mul( alu_t alu, alu_fpn_t num, alu_fpn_t val );
+int alu_fpn_divide( alu_t alu, alu_fpn_t num, alu_fpn_t val, alu_fpn_t rem );
+int alu_fpn_div( alu_t alu, alu_fpn_t num, alu_fpn_t val );
+int alu_fpn_rem( alu_t alu, alu_fpn_t num, alu_fpn_t val );
 
 #endif /* INC_ALU_H */

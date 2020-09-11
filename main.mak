@@ -78,7 +78,7 @@ run: build
 	
 debug: build
 
-gede: build
+gede: debug
 	gede --args ./$(PRJ_DST_BIN)
 
 build: objects $(PRJ_DST_LIB) $(PRJ_DST_BIN)
