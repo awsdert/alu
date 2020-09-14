@@ -1,524 +1,234 @@
 #include "alu.h"
-int alu_uint_cmp( alu_t alu, alu_uint_t num, alu_uint_t val, int *cmp, size_t *bit )
+int_t alu_uint_cmp( alu_t *alu, alu_uint_t num, alu_uint_t val, size_t *bit )
+{
+	return alu_cmp( alu, num, val, bit );
+}
+
+int_t alu_uint_neg( alu_t *alu, alu_uint_t num )
+{
+	return alu_neg( alu, num );
+}
+
+int_t alu_uint_not( alu_t *alu, alu_uint_t num )
+{
+	return alu_not( alu, num );
+}
+
+int_t alu_uint_and( alu_t *alu, alu_uint_t num, alu_uint_t val )
+{
+	return alu_and( alu, num, val );
+}
+
+int_t alu_uint__or( alu_t *alu, alu_uint_t num, alu_uint_t val )
+{
+	return alu__or( alu, num, val );
+}
+
+int_t alu_uint_xor( alu_t *alu, alu_uint_t num, alu_uint_t val )
+{
+	return alu_xor( alu, num, val );
+}
+
+int_t alu_uint_shl( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t regv[2], _num, _val;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_shl( alu, _num, _val, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	*cmp = alu_reg_cmp( alu, _num, _val, bit );
-	
-	alu_rem_regv( alu, regv, 2 );
 	
 	return ret;
 }
 
-int alu_uint_neg( alu_t alu, alu_uint_t num )
+int_t alu_uint_shr( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t _num;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_reg( alu, &_num, num.vec.mem.bytes.upto );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_shr( alu, _num, _val, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	alu_reg_neg( alu, _num );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_reg( alu, _num );
 	
 	return ret;
 }
 
-int alu_uint_not( alu_t alu, alu_uint_t num )
+int_t alu_uint_rol( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t _num;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_reg( alu, &_num, num.vec.mem.bytes.upto );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_rol( alu, _num, _val, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	alu_reg_not( alu, _num );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_reg( alu, _num );
 	
 	return ret;
 }
 
-int alu_uint_and( alu_t alu, alu_uint_t num, alu_uint_t val )
+int_t alu_uint_ror( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t regv[2], _num, _val;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_ror( alu, _num, _val, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg_and( alu, _num, _val );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 2 );
 	
 	return ret;
 }
 
-int alu_uint__or( alu_t alu, alu_uint_t num, alu_uint_t val )
+int_t alu_uint_inc( alu_t *alu, alu_uint_t num )
+{
+	return alu_inc( alu, num );
+}
+
+int_t alu_uint_add( alu_t *alu, alu_uint_t num, alu_uint_t val )
+{
+	return alu_add( alu, num, val );
+}
+
+int_t alu_uint_mul( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t regv[2], _num, _val;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_mul( alu, _num, _val, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg__or( alu, _num, _val );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 2 );
 	
 	return ret;
 }
 
-int alu_uint_xor( alu_t alu, alu_uint_t num, alu_uint_t val )
+int_t alu_uint_dec( alu_t *alu, alu_uint_t num )
+{
+	return alu_dec( alu, num );
+}
+
+int_t alu_uint_sub( alu_t *alu, alu_uint_t num, alu_uint_t val )
+{
+	return alu_sub( alu, num, val );
+}
+
+int_t alu_uint_divide( alu_t *alu, alu_uint_t num, alu_uint_t val, alu_uint_t rem )
+{
+	return alu_divide( alu, num, val, rem );
+}
+
+int_t alu_uint_div( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t regv[2], _num, _val;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_mul( alu, _num, _val, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg_xor( alu, _num, _val );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 2 );
 	
 	return ret;
 }
 
-int alu_uint_shl( alu_t alu, alu_uint_t num, alu_uint_t val )
+int_t alu_uint_rem( alu_t *alu, alu_uint_t num, alu_uint_t val )
 {
 	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
+	alu_uint_t tmp;
+	alu_reg_t _num, _val, _tmp;
 	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
+	ret = alu_get_reg_node( alu, &tmp, 0 );
 	
-	if ( ret != 0 )
+	if ( ret == 0 )
 	{
-		alu_error(ret);
-		return ret;
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _val, val, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = alu_reg_divide( alu, _num, _val, _tmp );
+		alu_reg_copy( alu, _num, _tmp );
+		
+		alu_rem_reg_node( alu, &tmp );
 	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg_shl( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 3 );
 	
 	return ret;
 }
 
-int alu_uint_shr( alu_t alu, alu_uint_t num, alu_uint_t val )
+int_t alu_str2uint( alu_t *alu, alu_src_t src, alu_uint_t dst, alu_base_t base )
 {
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
+	alu_reg_t _dst;
 	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
+	alu_reg_init( alu, _dst, dst, 0 );
 	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg_shr( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
+	return alu_str2reg( alu, src, _dst, base );
 }
 
-int alu_uint_rol( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg_rol( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
-}
-
-int alu_uint_ror( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	alu_reg_ror( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
-}
-
-int alu_uint_inc( alu_t alu, alu_uint_t num )
-{
-	int ret = 0;
-	alu_reg_t _num;
-	
-	ret = alu_get_reg( alu, &_num, num.vec.mem.bytes.upto );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	ret = alu_reg_inc( alu, _num );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_reg( alu, _num );
-	
-	return ret;
-}
-
-int alu_uint_add( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[2], _num, _val;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	ret = alu_reg_add( alu, _num, _val );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 2 );
-	
-	return ret;
-}
-
-int alu_uint_mul( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	ret = alu_reg_mul( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
-}
-
-int alu_uint_dec( alu_t alu, alu_uint_t num )
-{
-	int ret = 0;
-	alu_reg_t _num;
-	
-	ret = alu_get_reg( alu, &_num, num.vec.mem.bytes.upto );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	ret = alu_reg_dec( alu, _num );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_reg( alu, _num );
-	
-	return ret;
-}
-
-int alu_uint_sub( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[2], _num, _val;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 2, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	ret = alu_reg_sub( alu, _num, _val );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	alu_rem_regv( alu, regv, 2 );
-	
-	return ret;
-}
-
-int alu_uint_divide( alu_t alu, alu_uint_t num, alu_uint_t val, alu_uint_t rem )
-{
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _rem;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_rem = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	ret = alu_reg_divide( alu, _num, _val, _rem );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	(void)alu_mov( alu, (uintptr_t)&rem, _rem.node );
-	
-	(void)alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
-}
-
-int alu_uint_div( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	ret = alu_reg_div( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _num.node );
-	
-	(void)alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
-}
-
-int alu_uint_rem( alu_t alu, alu_uint_t num, alu_uint_t val )
-{
-	int ret = 0;
-	alu_reg_t regv[3], _num, _val, _tmp;
-	size_t n = num.vec.mem.bytes.upto, v = val.vec.mem.bytes.upto;
-	
-	ret = alu_get_regv( alu, regv, 3, HIGHEST( n, v ) );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	_num = regv[0];
-	_val = regv[1];
-	_tmp = regv[2];
-	
-	(void)alu_mov( alu, _num.node, (uintptr_t)&num );
-	(void)alu_mov( alu, _val.node, (uintptr_t)&val );
-	ret = alu_reg_rem( alu, _num, _val, _tmp );
-	(void)alu_mov( alu, (uintptr_t)&num, _tmp.node );
-	
-	alu_rem_regv( alu, regv, 3 );
-	
-	return ret;
-}
-
-int alu_str2uint( alu_t alu, alu_src_t src, alu_uint_t *dst, alu_base_t base )
-{
-	int ret = 0;
-	alu_reg_t tmp = {0};
-	
-	ret = alu_get_reg( alu, &tmp, 0 );
-	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	ret = alu_str2reg( alu, src, tmp, base );
-	
-	(void)alu_mov( alu, (uintptr_t)&dst, tmp.node );
-	
-	alu_rem_reg( alu, tmp );
-	
-	return ret;
-}
-
-int alu_uint2str
+int_t alu_uint2str
 (
-	alu_t alu
+	alu_t *alu
 	, alu_dst_t dst
 	, alu_uint_t src
 	, alu_base_t base
 )
-{
-	int ret = 0;
-	alu_reg_t tmp = {0};
+{	
+	alu_reg_t _src;
 	
-	ret = alu_get_reg( alu, &tmp, 0 );
+	alu_reg_init( alu, _src, src, 0 );
 	
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	ret = alu_reg2str( alu, dst, tmp, base );
-	
-	(void)alu_mov( alu, (uintptr_t)&src, tmp.node );
-	
-	alu_rem_reg( alu, tmp );
-	
-	return ret;
+	return alu_reg2str( alu, dst, _src, base );
 }

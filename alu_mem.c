@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int alu_block( struct alu_block *mem, size_t want, int_t dir )
+int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 {
 	int ret = EINVAL;
 	uchar_t *block = NULL;

@@ -10,7 +10,7 @@
 # define ror( NUM, BITS ) rotate( NUM, BITS, >>, << )
 
 int uint_compare(
-	alu_t alu,
+	alu_t *alu,
 	size_t _num,
 	size_t _val,
 	bool print_anyways
@@ -18,17 +18,20 @@ int uint_compare(
 {
 	int ret = 0, cmp = 0, expect = 0;
 	size_t bit = 0;
-	alu_uint_t num = {0}, val = {0};
+	alu_uint_t regv[2], num = {0}, val = {0};
 	
-	num.vec.perN = sizeof(size_t);
-	num.vec.qty.last = 0;
-	num.vec.qty.upto = num.vec.qty.used = 1;
-	num.vec.mem.block = &_num;
-	num.vec.mem.bytes.last = sizeof(size_t) - 1;
-	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
+	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
 	
-	val = num;
-	val.vec.mem.block = &_val;
+	num = regv[0];
+	val = regv[1];
+	
+	(void)alu_set_raw( alu, num, _num, 0 );
+	(void)alu_set_raw( alu, val, _val, 0 );
 	
 	if ( _num > _val )
 		expect = 1;
@@ -36,12 +39,7 @@ int uint_compare(
 	if ( _num < _val )
 		expect = -1;
 
-	ret = alu_uint_cmp( alu, num, val, &cmp, &bit );
-	if ( ret != 0 )
-	{
-		alu_error( ret );
-		return ret;
-	}
+	cmp = alu_uint_cmp( alu, num, val, &bit );
 	
 	if ( expect != cmp || print_anyways )
 	{
@@ -51,29 +49,33 @@ int uint_compare(
 		);
 	}
 	
+	alu_rem_reg_nodes( alu, regv, 2 );
 	return ret;
 }
 
 int int_compare(
-	alu_t alu,
+	alu_t *alu,
 	ssize_t _num,
 	ssize_t _val,
 	bool print_anyways
 )
 {
 	int ret = 0, cmp = 0, expect = 0;
-	size_t N = _num, V = _val, bit = 0;
-	alu_int_t num = {0}, val = {0};
+	size_t bit = 0;
+	alu_int_t regv[2], num = {0}, val = {0};
 	
-	num.vec.perN = sizeof(size_t);
-	num.vec.qty.last = 0;
-	num.vec.qty.upto = num.vec.qty.used = 1;
-	num.vec.mem.block = &N;
-	num.vec.mem.bytes.last = sizeof(size_t) - 1;
-	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
+	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
 	
-	val = num;
-	val.vec.mem.block = &V;
+	num = regv[0];
+	val = regv[1];
+	
+	(void)alu_set_raw( alu, num, _num, 0 );
+	(void)alu_set_raw( alu, val, _val, 0 );
 	
 	if ( _num > _val )
 		expect = 1;
@@ -81,12 +83,7 @@ int int_compare(
 	if ( _num < _val )
 		expect = -1;
 
-	ret = alu_int_cmp( alu, num, val, &cmp, &bit );
-	if ( ret != 0 )
-	{
-		alu_error( ret );
-		return ret;
-	}
+	cmp = alu_int_cmp( alu, num, val, &bit );
 	
 	if ( expect != cmp || print_anyways )
 	{
@@ -100,18 +97,18 @@ int int_compare(
 }
 
 int reg_compare(
-	alu_t alu,
+	alu_t *alu,
 	size_t _num,
 	size_t _val,
 	bool print_anyways
 )
 {
 	int ret = 0, cmp = 0, expect = 0;
-	alu_reg_t regv[2], num = {0}, val = {0};
+	uint_t regv[2];
+	alu_reg_t num = {0}, val = {0};
 	size_t bit = 0;
 	
-	ret = alu_get_regv( alu, regv, 2, 0 );
-	alu = *(alu.self);
+	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -119,13 +116,11 @@ int reg_compare(
 		return ret;
 	}
 	
-	num = regv[0];
-	val = regv[1];
+	alu_reg_init( alu, num, regv[0], 0 );
+	alu_reg_init( alu, val, regv[1], 0 );
 	
-	alu_reg_set_raw( alu, num, _num, num.info );
-	alu = *(alu.self);
-	alu_reg_set_raw( alu, val, _val, val.info );
-	alu = *(alu.self);
+	alu_reg_set_raw( alu, num, &_num, num.info, sizeof(size_t) );
+	alu_reg_set_raw( alu, val, &_val, val.info, sizeof(size_t) );
 	
 	if ( _num > _val )
 		expect = 1;
@@ -146,11 +141,12 @@ int reg_compare(
 		alu_print_reg( "val", alu, val, false, true );
 	}
 	
+	alu_rem_reg_nodes( alu, regv, 2 );
 	return ret;
 }
 
 int reg_modify(
-	alu_t alu,
+	alu_t *alu,
 	size_t _num,
 	size_t _val,
 	int op,
@@ -158,12 +154,12 @@ int reg_modify(
 )
 {
 	int ret = 0;
-	alu_reg_t regv[3], num = {0}, val = {0}, tmp = {0};
+	uint_t regv[3] = {-1};
+	alu_reg_t num = {0}, val = {0}, tmp = {0};
 	size_t *N, *V, expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	ret = alu_get_regv( alu, regv, 3, 0 );
-	alu = *(alu.self);
+	ret = alu_get_reg_nodes( alu, regv, 3, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -171,12 +167,12 @@ int reg_modify(
 		return ret;
 	}
 	
-	num = regv[0];
-	val = regv[1];
-	tmp = regv[2];
+	alu_reg_init( alu, num, regv[0], 0 );
+	alu_reg_init( alu, val, regv[1], 0 );
+	alu_reg_init( alu, tmp, regv[2], 0 );
 	
-	N = ALU_PART( alu, num.node );
-	V = ALU_PART( alu, val.node );
+	N = alu_reg_data( alu, num );
+	V = alu_reg_data( alu, val );
 	
 	*N = _num;
 	*V = _val;
@@ -281,16 +277,14 @@ int reg_modify(
 	
 	/* Pointers may have changed, catch a copy */
 	
-	alu = *(alu.self);
-	N = ALU_PART( alu, num.node );
-	V = ALU_PART( alu, val.node );
+	N = alu_reg_data( alu, num );
+	V = alu_reg_data( alu, val );
 	
 	switch ( ret )
 	{
 	case 0: case ENODATA: case EOVERFLOW: break;
 	default:
-		alu_rem_reg( alu, num );
-		alu_rem_reg( alu, val );
+		alu_rem_reg_nodes( alu, regv, 3 );
 		alu_error( ret );
 		return ret;
 	}
@@ -304,19 +298,19 @@ int reg_modify(
 
 #if 0
 		alu_print_reg( "num#1", *NUM, 0 );
-		(void)memset( N, 0, alu.buff.perN );
+		(void)memset( N, 0, alu_size_perN( alu ) );
 		*N = expect;
 		alu_print_reg( "num#2", *NUM, 0 );
 #endif
 	}
 	
-	alu_rem_regv( alu, regv, 3 );
+	alu_rem_reg_nodes( alu, regv, 3 );
 	
 	return 0;
 }
 
 int uint_modify(
-	alu_t alu,
+	alu_t *alu,
 	size_t _num,
 	size_t _val,
 	int op,
@@ -324,19 +318,22 @@ int uint_modify(
 )
 {
 	int ret = 0;
-	size_t N = _num, V = _val, expect = 0;
-	alu_uint_t num = {0}, val = {0};
+	size_t N = _num, expect = 0;
+	alu_uint_t regv[2], num = {0}, val = {0};
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	num.vec.perN = sizeof(size_t);
-	num.vec.qty.last = 0;
-	num.vec.qty.upto = num.vec.qty.used = 1;
-	num.vec.mem.block = &N;
-	num.vec.mem.bytes.last = sizeof(size_t) - 1;
-	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
+	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
 	
-	val = num;
-	val.vec.mem.block = &V;
+	num = regv[0];
+	val = regv[1];
+	
+	(void)alu_set_raw( alu, num, _num, 0 );
+	(void)alu_set_raw( alu, val, _val, 0 );
 	
 	expect = _num;
 	switch ( op )
@@ -448,7 +445,7 @@ int uint_modify(
 }
 
 int int_modify(
-	alu_t alu,
+	alu_t *alu,
 	ssize_t _num,
 	ssize_t _val,
 	int op,
@@ -457,19 +454,23 @@ int int_modify(
 {
 	int ret = 0;
 	ssize_t expect = _num;
-	size_t N = _num, V = _val;
+	size_t N = _num;
+	uint_t regv[2] = {-1};
 	alu_int_t num = {0}, val = {0};
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	num.vec.perN = sizeof(size_t);
-	num.vec.qty.last = 0;
-	num.vec.qty.upto = num.vec.qty.used = 1;
-	num.vec.mem.block = &N;
-	num.vec.mem.bytes.last = sizeof(size_t) - 1;
-	num.vec.mem.bytes.upto = num.vec.mem.bytes.used = sizeof(size_t);
+	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
 	
-	val = num;
-	val.vec.mem.block = &V;
+	num = regv[0];
+	val = regv[1];
+	
+	(void)alu_set_raw( alu, num, _num, 0 );
+	(void)alu_set_raw( alu, val, _val, 0 );
 	
 	switch ( op )
 	{
@@ -691,7 +692,7 @@ void print_limits()
 	alu_puts( "===========================================" );
 }
 
-int compare( alu_t alu, bool print_anyways )
+int compare( alu_t *alu, bool print_anyways )
 {
 	int ret = 0;
 	(void)alu_puts( "Comparing values..." );
@@ -741,7 +742,7 @@ int compare( alu_t alu, bool print_anyways )
 }
 
 int modify(
-	alu_t alu,
+	alu_t *alu,
 	ssize_t _num,
 	ssize_t _val,
 	int op,
@@ -764,7 +765,7 @@ int modify(
 }
 
 int bitwise(
-	alu_t alu,
+	alu_t *alu,
 	bool doShift,
 	bool doRotate,
 	bool print_anyways
@@ -826,7 +827,7 @@ int bitwise(
 }
 
 int mathmatical(
-	alu_t alu,
+	alu_t *alu,
 	bool doInc,
 	bool doDec,
 	bool print_anyways
@@ -964,7 +965,7 @@ void func_flipstr( alu_block_t *dst )
 
 int reg_print_value
 (
-	alu_t alu
+	alu_t *alu
 	, alu_src_t _src
 	, alu_dst_t _dst
 	, alu_base_t base
@@ -972,8 +973,9 @@ int reg_print_value
 	, bool print_anyways
 )
 {
-	alu_reg_t tmp = {0};
-	int ret = alu_get_reg( alu, &tmp, 0 );
+	uint_t tmp = -1;
+	alu_reg_t _tmp = {0};
+	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
@@ -989,7 +991,9 @@ int reg_print_value
 		return ret;
 	}
 	
-	ret = alu_lit2reg( alu, _src, tmp, base, lit );
+	alu_reg_init( alu, _tmp, tmp, 0 );
+	
+	ret = alu_lit2reg( alu, _src, _tmp, base, lit );
 	
 	switch ( ret )
 	{
@@ -1006,7 +1010,7 @@ int reg_print_value
 	}
 	
 	(void)memset( __dst->block, 0, __dst->bytes.upto );
-	ret = alu_reg2str( alu, _dst, tmp, base );
+	ret = alu_reg2str( alu, _dst, _tmp, base );
 	
 	if ( ret != 0 )
 		alu_error(ret);
@@ -1016,13 +1020,13 @@ int reg_print_value
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	fail:
-	alu_rem_reg( alu, tmp );
+	alu_rem_reg_node( alu, &tmp );
 	return ret;
 }
 
 int uint_print_value
 (
-	alu_t alu
+	alu_t *alu
 	, alu_src_t _src
 	, alu_dst_t _dst
 	, alu_base_t base
@@ -1030,9 +1034,8 @@ int uint_print_value
 	, bool print_anyways
 )
 {
-	size_t _tmp = 0;
-	alu_uint_t tmp = {0};
-	int ret = 0;
+	alu_uint_t tmp = -1;
+	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	(void)lit;
@@ -1043,21 +1046,18 @@ int uint_print_value
 		alu_puts( "---------------------------------------" );
 	}
 	
-	tmp.vec.perN = sizeof(size_t);
-	tmp.vec.qty.used = 1;
-	tmp.vec.qty.last = 0;
-	tmp.vec.qty.upto = 1;
-	tmp.vec.mem.block = &_tmp;
-	tmp.vec.mem.bytes.used = sizeof(size_t);
-	tmp.vec.mem.bytes.last = tmp.vec.mem.bytes.used - 1;
-	tmp.vec.mem.bytes.upto = tmp.vec.mem.bytes.used;
-	
-	ret = alu_str2uint( alu, _src, &tmp, base );
-	
 	if ( ret != 0 )
 	{
 		alu_error(ret);
 		return ret;
+	}
+	
+	ret = alu_str2uint( alu, _src, tmp, base );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		goto fail;
 	}
 	
 	(void)memset( __dst->block, 0, __dst->bytes.upto );
@@ -1070,12 +1070,14 @@ int uint_print_value
 	if ( strcmp( src, dst ) != 0 || print_anyways )
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
+	fail:
+	alu_rem_reg_node( alu, &tmp );
 	return ret;
 }
 
 int int_print_value
 (
-	alu_t alu
+	alu_t *alu
 	, alu_src_t _src
 	, alu_dst_t _dst
 	, alu_base_t base
@@ -1083,9 +1085,8 @@ int int_print_value
 	, bool print_anyways
 )
 {
-	size_t _tmp = 0;
-	alu_int_t tmp = {0};
-	int ret = 0;
+	alu_int_t tmp = -1;
+	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	(void)lit;
@@ -1096,27 +1097,23 @@ int int_print_value
 		alu_puts( "-------------------------------------" );
 	}
 	
-	tmp.vec.perN = sizeof(size_t);
-	tmp.vec.qty.used = 1;
-	tmp.vec.qty.last = 0;
-	tmp.vec.qty.upto = 1;
-	tmp.vec.mem.block = &_tmp;
-	tmp.vec.mem.bytes.used = sizeof(size_t);
-	tmp.vec.mem.bytes.last = tmp.vec.mem.bytes.used - 1;
-	tmp.vec.mem.bytes.upto = tmp.vec.mem.bytes.used;
-	
-	ret = alu_str2int( alu, _src, &tmp, base );
-	alu = *(alu.self);
-	
 	if ( ret != 0 )
 	{
 		alu_error(ret);
 		return ret;
 	}
 	
+	ret = alu_str2int( alu, _src, tmp, base );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		goto fail;
+	}
+	
 	(void)memset( __dst->block, 0, __dst->bytes.upto );
 	ret = alu_int2str( alu, _dst, tmp, base );
-	alu = *(alu.self);
+	
 	
 	if ( ret != 0 )
 		alu_error(ret);
@@ -1125,6 +1122,8 @@ int int_print_value
 	if ( strcmp( src, dst ) != 0 || print_anyways )
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
+	fail:
+	alu_rem_reg_node( alu, &tmp );
 	return ret;
 }
 
@@ -1221,7 +1220,7 @@ char *neg_fpn[] = {
 	"-0b1.1e-10",
 NULL };
 
-int print_value( alu_t alu, bool print_anyways )
+int print_value( alu_t *alu, bool print_anyways )
 {
 	int ret = 0, i;
 	alu_src_t _src = {NULL};
@@ -1235,8 +1234,8 @@ int print_value( alu_t alu, bool print_anyways )
 	
 	base.digsep = '\'';
 	base.base = 10;
-	ret = alu_get_regv( alu, base.regv, ALU_BASE_COUNT, 0 );
-	alu = *(alu.self);
+	ret = alu_get_reg_nodes( alu, base.regv, ALU_BASE_COUNT, 0 );
+	
 	
 	if ( ret != 0 )
 	{
@@ -1244,12 +1243,12 @@ int print_value( alu_t alu, bool print_anyways )
 		return ret;
 	}
 	
-	ret = alu_get_regv( alu, lit.regv, ALU_LIT_COUNT, 0 );
-	alu = *(alu.self);
+	ret = alu_get_reg_nodes( alu, lit.regv, ALU_LIT_COUNT, 0 );
+	
 	
 	if ( ret != 0 )
 	{
-		alu_rem_regv( alu, base.regv, ALU_BASE_COUNT );
+		alu_rem_reg_nodes( alu, base.regv, ALU_BASE_COUNT );
 		alu_error( ret );
 		return ret;
 	}
@@ -1284,7 +1283,7 @@ int print_value( alu_t alu, bool print_anyways )
 			return ret;
 		
 		ret = reg_print_value( alu, _src, _dst, base, lit, print_anyways );
-		alu = *(alu.self);
+		
 		
 		if ( ret != 0 )
 		{
@@ -1293,7 +1292,7 @@ int print_value( alu_t alu, bool print_anyways )
 		}
 		
 		ret = uint_print_value( alu, _src, _dst, base, lit, print_anyways );
-		alu = *(alu.self);
+		
 		
 		if ( ret != 0 )
 		{
@@ -1302,7 +1301,7 @@ int print_value( alu_t alu, bool print_anyways )
 		}
 		
 		ret = int_print_value( alu, _src, _dst, base, lit, print_anyways );
-		alu = *(alu.self);
+		
 		
 		if ( ret != 0 )
 		{
@@ -1337,7 +1336,7 @@ int print_value( alu_t alu, bool print_anyways )
 		}
 		
 		ret = int_print_value( alu, _src, _dst, base, lit, print_anyways );
-		alu = *(alu.self);
+		
 		
 		if ( ret != 0 )
 		{
@@ -1359,36 +1358,31 @@ int main()
 	//uint_t seed = time(NULL);
 	bool print_anyways = false;
 	
-	alu_t alu = {NULL};
-	alu.self = &alu;
+	alu_t _alu, *alu = &_alu;
+	(void)memset( alu, 0, sizeof(alu_t) );
 	
 	//print_limits();
 
 	alu_printf( "Pre-allocating %u ALU registers...", preallocate );
-	alu_setup_reg( alu, preallocate, sizeof(size_t) );
-	alu = *(alu.self);
+	alu_setup_reg( alu, preallocate, 0, 0 );
+	
 	
 	print_value( alu, true );
 
 #if 1
 	compare( alu, print_anyways );
-	alu = *(alu.self);
 #endif
 
 #if 0
 	bitwise( alu, true, true, print_anyways );
-	alu = *(alu.self);
 #endif
 
 #if 0
 	mathmatical( alu, false, true, print_anyways );
-	alu = *(alu.self);
 #endif
 	
-	(void)alu_vec_shrink( &(alu.buff), 0, 0 );
-	(void)alu_vec_shrink( &(alu._regv), 0, 0 );
-	(void)memset( &alu, 0, sizeof(alu_t) );
-	alu.self = &alu;
+	(void)alu_vec_shrink( alu, 0, 0 );
+	(void)memset( alu, 0, sizeof(alu_t) );
 	
 #if 0
 	for ( num = 0; num < 0x10; ++num )

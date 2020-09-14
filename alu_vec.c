@@ -1,7 +1,7 @@
 #include "alu.h"
 #include <string.h>
 
-int alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
+int_t alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
 {
 	int ret = 0, used;
 	void *dst, *src, *block;
