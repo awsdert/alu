@@ -70,6 +70,6 @@ void alu_print_bit( char *pfx, struct alu_bit pos, bool dereference4value )
 	
 	alu_printf(
 		"Value = %c, %s.S = %p, %s.B = %016zX",
-		value, pfx, pos.S, pfx, pos.B
+		value, pfx, (void*)(pos.S), pfx, pos.B
 	);
 }

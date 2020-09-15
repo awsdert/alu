@@ -104,11 +104,11 @@ int reg_compare(
 )
 {
 	int ret = 0, cmp = 0, expect = 0;
-	uint_t regv[2];
+	uint_t nodes[2] = {0};
 	alu_reg_t num = {0}, val = {0};
 	size_t bit = 0;
 	
-	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
+	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -116,8 +116,8 @@ int reg_compare(
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, regv[0], 0 );
-	alu_reg_init( alu, val, regv[1], 0 );
+	alu_reg_init( alu, num, nodes[0], 0 );
+	alu_reg_init( alu, val, nodes[1], 0 );
 	
 	alu_reg_set_raw( alu, num, &_num, num.info, sizeof(size_t) );
 	alu_reg_set_raw( alu, val, &_val, val.info, sizeof(size_t) );
@@ -141,7 +141,8 @@ int reg_compare(
 		alu_print_reg( "val", alu, val, false, true );
 	}
 	
-	alu_rem_reg_nodes( alu, regv, 2 );
+	alu_rem_reg_nodes( alu, nodes, 2 );
+	
 	return ret;
 }
 
@@ -156,7 +157,7 @@ int reg_modify(
 	int ret = 0;
 	uint_t regv[3] = {-1};
 	alu_reg_t num = {0}, val = {0}, tmp = {0};
-	size_t *N, *V, expect = 0;
+	size_t expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
 	ret = alu_get_reg_nodes( alu, regv, 3, 0 );
@@ -171,11 +172,8 @@ int reg_modify(
 	alu_reg_init( alu, val, regv[1], 0 );
 	alu_reg_init( alu, tmp, regv[2], 0 );
 	
-	N = alu_reg_data( alu, num );
-	V = alu_reg_data( alu, val );
-	
-	*N = _num;
-	*V = _val;
+	alu_set_raw( alu, num.node, _num, 0 );
+	alu_set_raw( alu, val.node, _val, 0 );
 	
 #if 0
 	alu_printf(
@@ -275,11 +273,6 @@ int reg_modify(
 	default: ret = ENOSYS;
 	}
 	
-	/* Pointers may have changed, catch a copy */
-	
-	N = alu_reg_data( alu, num );
-	V = alu_reg_data( alu, val );
-	
 	switch ( ret )
 	{
 	case 0: case ENODATA: case EOVERFLOW: break;
@@ -288,19 +281,20 @@ int reg_modify(
 		alu_error( ret );
 		return ret;
 	}
+	
+	alu_get_raw( alu, num.node, &_num );
 
-	if ( expect != *N || print_anyways )
+	if ( expect != _num || print_anyways )
 	{
 		alu_printf(
 			"%s, Expected 0x%016zX, Got 0x%016zX, op = '%c'\n",
-			pfx, expect, *N, op
+			pfx, expect, _num, op
 		);
 
 #if 0
-		alu_print_reg( "num#1", *NUM, 0 );
-		(void)memset( N, 0, alu_size_perN( alu ) );
-		*N = expect;
-		alu_print_reg( "num#2", *NUM, 0 );
+		alu_print_reg( "num#1", num, 0 );
+		alu_set_raw( alu, num.node, expect, 0 );
+		alu_print_reg( "num#2", num, 0 );
 #endif
 	}
 	

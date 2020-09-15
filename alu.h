@@ -182,7 +182,7 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
 #define alu_size_perN( alu ) ((alu)->perN)
 #define alu_bits_perN( alu ) (alu_size_perN(alu) * CHAR_BIT)
-#define alu_nodes( alu ) ((alu)->mem.block)
+#define alu_nodes( alu ) ((uchar_t*)((alu)->mem.block))
 #define alu_valid( alu ) ((bool*)((alu)->mem.block))
 #define alu_upto( alu ) ((alu)->qty.upto)
 #define alu_used( alu ) ((alu)->qty.used)
@@ -397,7 +397,16 @@ int_t alu_reg_set_raw
 	, size_t size
 );
 
+int_t alu_reg_get_raw
+(
+	alu_t *alu
+	, alu_reg_t num
+	, void *raw
+	, size_t size
+);
+
 int_t alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info );
+int_t alu_get_raw( alu_t *alu, uint_t num, size_t *raw );
 
 int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by );
 int_t alu_reg__shr( alu_t *alu, alu_reg_t num, size_t by );
