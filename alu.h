@@ -310,13 +310,14 @@ typedef struct alu_base
 	bool lowercase;
 	size_t base;
 	char32_t digsep;
-	uint_t regv[ALU_BASE_COUNT];
 } alu_base_t;
 
 enum
 {
 	ALU_LIT_NUM = 0,
+	ALU_LIT_BASE,
 	ALU_LIT_VAL,
+	ALU_LIT_TMP,
 	ALU_LIT_DOT,
 	ALU_LIT_ONE,
 	ALU_LIT_EXP,
@@ -324,12 +325,6 @@ enum
 	ALU_LIT_MAN,
 	ALU_LIT_COUNT
 };
-
-typedef struct alu_lit
-{
-	int _quickinit;
-	uint_t regv[ALU_LIT_COUNT];
-} alu_lit_t;
 
 int_t alu_str2reg( alu_t *alu, alu_src_t src, alu_reg_t dst, alu_base_t base );
 int_t alu_str2uint( alu_t *alu, alu_src_t src, alu_uint_t dst, alu_base_t base );
@@ -341,8 +336,7 @@ int_t alu_lit2reg
 	alu_t *alu,
 	alu_src_t src,
 	alu_reg_t dst,
-	alu_base_t base,
-	alu_lit_t lit
+	alu_base_t base
 );
 
 int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base );

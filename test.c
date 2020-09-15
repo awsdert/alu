@@ -969,7 +969,6 @@ int reg_print_value
 	, alu_src_t _src
 	, alu_dst_t _dst
 	, alu_base_t base
-	, alu_lit_t lit
 	, bool print_anyways
 )
 {
@@ -993,7 +992,7 @@ int reg_print_value
 	
 	alu_reg_init( alu, _tmp, tmp, 0 );
 	
-	ret = alu_lit2reg( alu, _src, _tmp, base, lit );
+	ret = alu_lit2reg( alu, _src, _tmp, base );
 	
 	switch ( ret )
 	{
@@ -1030,7 +1029,6 @@ int uint_print_value
 	, alu_src_t _src
 	, alu_dst_t _dst
 	, alu_base_t base
-	, alu_lit_t lit
 	, bool print_anyways
 )
 {
@@ -1038,7 +1036,6 @@ int uint_print_value
 	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
-	(void)lit;
 	
 	if ( print_anyways )
 	{
@@ -1081,7 +1078,6 @@ int int_print_value
 	, alu_src_t _src
 	, alu_dst_t _dst
 	, alu_base_t base
-	, alu_lit_t lit
 	, bool print_anyways
 )
 {
@@ -1089,7 +1085,6 @@ int int_print_value
 	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
-	(void)lit;
 	
 	if ( print_anyways )
 	{
@@ -1226,7 +1221,6 @@ int print_value( alu_t *alu, bool print_anyways )
 	alu_src_t _src = {NULL};
 	alu_dst_t _dst = {NULL};
 	alu_base_t base = {0};
-	alu_lit_t lit = {0};
 	alu_block_t __src = {0}, __dst = {0};
 	char *src;
 	size_t size;
@@ -1234,24 +1228,6 @@ int print_value( alu_t *alu, bool print_anyways )
 	
 	base.digsep = '\'';
 	base.base = 10;
-	ret = alu_get_reg_nodes( alu, base.regv, ALU_BASE_COUNT, 0 );
-	
-	
-	if ( ret != 0 )
-	{
-		alu_error( ret );
-		return ret;
-	}
-	
-	ret = alu_get_reg_nodes( alu, lit.regv, ALU_LIT_COUNT, 0 );
-	
-	
-	if ( ret != 0 )
-	{
-		alu_rem_reg_nodes( alu, base.regv, ALU_BASE_COUNT );
-		alu_error( ret );
-		return ret;
-	}
 	
 	_src.src = &__src;
 	_src.next = (alu_func_rdChar32_t)func_rdChar32;
@@ -1282,7 +1258,7 @@ int print_value( alu_t *alu, bool print_anyways )
 		if ( ret != 0 )
 			return ret;
 		
-		ret = reg_print_value( alu, _src, _dst, base, lit, print_anyways );
+		ret = reg_print_value( alu, _src, _dst, base, print_anyways );
 		
 		
 		if ( ret != 0 )
@@ -1291,7 +1267,7 @@ int print_value( alu_t *alu, bool print_anyways )
 			goto fail;
 		}
 		
-		ret = uint_print_value( alu, _src, _dst, base, lit, print_anyways );
+		ret = uint_print_value( alu, _src, _dst, base, print_anyways );
 		
 		
 		if ( ret != 0 )
@@ -1300,7 +1276,7 @@ int print_value( alu_t *alu, bool print_anyways )
 			goto fail;
 		}
 		
-		ret = int_print_value( alu, _src, _dst, base, lit, print_anyways );
+		ret = int_print_value( alu, _src, _dst, base, print_anyways );
 		
 		
 		if ( ret != 0 )
@@ -1335,7 +1311,7 @@ int print_value( alu_t *alu, bool print_anyways )
 			goto fail;
 		}
 		
-		ret = int_print_value( alu, _src, _dst, base, lit, print_anyways );
+		ret = int_print_value( alu, _src, _dst, base, print_anyways );
 		
 		
 		if ( ret != 0 )
@@ -1358,31 +1334,56 @@ int main()
 	//uint_t seed = time(NULL);
 	bool print_anyways = false;
 	
-	alu_t _alu, *alu = &_alu;
-	(void)memset( alu, 0, sizeof(alu_t) );
+	alu_t _alu = {0}, *alu = &_alu;
 	
 	//print_limits();
 
 	alu_printf( "Pre-allocating %u ALU registers...", preallocate );
-	alu_setup_reg( alu, preallocate, 0, 0 );
+	ret = alu_setup_reg( alu, preallocate, 0, 0 );
 	
-	
-	print_value( alu, true );
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return EXIT_FAILURE;
+	}
 
 #if 1
-	compare( alu, print_anyways );
-#endif
-
-#if 0
-	bitwise( alu, true, true, print_anyways );
-#endif
-
-#if 0
-	mathmatical( alu, false, true, print_anyways );
-#endif
+	ret = compare( alu, print_anyways );
 	
-	(void)alu_vec_shrink( alu, 0, 0 );
-	(void)memset( alu, 0, sizeof(alu_t) );
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		goto fail;
+	}
+#endif
+
+#if 0
+	ret = bitwise( alu, true, true, print_anyways );
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		goto fail;
+	}
+#endif
+
+#if 0
+	ret = mathmatical( alu, false, true, print_anyways );
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		goto fail;
+	}
+#endif
+
+	ret = print_value( alu, true );
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		goto fail;
+	}
 	
 #if 0
 	for ( num = 0; num < 0x10; ++num )
@@ -1391,6 +1392,12 @@ int main()
 
 	if ( ret != 0 )
 		alu_error( ret );
+		
+		
+	fail:
+	
+	(void)alu_vec_shrink( alu, 0, 0 );
+	(void)memset( alu, 0, sizeof(alu_t) );
 	
 	return (ret == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

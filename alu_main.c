@@ -318,9 +318,10 @@ int_t alu_str2reg
 )
 {
 	size_t b, perN;
+	uint_t nodes[ALU_BASE_COUNT] = {0};
 	alu_reg_t num, val, tmp;
 	alu_bit_t n;
-	int ret;
+	int ret = 0;
 	char32_t c = -1;
 	char
 		*base_upper = ALU_BASE_STR_0toZtoz "+-",
@@ -332,15 +333,6 @@ int_t alu_str2reg
 	
 	if ( *(src.nextpos) < 0 )
 		*(src.nextpos) = 0;
-		
-	alu_reg_init( alu, num, base.regv[ALU_BASE_NUM], 0 );
-	alu_reg_init( alu, val, base.regv[ALU_BASE_VAL], 0 );
-	alu_reg_init( alu, tmp, base.regv[ALU_BASE_TMP], 0 );
-	
-	ret = alu_reg_check3( alu, num, val, tmp );
-	
-	if ( ret != 0 )
-		return ret;
 	
 	if ( !(src.next) )
 		return EADDRNOTAVAIL;
@@ -356,6 +348,18 @@ int_t alu_str2reg
 	
 	if ( !(base.base) || base.base > strlen(base_str) )
 		return ERANGE;
+		
+	ret = alu_get_reg_nodes( alu, nodes, ALU_BASE_COUNT, 0 );
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return ret;
+	}
+	
+	alu_reg_init( alu, num, nodes[ALU_BASE_NUM], 0 );
+	alu_reg_init( alu, val, nodes[ALU_BASE_VAL], 0 );
+	alu_reg_init( alu, tmp, nodes[ALU_BASE_TMP], 0 );
 
 	/* Clear all registers in direct use */
 	perN = alu_size_perN( alu );
@@ -374,7 +378,7 @@ int_t alu_str2reg
 		ret = src.next( &c, src.src, src.nextpos );
 		
 		if ( ret != 0 && ret != EOF )
-			return ret;
+			goto fail;
 		
 		if ( base.base > 36 )
 		{
@@ -437,6 +441,9 @@ int_t alu_str2reg
 	}
 	while ( ret == 0 );
 	
+	fail:
+	alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
+	
 	return 0;
 }
 
@@ -453,10 +460,10 @@ int_t alu_lit2reg
 	, alu_src_t src
 	, alu_reg_t dst
 	, alu_base_t base
-	, alu_lit_t lit
 )
 {
 	size_t i, perN, bits, _base, _one = 1;
+	uint_t nodes[ALU_LIT_COUNT] = {0};
 	alu_reg_t NIL, VAL, BASE, ONE, DOT, EXP, BIAS, MAN, TMP;
 	alu_bit_t n;
 	int ret;
@@ -469,6 +476,14 @@ int_t alu_lit2reg
 	
 	if ( *(src.nextpos) < 0 )
 		*(src.nextpos) = 0;
+		
+	ret = alu_get_reg_nodes( alu, nodes, ALU_LIT_COUNT, 0 );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		return ret;
+	}
 	
 	dst.node %= alu_used( alu );
 	ret = alu_check1( alu, dst.node );
@@ -477,23 +492,24 @@ int_t alu_lit2reg
 	{
 		ret = EADDRNOTAVAIL;
 		alu_error( ret );
-		return ret;
+		goto fail;
 	}
 	
 	switch ( base.digsep )
 	{
 	case 0: case '\'': case '_': case ',': break;
 	default:
+		ret = EINVAL;
 		alu_error(ret);
 		alu_printf( "base.digsep = '%c'", base.digsep );
-		return EINVAL;
+		goto fail;
 	}
 		
 	ret = src.next( &c, src.src, src.nextpos );
 	if ( ret != 0 )
 	{
 		alu_error( ret );
-		return ret;
+		goto fail;
 	}
 	
 	if ( c == '-' || c == '+' )
@@ -505,7 +521,7 @@ int_t alu_lit2reg
 		
 	ret = src.next( &c, src.src, src.nextpos );
 	if ( ret != 0 )
-		return ret;
+		goto fail;
 		
 	if ( c > '0' && c <= '9' )
 	{
@@ -513,14 +529,17 @@ int_t alu_lit2reg
 		++(*(src.nextpos));
 	}
 	else if ( c != '0' )
-		return EILSEQ;
+	{
+		ret = EILSEQ;
+		goto fail;
+	}
 	else
 	{
 		++(*(src.nextpos));
 		
 		ret = src.next( &c, src.src, src.nextpos );
 		if ( ret != 0 )
-			return ret;
+			goto fail;
 		
 		if ( c >= '0' && c <= '7' )
 		{
@@ -536,13 +555,16 @@ int_t alu_lit2reg
 				base.base = 0;
 				++(*(src.nextpos));
 				ret = src.next( &c, src.src, src.nextpos );
+				
 				if ( ret != 0 )
-					return ret;
+					goto fail;
+				
 				if ( c == 'l' || c == 'L' )
 				{
 					++(*(src.nextpos));
 					base.lowercase = true;
 				}
+				
 				while ( 1 )
 				{
 					ret = src.next( &c, src.src, src.nextpos );
@@ -553,15 +575,18 @@ int_t alu_lit2reg
 					base.base += (c - '0');
 					++(*(src.nextpos));
 				}
+				
 				if ( ret != 0 && ret != EOF )
-					return ret;
+					goto fail;
+				
 				if ( !base.base )
 				{
 					ret = EILSEQ;
 					alu_error(ret);
 					alu_puts( "Invalid base provided" );
-					return ret;
+					goto fail;
 				}
+				
 				break;
 			case 'b': case 'B': base.base = 2; ++(*(src.nextpos)); break;
 			case 'o': case 'O': base.base = 8; ++(*(src.nextpos)); break;
@@ -574,20 +599,20 @@ int_t alu_lit2reg
 				ret = EILSEQ;
 				alu_error(ret);
 				alu_puts( "Expected x, X, o, O, b, B, ~ or 1 to 9" );
-				return ret;
+				goto fail;
 			}
 		}
 	}
 	
 	alu_reg_init( alu, NIL, ALU_REG_ID_ZERO, 0 );
-	alu_reg_init( alu, BASE, base.regv[ALU_BASE_VAL], 0 );
-	alu_reg_init( alu, TMP, base.regv[ALU_BASE_TMP], 0 );
-	alu_reg_init( alu, ONE, lit.regv[ALU_LIT_ONE], 0 );
-	alu_reg_init( alu, VAL, lit.regv[ALU_LIT_VAL], 0 );
-	alu_reg_init( alu, DOT, lit.regv[ALU_LIT_DOT], 0 );
-	alu_reg_init( alu, EXP, lit.regv[ALU_LIT_EXP], 0 );
-	alu_reg_init( alu, BIAS, lit.regv[ALU_LIT_EXP_BIAS], 0 );
-	alu_reg_init( alu, MAN, lit.regv[ALU_LIT_MAN], 0 );
+	alu_reg_init( alu, BASE, nodes[ALU_LIT_BASE], 0 );
+	alu_reg_init( alu, TMP, nodes[ALU_LIT_TMP], 0 );
+	alu_reg_init( alu, ONE, nodes[ALU_LIT_ONE], 0 );
+	alu_reg_init( alu, VAL, nodes[ALU_LIT_VAL], 0 );
+	alu_reg_init( alu, DOT, nodes[ALU_LIT_DOT], 0 );
+	alu_reg_init( alu, EXP, nodes[ALU_LIT_EXP], 0 );
+	alu_reg_init( alu, BIAS, nodes[ALU_LIT_EXP_BIAS], 0 );
+	alu_reg_init( alu, MAN, nodes[ALU_LIT_MAN], 0 );
 	
 	alu_reg_set_raw( alu, BASE, &(base.base), BASE.info, sizeof(size_t) );
 	
@@ -596,7 +621,7 @@ int_t alu_lit2reg
 	switch ( ret )
 	{
 	case 0: case EOF: c = 0; break;
-	default: return ret;
+	default: goto fail;
 	}
 
 	perN = alu_size_perN( alu );
@@ -612,7 +637,7 @@ int_t alu_lit2reg
 		switch ( ret )
 		{
 		case 0: case EOF: c = 0; break;
-		default: return ret;
+		default: goto fail;
 		}
 		
 		/* Make sure have enough space for later calculations */
@@ -630,7 +655,7 @@ int_t alu_lit2reg
 			if ( ret != 0 )
 			{
 				alu_error(ret);
-				return ret;
+				goto fail;
 			}
 			
 			perN = alu_size_perN( alu );
@@ -681,10 +706,13 @@ int_t alu_lit2reg
 				++(*(src.nextpos));
 				ret = src.next( &c, src.src, src.nextpos );
 				if ( ret != 0 && ret != EOF )
-					return ret;
+					goto fail;
 			}
 			else
-				return EILSEQ;
+			{
+				ret = EILSEQ;
+				goto fail;
+			}
 		}
 		
 		if ( c == exponent_char || c == (char32_t)toupper(exponent_char) )
@@ -720,7 +748,7 @@ int_t alu_lit2reg
 			switch ( ret )
 			{
 			case 0: case EOF: c = 0; break;
-			default: return ret;
+			default: goto fail;
 			}
 		}
 		
@@ -920,7 +948,7 @@ int_t alu_lit2reg
 				++(*(src.nextpos));
 				ret = src.next( &c, src.src, src.nextpos );
 				if ( ret != 0 && ret != EOF )
-					return ret;
+					goto fail;
 			}
 			else
 			{
@@ -928,7 +956,7 @@ int_t alu_lit2reg
 				alu_error(ret);
 				alu_puts( "Expected ')' to close Exponent or Float" );
 				alu_printf( "Current character is '%c'", c );
-				return ret;
+				goto fail;
 			}
 		}
 		
@@ -936,6 +964,9 @@ int_t alu_lit2reg
 			alu_reg_neg( alu, dst );
 	}
 	
+	fail:
+	
+	alu_rem_reg_nodes( alu, nodes, ALU_LIT_COUNT );
 	return 0;
 }
 
@@ -944,6 +975,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	alu_reg_t num, div, val;
 	int ret;
 	size_t *V, *N, digit = 0;
+	uint_t nodes[ALU_BASE_COUNT] = {0};
 	bool neg;
 	char *base_str =
 		base.lowercase ? ALU_BASE_STR_0toztoZ : ALU_BASE_STR_0toZtoz;
@@ -977,9 +1009,17 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, base.regv[ALU_BASE_NUM], 0 );
-	alu_reg_init( alu, div, base.regv[ALU_BASE_VAL], 0 );
-	alu_reg_init( alu, val, base.regv[ALU_BASE_TMP], 0 );
+	ret = alu_get_reg_nodes( alu, nodes, ALU_BASE_COUNT, 0 );
+	
+	if ( ret != 0 )
+	{
+		alu_error( ret );
+		return ret;
+	}
+	
+	alu_reg_init( alu, num, nodes[ALU_BASE_NUM], 0 );
+	alu_reg_init( alu, div, nodes[ALU_BASE_VAL], 0 );
+	alu_reg_init( alu, val, nodes[ALU_BASE_TMP], 0 );
 	
 	alu_reg_copy( alu, num, src );
 	
@@ -997,7 +1037,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	default:
 		ret = dst.next( ')', dst.dst );
 		if ( ret != 0 )
-			return ret;
+			goto fail;
 	}
 
 	do
@@ -1011,7 +1051,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 			case '\'': case '_': case ',':
 				ret = dst.next( base_str[*V], dst.dst );
 				if ( ret != 0 )
-					return ret;
+					goto fail;
 			}
 			digit = 0;
 		}
@@ -1019,7 +1059,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 		ret = dst.next( base_str[*V], dst.dst );
 		
 		if ( ret != 0 )
-			return ret;
+			goto fail;
 		
 		++digit;
 	}
@@ -1028,7 +1068,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	ret = dst.next( base_str[*N], dst.dst );
 	
 	if ( ret != 0 )
-		return ret;
+		goto fail;
 		
 	if ( base.base != 10 )
 	{
@@ -1036,61 +1076,65 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 		{
 			ret = dst.next( 'b', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 		}
 		else if ( base.base == 8 )
 		{
 			ret = dst.next( 'o', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 		}
 		else if ( base.base == 16 )
 		{
 			ret = dst.next( 'x', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 		}
 		else
 		{
 			ret = dst.next( '(', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			while ( base.base > 10 )
 			{
 				ret = dst.next( base_str[base.base%10], dst.dst );
 				if ( ret != 0 )
-					return ret;
+					goto fail;
 				base.base /= 10;
 			}
 			
 			ret = dst.next( base_str[base.base], dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			ret = dst.next( '~', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			ret = dst.next( '0', dst.dst );
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 		}
 	}
 	
 	dst.flip( dst.dst );
+	
+	fail:
+	
+	alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
 	
 	return ret;
 }
