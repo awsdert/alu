@@ -183,20 +183,29 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 #define alu_size_perN( alu ) ((alu)->perN)
 #define alu_bits_perN( alu ) (alu_size_perN(alu) * CHAR_BIT)
 #define alu_nodes( alu ) ((uchar_t*)((alu)->mem.block))
-#define alu_valid( alu ) ((bool*)((alu)->mem.block))
+#define alu_valid( alu ) ((uchar_t*)((alu)->mem.block))
 #define alu_upto( alu ) ((alu)->qty.upto)
 #define alu_used( alu ) ((alu)->qty.used)
 
 #define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_size_perN(alu)))
-#define alu_active( alu, reg ) (alu_valid(alu)[reg])
+#define alu_get_active( alu, reg ) \
+	(alu_valid(alu)[(reg) / CHAR_BIT] & 1u << ((reg) % CHAR_BIT))
+
+#define alu_clr_active( alu, reg ) \
+	alu_valid(alu)[(reg) / CHAR_BIT] &= ~(1u << ((reg) % CHAR_BIT))
+
+#define alu_set_active( alu, reg ) \
+	alu_valid(alu)[(reg) / CHAR_BIT] |= 1u << ((reg) % CHAR_BIT)
 
 #define alu_reg_data( alu, alu_reg ) alu_data( alu, (alu_reg).node )
-#define alu_reg_active( alu, alu_reg ) alu_active( alu, (alu_reg).node )
+#define alu_reg_get_active( alu, alu_reg ) alu_get_active( alu, (alu_reg).node )
+#define alu_reg_clr_active( alu, alu_reg ) alu_clr_active( alu, (alu_reg).node )
+#define alu_reg_set_active( alu, alu_reg ) alu_set_active( alu, (alu_reg).node )
 #define alu_reg_signed( alu_reg ) !!((alu_reg).info & ALU_INFO__SIGN)
 #define alu_reg_floating( alu_reg ) !!((alu_reg).info & ALU_INFO_FLOAT)
 
 #define alu_check1( alu, num ) \
-	SET1IF( !alu_active( alu, num ), EADDRNOTAVAIL )
+	SET1IF( !alu_get_active( alu, num ), EADDRNOTAVAIL )
 	
 #define alu_check2( alu, num, val ) \
 	( alu_check1( alu, num ) | alu_check1( alu, val ) )
@@ -286,7 +295,7 @@ int_t alu_get_reg_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
 #define alu_rem_reg_node( alu, reg ) \
 	do \
 	{ \
-		alu_active( alu, *(reg) ) = false; \
+		alu_clr_active( alu, *(reg) ); \
 		*(reg) = 0; \
 	} \
 	while ( 0 )

@@ -9,8 +9,8 @@ void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t info )
 
 	alu_printf
 	(
-		"alu_reg_active( alu, %s ), has this flag?... %s"
-		, pfx, alu_reg_active( alu, reg ) ? "Yes" : "No"
+		"alu_reg_get_active( alu, %s ), has this flag?... %s"
+		, pfx, alu_reg_get_active( alu, reg ) ? "Yes" : "No"
 	);
 	
 	if ( info & ALU_INFO__SIGN )
@@ -118,6 +118,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN )
 {
 	int ret;
 	uint_t i;
+	size_t need;
 	
 	if ( alu )
 	{
@@ -125,7 +126,8 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN )
 		want = LOWEST( want, ALU_REG_ID_LIMIT );
 		used = LOWEST( want, HIGHEST( used, ALU_REG_ID_NEED ) );
 		
-		perN = HIGHEST( perN, want );
+		need = (want / CHAR_BIT) + !!(want % CHAR_BIT);
+		perN = HIGHEST( perN, need );
 		perN += LOWEST
 		(
 			sizeof(size_t)
@@ -140,7 +142,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN )
 			
 			for ( i = 0; i < ALU_REG_ID_NEED; ++i )
 			{
-				alu_active( alu, i ) = true;
+				alu_set_active( alu, i );
 			}
 			
 			alu_set_constants( alu );
@@ -171,7 +173,7 @@ int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 			
 			for ( r = ALU_REG_ID_NEED; r < count; ++r )
 			{
-				count = SET1IF( alu_active( alu, r ), count );
+				count = SET1IF( alu_get_active( alu, r ), count );
 			}
 			
 			r = SET2IF( count, count, r - 1 );
@@ -194,7 +196,7 @@ int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 			part = alu_data( alu, r );
 			(void)memset( part, 0, need );
 			
-			alu_active( alu, r ) = true;
+			alu_set_active( alu, r );
 			
 			*dst = r;
 			
@@ -958,7 +960,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	char *base_str =
 		base.lowercase ? ALU_BASE_STR_0toztoZ : ALU_BASE_STR_0toZtoz;
 	
-	if ( !alu_reg_active( alu, src ) )
+	if ( !alu_reg_get_active( alu, src ) )
 	{
 		ret = EDESTADDRREQ;
 		alu_error(ret);

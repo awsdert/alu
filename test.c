@@ -9,97 +9,11 @@
 # define rol( NUM, BITS ) rotate( NUM, BITS, <<, >> )
 # define ror( NUM, BITS ) rotate( NUM, BITS, >>, << )
 
-int uint_compare(
-	alu_t *alu,
-	size_t _num,
-	size_t _val,
-	bool print_anyways
-)
-{
-	int ret = 0, cmp = 0, expect = 0;
-	size_t bit = 0;
-	alu_uint_t regv[2], num = {0}, val = {0};
-	
-	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	num = regv[0];
-	val = regv[1];
-	
-	(void)alu_set_raw( alu, num, _num, 0 );
-	(void)alu_set_raw( alu, val, _val, 0 );
-	
-	if ( _num > _val )
-		expect = 1;
-	
-	if ( _num < _val )
-		expect = -1;
-
-	cmp = alu_uint_cmp( alu, num, val, &bit );
-	
-	if ( expect != cmp || print_anyways )
-	{
-		alu_printf(
-			"%zu vs %zu Expected %i, Got %i\n",
-			_num, _val, expect, cmp
-		);
-	}
-	
-	alu_rem_reg_nodes( alu, regv, 2 );
-	return ret;
-}
-
-int int_compare(
+int reg_compare(
 	alu_t *alu,
 	ssize_t _num,
 	ssize_t _val,
-	bool print_anyways
-)
-{
-	int ret = 0, cmp = 0, expect = 0;
-	size_t bit = 0;
-	alu_int_t regv[2], num = {0}, val = {0};
-	
-	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	num = regv[0];
-	val = regv[1];
-	
-	(void)alu_set_raw( alu, num, _num, ALU_INFO__SIGN );
-	(void)alu_set_raw( alu, val, _val, ALU_INFO__SIGN );
-	
-	if ( _num > _val )
-		expect = 1;
-	
-	if ( _num < _val )
-		expect = -1;
-
-	cmp = alu_int_cmp( alu, num, val, &bit );
-	
-	if ( expect != cmp || print_anyways )
-	{
-		alu_printf(
-			"%zi vs %zi Expected %i, Got %i\n",
-			_num, _val, expect, cmp
-		);
-	}
-	
-	return ret;
-}
-
-int reg_compare(
-	alu_t *alu,
-	size_t _num,
-	size_t _val,
+	uint_t info,
 	bool print_anyways
 )
 {
@@ -116,8 +30,10 @@ int reg_compare(
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, nodes[0], 0 );
-	alu_reg_init( alu, val, nodes[1], 0 );
+	alu_reg_init( alu, num, nodes[0], info );
+	alu_reg_init( alu, val, nodes[1], info );
+	
+	num.upto = val.upto = bitsof(size_t);
 	
 	alu_reg_set_raw( alu, num, &_num, num.info, sizeof(size_t) );
 	alu_reg_set_raw( alu, val, &_val, val.info, sizeof(size_t) );
@@ -149,6 +65,7 @@ int reg_modify(
 	alu_t *alu,
 	size_t _num,
 	size_t _val,
+	uint_t info,
 	int op,
 	bool print_anyways
 )
@@ -171,8 +88,10 @@ int reg_modify(
 	alu_reg_init( alu, val, regv[1], 0 );
 	alu_reg_init( alu, tmp, regv[2], 0 );
 	
-	alu_set_raw( alu, num.node, _num, 0 );
-	alu_set_raw( alu, val.node, _val, 0 );
+	num.upto = val.upto = tmp.upto = bitsof(size_t);
+	
+	alu_set_raw( alu, num.node, _num, info );
+	alu_set_raw( alu, val.node, _val, info );
 	
 #if 0
 	alu_printf(
@@ -290,285 +209,14 @@ int reg_modify(
 			pfx, expect, _num, op
 		);
 
-#if 0
-		alu_print_reg( "num#1", num, 0 );
+#if 1
+		alu_print_reg( "num#1", alu, num, 0, 1 );
 		alu_set_raw( alu, num.node, expect, 0 );
-		alu_print_reg( "num#2", num, 0 );
+		alu_print_reg( "num#2", alu, num, 0, 1 );
 #endif
 	}
 	
 	alu_rem_reg_nodes( alu, regv, 3 );
-	
-	return 0;
-}
-
-int uint_modify(
-	alu_t *alu,
-	size_t _num,
-	size_t _val,
-	int op,
-	bool print_anyways
-)
-{
-	int ret = 0;
-	size_t N = _num, expect = 0;
-	alu_uint_t regv[2], num = {0}, val = {0};
-	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
-	
-	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	num = regv[0];
-	val = regv[1];
-	
-	(void)alu_set_raw( alu, num, _num, 0 );
-	(void)alu_set_raw( alu, val, _val, 0 );
-	
-	expect = _num;
-	switch ( op )
-	{
-	case 'n':
-		sprintf( pfx, "-0x%016zX", _num );
-		expect = -expect;
-		ret = alu_uint_neg( alu, num );
-		break;
-	case '~':
-		sprintf( pfx, "~%zu", _num );
-		expect = ~expect;
-		ret = alu_uint_not( alu, num );
-		break;
-	case '&':
-		sprintf( pfx, "%zu & %zu", _num, _val );
-		expect &= _val;
-		ret = alu_uint_and( alu, num, val );
-		break;
-	case '|':
-		sprintf( pfx, "%zu | %zu", _num, _val );
-		expect |= _val;
-		ret = alu_uint__or( alu, num, val );
-		break;
-	case '^':
-		sprintf( pfx, "%zu ^ %zu", _num, _val );
-		expect ^= _val;
-		ret = alu_uint_xor( alu, num, val );
-		break;
-	case 'i':
-		sprintf( pfx, "%zu++", _num );
-		expect++;
-		ret = alu_uint_inc( alu, num );
-		break;
-	case 'd':
-		sprintf( pfx, "%zu--", _num );
-		expect--;
-		ret = alu_uint_dec( alu, num );
-		break;
-	case '+':
-		sprintf( pfx, "%zu + %zu", _num, _val );
-		expect += _val;
-		ret = alu_uint_add( alu, num, val );
-		break;
-	case '-':
-		sprintf( pfx, "%zu - %zu", _num, _val );
-		expect -= _val;
-		ret = alu_uint_sub( alu, num, val );
-		break;
-	case 'l':
-		sprintf( pfx, "%zu <<< %zu", _num, _val );
-		expect = rol( expect, _val );
-		ret = alu_uint_rol( alu, num, val );
-		break;
-	case '<':
-		sprintf( pfx, "%zu << %zu", _num, _val );
-		expect <<= _val;
-		ret = alu_uint_shl( alu, num, val );
-		break;
-	case 'r':
-		sprintf( pfx, "%zu >>> %zu", _num, _val );
-		expect = ror( expect, _val );
-		ret = alu_uint_ror( alu, num, val );
-		break;
-	case '>':
-		sprintf( pfx, "%zu >> %zu", _num, _val );
-		expect >>= _val;
-		ret = alu_uint_shr( alu, num, val );
-		break;
-	case '*':
-		sprintf( pfx, "%zu * %zu", _num, _val );
-		expect *= _val;
-		ret = alu_uint_mul( alu, num, val );
-		break;
-	case '/':
-		sprintf( pfx, "%zu / %zu", _num, _val );
-		if ( _val )
-			expect /= _val;
-		else
-			expect = 0;
-		ret = alu_uint_div( alu, num, val );
-		break;
-	case '%':
-		sprintf( pfx, "%zu %% %zu", _num, _val );
-		if ( _val )
-			expect %= _val;
-		ret = alu_uint_rem( alu, num, val );
-		break;
-	default: ret = ENOSYS;
-	}
-	
-	switch ( ret )
-	{
-	case 0: case ENODATA: case EOVERFLOW: break;
-	default:
-		alu_error( ret );
-		return ret;
-	}
-
-	if ( expect != N || print_anyways )
-	{
-		alu_printf(
-			"%s, Expected %zu, Got %zu, op = '%c'\n",
-			pfx, expect, N, op
-		);
-	}
-	
-	return 0;
-}
-
-int int_modify(
-	alu_t *alu,
-	ssize_t _num,
-	ssize_t _val,
-	int op,
-	bool print_anyways
-)
-{
-	int ret = 0;
-	ssize_t expect = _num;
-	size_t N = _num;
-	uint_t regv[2] = {-1};
-	alu_int_t num = {0}, val = {0};
-	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
-	
-	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
-	if ( ret != 0 )
-	{
-		alu_error(ret);
-		return ret;
-	}
-	
-	num = regv[0];
-	val = regv[1];
-	
-	(void)alu_set_raw( alu, num, _num, 0 );
-	(void)alu_set_raw( alu, val, _val, 0 );
-	
-	switch ( op )
-	{
-	case 'n':
-		sprintf( pfx, "-0x%016zX", _num );
-		expect = -expect;
-		ret = alu_int_neg( alu, num );
-		break;
-	case '~':
-		sprintf( pfx, "~%zi", _num );
-		expect = ~expect;
-		ret = alu_int_not( alu, num );
-		break;
-	case '&':
-		sprintf( pfx, "%zi & %zi", _num, _val );
-		expect &= _val;
-		ret = alu_int_and( alu, num, val );
-		break;
-	case '|':
-		sprintf( pfx, "%zi | %zi", _num, _val );
-		expect |= _val;
-		ret = alu_int__or( alu, num, val );
-		break;
-	case '^':
-		sprintf( pfx, "%zi ^ %zi", _num, _val );
-		expect ^= _val;
-		ret = alu_int_xor( alu, num, val );
-		break;
-	case 'i':
-		sprintf( pfx, "%zi++", _num );
-		expect++;
-		ret = alu_int_inc( alu, num );
-		break;
-	case 'd':
-		sprintf( pfx, "%zi--", _num );
-		expect--;
-		ret = alu_int_dec( alu, num );
-		break;
-	case '+':
-		sprintf( pfx, "%zi + %zi", _num, _val );
-		expect += _val;
-		ret = alu_int_add( alu, num, val );
-		break;
-	case '-':
-		sprintf( pfx, "%zi - %zi", _num, _val );
-		expect -= _val;
-		ret = alu_int_sub( alu, num, val );
-		break;
-	case 'l':
-		sprintf( pfx, "%zi <<< %zi", _num, _val );
-		expect = rol( expect, _val );
-		ret = alu_int_rol( alu, num, val );
-		break;
-	case '<':
-		sprintf( pfx, "%zi << %zi", _num, _val );
-		expect <<= _val;
-		ret = alu_int_shl( alu, num, val );
-		break;
-	case 'r':
-		sprintf( pfx, "%zi >>> %zi", _num, _val );
-		expect = ror( expect, _val );
-		ret = alu_int_ror( alu, num, val );
-		break;
-	case '>':
-		sprintf( pfx, "%zi >> %zi", _num, _val );
-		expect >>= _val;
-		ret = alu_int_shr( alu, num, val );
-		break;
-	case '*':
-		sprintf( pfx, "%zi * %zi", _num, _val );
-		expect *= _val;
-		ret = alu_int_mul( alu, num, val );
-		break;
-	case '/':
-		sprintf( pfx, "%zi / %zi", _num, _val );
-		if ( _val )
-			expect /= _val;
-		else
-			expect = 0;
-		ret = alu_int_div( alu, num, val );
-		break;
-	case '%':
-		sprintf( pfx, "%zi %% %zi", _num, _val );
-		if ( _val )
-			expect %= _val;
-		ret = alu_int_rem( alu, num, val );
-		break;
-	default: ret = ENOSYS;
-	}
-	
-	switch ( ret )
-	{
-	case 0: case ENODATA: case EOVERFLOW: break;
-	default:
-		alu_error( ret );
-		return ret;
-	}
-
-	if ( expect != *((ssize_t*)(&N)) || print_anyways )
-	{
-		alu_printf(
-			"%s, Expected %zi, Got %zi, op = '%c'\n",
-			pfx, expect, *((ssize_t*)(&N)), op
-		);
-	}
 	
 	return 0;
 }
@@ -687,51 +335,27 @@ void print_limits()
 
 int compare( alu_t *alu, bool print_anyways )
 {
-	int ret = 0;
+	int ret = 0, a, b;
 	(void)alu_puts( "Comparing values..." );
 	(void)alu_puts( "===========================================" );
-
-	ret = reg_compare( alu, 2, 1, print_anyways );
 	
-	if ( ret != 0 )
-		return ret;
+	for ( a = 2, b = 1; a >= 0; --a )
+	{
+		ret = reg_compare( alu, a, b, 0, print_anyways );
+		
+		if ( ret != 0 )
+			return ret;
+	}
 
-	ret = reg_compare( alu, 1, 1, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
+	for ( a = 1, b = 0; a >= -1; --a )
+	{
+		ret = reg_compare( alu, a, b, ALU_INFO__SIGN, print_anyways );
+		
+		if ( ret != 0 )
+			return ret;
+	}
 
-	ret = reg_compare( alu, 0, 1, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = uint_compare( alu, 2, 1, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = uint_compare( alu, 1, 1, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = uint_compare( alu, 0, 1, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = int_compare( alu, 1, 0, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = int_compare( alu, 0, 0, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	return int_compare( alu, -1, 0, print_anyways );
+	return 0;
 }
 
 int modify(
@@ -743,17 +367,12 @@ int modify(
 )
 {
 	int ret = 0;
-	ret = reg_modify( alu, _num, _val, op, print_anyways );
+	ret = reg_modify( alu, _num, _val, 0, op, print_anyways );
 	
 	if ( ret != 0 )
 		return ret;
 
-	ret = uint_modify( alu, _num, _val, op, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = int_modify( alu, _num, _val, op, print_anyways );
+	ret = reg_modify( alu, _num, _val, ALU_INFO__SIGN, op, print_anyways );
 	return ret;
 }
 
@@ -765,7 +384,7 @@ int bitwise(
 )
 {
 	int ret = 0;
-	alu_puts( "Checking bitwise operations..." );
+	alu_puts( "Checking Bitwise Operations..." );
 	alu_puts( "===========================================" );
 	
 	ret = modify( alu, 0xDEADC0DE, 0, '~', print_anyways );
@@ -791,6 +410,7 @@ int bitwise(
 			return ret;
 		
 		alu_puts( "Shifting values..." );
+		(void)alu_puts( "===========================================" );
 		
 		ret = modify( alu, 0xDEADC0DELL, 4, '<', print_anyways );
 		
@@ -806,6 +426,7 @@ int bitwise(
 			return ret;
 		
 		alu_puts( "Rotating values..." );
+		(void)alu_puts( "===========================================" );
 			
 		ret = modify( alu, 0xDEADC0DE, 4, 'l', print_anyways );
 		
@@ -827,7 +448,8 @@ int mathmatical(
 )
 {
 	int ret = 0;
-	alu_puts( "Mathematics values..." );
+	alu_puts( "Checking Mathematic Operations..." );
+	(void)alu_puts( "===========================================" );
 	
 	if ( doInc )
 	{
@@ -1218,6 +840,9 @@ int print_value( alu_t *alu, bool print_anyways )
 	char *src;
 	size_t size;
 	long nextpos;
+	
+	(void)alu_puts( "Printing values..." );
+	(void)alu_puts( "===========================================" );
 	
 	base.digsep = '\'';
 	base.base = 10;

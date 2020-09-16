@@ -639,11 +639,17 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by )
 		num.node %= alu_used( alu );
 		
 		part = alu_reg_data( alu, num );
-		n = alu_bit_set_bit( part, num.upto );
-		v = alu_bit_set_bit( part, num.from );
 		
-		if ( by < (n.b - v.b) )
-			v = alu_bit_set_bit( part, n.b - by );
+		n = alu_bit_set_bit( part, num.upto );
+		v = alu_bit_set_bit
+		(
+			part
+			, SET2IF
+			(
+				by < (num.upto - num.from)
+				, num.upto - by, num.from
+			)
+		);
 		
 		while ( v.b > num.from )
 		{
@@ -651,9 +657,7 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by )
 			v = alu_bit_dec( v );
 		
 			*(n.S) &= ~(n.B);
-			
-			if ( *(v.S) & v.B )
-				*(n.S) |= n.B;
+			*(n.S) |= SET1IF( *(v.S) & v.B, n.B );
 		}
 
 		while ( n.b > num.from )
@@ -684,25 +688,20 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t num, size_t by )
 	
 	if ( by )
 	{
-	
 		num.node %= alu_used( alu );
 		
 		part = alu_reg_data( alu, num );
 		
 		n = alu_bit_set_bit( part, num.from );
-		e = v = alu_bit_set_bit( part, num.upto );
-		
-		if ( by < (e.b - n.b) )
-			v = alu_bit_set_bit( part, n.b + by );
+		e = alu_bit_set_bit( part, num.upto );
+		v = alu_bit_set_bit( part, SET2IF( by < (e.b - n.b), n.b + by, e.b ) );
 		
 		neg = alu_reg_below0( alu, num );
 		
 		while ( v.b < e.b )
 		{	
 			*(n.S) &= ~(n.B);
-			
-			if ( *(v.S) & v.B )
-				*(n.S) |= n.B;
+			*(n.S) |= SET1IF( *(v.S) & v.B, n.B );
 				
 			v = alu_bit_inc( v );
 			n = alu_bit_inc( n );
@@ -892,7 +891,7 @@ int_t alu_reg_divide
 	tmp.upto = tmp.from = n.b + 1;
 	n = alu_bit_set_bit( num_part, num.from );
 	
-	for ( ; alu_reg_cmp( alu, rem, val, NULL ) >= 0; ++bits )
+	for ( ; bits < num.upto && alu_reg_cmp( alu, rem, val, NULL ) >= 0; ++bits )
 	{
 		tmp.from--;
 		if ( alu_reg_cmp( alu, tmp, val, NULL ) >= 0 )
@@ -1003,8 +1002,7 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	num_part = alu_reg_data( alu, num );
 	tmp_part = alu_reg_data( alu, tmp );
 	
-	(void)memcpy( tmp_part, num_part, alu_size_perN( alu ) );
-	(void)memset( num_part, 0, alu_size_perN( alu ) );
+	alu_reg_copy( alu, tmp, num );
 	
 	n = alu_bit_set_bit( num_part, num.upto );
 	v = alu_bit_set_bit( tmp_part, tmp.upto - by );
@@ -1014,6 +1012,7 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 		v = alu_bit_dec( v );
 		n = alu_bit_dec( n );
 		
+		*(n.S) &= ~(n.B);
 		*(n.S) |= (n.B * !!(*(v.S) & v.B));
 	}
 	
@@ -1023,6 +1022,7 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 		v = alu_bit_dec( v );
 		n = alu_bit_dec( n );
 		
+		*(n.S) &= ~(n.B);
 		*(n.S) |= (n.B * !!(*(v.S) & v.B));
 	}
 	
@@ -1044,42 +1044,43 @@ int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	alu_bit_t n, v;
 	void *num_part, *tmp_part;
 	
-	if ( !by )
-		return 0;
-		
-	by %= (num.upto - num.from);
-		
-	num.node %= alu_used( alu );
-	tmp.node %= alu_used( alu );
-	
-	tmp.info = num.info;
-	tmp.from = num.from;
-	tmp.upto = num.upto;
-	
-	num_part = alu_reg_data( alu, num );
-	tmp_part = alu_reg_data( alu, tmp );
-	
-	(void)memcpy( tmp_part, num_part, alu_size_perN( alu ) );
-	(void)memset( num_part, 0, alu_size_perN( alu ) );
-	
-	n = alu_bit_set_bit( num_part, num.from );
-	v = alu_bit_set_bit( tmp_part, tmp.from + by );
-	
-	while ( v.b < tmp.upto )
+	if ( by )
 	{	
-		*(n.S) |= (n.B * !!(*(v.S) & v.B));
-
-		v = alu_bit_inc( v );
-		n = alu_bit_inc( n );
-	}
-	
-	v = alu_bit_set_bit( tmp_part, tmp.from );
-	while ( n.b < num.upto )
-	{
-		*(n.S) |= (n.B * !!(*(v.S) & v.B));
+		by %= (num.upto - num.from);
 		
-		v = alu_bit_inc( v );
-		n = alu_bit_inc( n );
+		num.node %= alu_used( alu );
+		tmp.node %= alu_used( alu );
+		
+		tmp.info = num.info;
+		tmp.from = num.from;
+		tmp.upto = num.upto;
+		
+		num_part = alu_reg_data( alu, num );
+		tmp_part = alu_reg_data( alu, tmp );
+		
+		alu_reg_copy( alu, tmp, num );
+		
+		n = alu_bit_set_bit( num_part, num.from );
+		v = alu_bit_set_bit( tmp_part, tmp.from + by );
+		
+		while ( v.b < tmp.upto )
+		{	
+			*(n.S) &= ~(n.B);
+			*(n.S) |= SET1IF( *(v.S) & v.B, n.B );
+
+			v = alu_bit_inc( v );
+			n = alu_bit_inc( n );
+		}
+		
+		v = alu_bit_set_bit( tmp_part, tmp.from );
+		while ( n.b < num.upto )
+		{
+			*(n.S) &= ~(n.B);
+			*(n.S) |= SET1IF( *(v.S) & v.B, n.B );
+			
+			v = alu_bit_inc( v );
+			n = alu_bit_inc( n );
+		}
 	}
 	
 	return 0;
