@@ -174,6 +174,7 @@ int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 				count = SET1IF( alu_active( alu, r ), count );
 			}
 			
+			r = SET2IF( count, count, r - 1 );
 			count = alu_used( alu );
 			
 			if ( r >= alu_upto( alu ) || need > alu_size_perN( alu ) )
@@ -188,9 +189,7 @@ int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 				}
 			}
 			
-			alu_printf( "alu_used( alu ) = %u, r = %u", alu_used( alu ), r );
 			alu_used( alu ) = HIGHEST( r + 1, count );
-			alu_printf( "alu_used( alu ) = %u, r = %u", alu_used( alu ), r );
 			
 			part = alu_data( alu, r );
 			(void)memset( part, 0, need );
