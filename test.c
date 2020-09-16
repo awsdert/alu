@@ -119,8 +119,15 @@ int reg_compare(
 	alu_reg_init( alu, num, nodes[0], 0 );
 	alu_reg_init( alu, val, nodes[1], 0 );
 	
+	alu_printf( "1: num.node = %u, val.node = %u", num.node, val.node );
+	
 	alu_reg_set_raw( alu, num, &_num, num.info, sizeof(size_t) );
+	
+	alu_printf( "2: num.node = %u, val.node = %u", num.node, val.node );
+	
 	alu_reg_set_raw( alu, val, &_val, val.info, sizeof(size_t) );
+	
+	alu_printf( "3: num.node = %u, val.node = %u", num.node, val.node );
 	
 	if ( _num > _val )
 		expect = 1;
@@ -130,13 +137,15 @@ int reg_compare(
 
 	cmp = alu_reg_cmp( alu, num, val, &bit );
 	
+	alu_printf( "4: num.node = %u, val.node = %u", num.node, val.node );
+	
 	if ( expect != cmp || print_anyways )
 	{
 		alu_printf(
 			"0x%016zX vs 0x%016zX Expected %i, Got %i, Bit = %zu\n",
 			_num, _val, expect, cmp, bit
 		);
-		alu_printf( "num.node = %u, val.node = %u", num.node, val.node );
+		alu_printf( "5: num.node = %u, val.node = %u", num.node, val.node );
 		alu_print_reg( "num", alu, num, false, true );
 		alu_print_reg( "val", alu, val, false, true );
 	}

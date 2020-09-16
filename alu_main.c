@@ -157,18 +157,16 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN )
 int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 {
 	int ret;
-	size_t perN;
 	uint_t count = 0, r = count;
-	
-	//alu_printf( "dst = %p", dst );
+	void *part;
 	
 	if ( alu )
 	{
 		if ( dst )
 		{
-			(void)memset( dst, 0, sizeof(alu_reg_t) );
+			*dst = 0;
 			
-			perN = HIGHEST( need, alu_size_perN( alu ) );
+			need = HIGHEST( need, alu_size_perN( alu ) );
 			count = alu_used( alu );
 			
 			for ( r = ALU_REG_ID_NEED; r < count; ++r )
@@ -176,27 +174,29 @@ int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 				count = SET1IF( alu_active( alu, r ), count );
 			}
 			
-			if ( r >= alu_upto( alu ) || perN > alu_size_perN( alu ) )
+			count = alu_used( alu );
+			
+			if ( r >= alu_upto( alu ) || need > alu_size_perN( alu ) )
 			{
 				count = HIGHEST( r + 1, alu_upto( alu ) );
-				ret = alu_setup_reg( alu, count, count, perN );
+				ret = alu_setup_reg( alu, count, count, need );
 					
 				if ( ret != 0 )
 				{
 					alu_error( ret );
 					return ret;
 				}
-				
-				alu_set_used( alu, count );
-			}
-			else if ( r >= alu_used( alu ) )
-			{
-				count = r + 1;
-				alu_set_used( alu, count );
 			}
 			
+			alu_printf( "alu_used( alu ) = %u, r = %u", alu_used( alu ), r );
+			alu_used( alu ) = HIGHEST( r + 1, count );
+			alu_printf( "alu_used( alu ) = %u, r = %u", alu_used( alu ), r );
+			
+			part = alu_data( alu, r );
+			(void)memset( part, 0, need );
+			
 			alu_active( alu, r ) = true;
-			(void)memset( alu_data( alu, r ), 0, perN );
+			
 			*dst = r;
 			
 			return 0;
@@ -209,16 +209,23 @@ int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
 }
 
 int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count )
-{
-	int ret;
-	
-	for ( --count; count >= 0; --count )
+{	
+	if ( alu )
 	{
-		ret = alu_rem_reg_node( alu, nodes + count );
-		count = SET1IF( ret == 0, count );
+		if ( nodes )
+		{		
+			for ( --count; count >= 0; --count )
+			{
+				alu_rem_reg_node( alu, nodes + count );
+			}
+			
+			return 0;
+		}
+		
+		return alu_err_null_ptr( "nodes" );
 	}
 	
-	return ret;
+	return alu_err_null_ptr( "alu" );
 }
 
 int_t alu_get_reg_nodes( alu_t *alu, uint_t *nodes, uint_t count, size_t need )
@@ -242,37 +249,8 @@ int_t alu_get_reg_nodes( alu_t *alu, uint_t *nodes, uint_t count, size_t need )
 			alu_error( ret );
 			alu_rem_reg_nodes( alu, nodes, r );
 		}
-	}
-	else
-	{
-		return alu_err_null_ptr( "alu" );
-	}
-	
-	return ret;
-}
-
-int_t alu_rem_reg_node( alu_t *alu, uint_t *reg )
-{	
-	int ret;
-	if ( alu )
-	{
-		if ( reg )
-		{
-			*reg %= alu_used( alu );
-			
-			if ( *reg >= ALU_REG_ID_NEED )
-			{
-				alu_active( alu, *reg ) = false;
-				*reg = 0;
-				return 0;
-			}
-			
-			ret = ERANGE;
-			alu_error( ret );
-			return ret;
-		}
 		
-		return alu_err_null_ptr( "reg" );
+		return ret;
 	}
 	
 	return alu_err_null_ptr( "alu" );

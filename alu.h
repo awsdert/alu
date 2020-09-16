@@ -283,7 +283,13 @@ int_t alu_reg_update_bounds( alu_t *alu, alu_reg_t reg );
 int_t alu_get_reg_node( alu_t *alu, uint_t *reg, size_t need );
 int_t alu_get_reg_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
 
-int_t alu_rem_reg_node( alu_t *alu, uint_t *reg );
+#define alu_rem_reg_node( alu, reg ) \
+	do \
+	{ \
+		alu_active( alu, *(reg) ) = false; \
+		*(reg) = 0; \
+	} \
+	while ( 0 )
 int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count );
 
 alu_bit_t alu_reg_end_bit( alu_t *alu, alu_reg_t num );
