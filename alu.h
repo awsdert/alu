@@ -329,6 +329,7 @@ enum
 	ALU_LIT_NUM = 0,
 	ALU_LIT_BASE,
 	ALU_LIT_VAL,
+	ALU_LIT_TMP,
 	ALU_LIT_DOT,
 	ALU_LIT_ONE,
 	ALU_LIT_EXP,
@@ -408,27 +409,10 @@ int_t alu_reg_get_raw
 int_t alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info );
 int_t alu_get_raw( alu_t *alu, uint_t num, size_t *raw );
 
-int_t alu_reg_not( alu_t *alu, alu_reg_t num );
-int_t alu_reg_and( alu_t *alu, alu_reg_t num, alu_reg_t val );
-int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val );
-int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val );
-
-int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by );
-int_t alu_reg__shr( alu_t *alu, alu_reg_t num, size_t by );
-int_t alu_reg__shift
-(
-	alu_t *alu
-	, alu_reg_t num
-	, alu_reg_t val
-	, bool left
-);
-int_t alu_reg__rotate
-(
-	alu_t *alu
-	, alu_reg_t num
-	, alu_reg_t val
-	, bool left
-);
+int_t alu_reg__shl( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by );
+int_t alu_reg__shr( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by );
+int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by );
+int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by );
 
 int_t alu_reg_divide
 (
@@ -437,29 +421,6 @@ int_t alu_reg_divide
 	, alu_reg_t val
 	, alu_reg_t rem
 );
-
-# define alu_reg_shl( ALU, NUM, VAL ) \
-	alu_reg__shift( ALU, NUM, VAL, true )
-# define alu_reg_shr( ALU, NUM, VAL ) \
-	alu_reg__shift( ALU, NUM, VAL, false )
-# define alu_reg_rol( ALU, NUM, VAL ) \
-	alu_reg__rotate( ALU, NUM, VAL, true )
-# define alu_reg_ror( ALU, NUM, VAL ) \
-	alu_reg__rotate( ALU, NUM, VAL, false )
-
-int_t alu_reg_neg( alu_t *alu, alu_reg_t num );
-int_t alu_reg_inc( alu_t *alu, alu_reg_t num );
-int_t alu_reg_dec( alu_t *alu, alu_reg_t num );
-int_t alu_reg_add( alu_t *alu, alu_reg_t num, alu_reg_t val );
-int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val );
-int_t alu_reg_mul( alu_t *alu, alu_reg_t num, alu_reg_t val );
-int_t alu_reg_div( alu_t *alu, alu_reg_t num, alu_reg_t val );
-int_t alu_reg_rem( alu_t *alu, alu_reg_t num, alu_reg_t val );
-
-int_t alu__shl( alu_t *alu, uint_t num, size_t by );
-int_t alu__shr( alu_t *alu, uint_t num, size_t by );
-int_t alu__rol( alu_t *alu, uint_t num, uint_t tmp, size_t by );
-int_t alu__ror( alu_t *alu, uint_t num, uint_t tmp, size_t by );
 
 typedef int_t (*func_alu_reg_op1_t)
 (
@@ -482,13 +443,59 @@ typedef int_t (*func_alu_reg_op3_t)
 	, alu_reg_t reg
 );
 
+typedef int_t (*func_alu_reg__shift_t)
+(
+	alu_t* alu
+	, alu_reg_t num
+	, alu_reg_t tmp
+	, size_t bits
+);
+
 typedef int_t (*func_alu_reg_shift_t)
 (
 	alu_t* alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, bool left
+	, func_alu_reg__shift_t _shift
 );
+
+int_t alu_reg__shift
+(
+	alu_t *alu
+	, alu_reg_t num
+	, alu_reg_t val
+	, func_alu_reg__shift_t _shift
+);
+int_t alu_reg__rotate
+(
+	alu_t *alu
+	, alu_reg_t num
+	, alu_reg_t val
+	, func_alu_reg__shift_t _shift
+);
+
+int_t alu_reg_not( alu_t *alu, alu_reg_t num );
+int_t alu_reg_and( alu_t *alu, alu_reg_t num, alu_reg_t val );
+int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val );
+int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val );
+
+# define alu_reg_shl( ALU, NUM, VAL ) \
+	alu_reg__shift( ALU, NUM, VAL, alu_reg__shl )
+# define alu_reg_shr( ALU, NUM, VAL ) \
+	alu_reg__shift( ALU, NUM, VAL, alu_reg__shr )
+# define alu_reg_rol( ALU, NUM, VAL ) \
+	alu_reg__rotate( ALU, NUM, VAL, alu_reg__rol )
+# define alu_reg_ror( ALU, NUM, VAL ) \
+	alu_reg__rotate( ALU, NUM, VAL, alu_reg__ror )
+	
+int_t alu_reg_neg( alu_t *alu, alu_reg_t num );
+int_t alu_reg_inc( alu_t *alu, alu_reg_t num );
+int_t alu_reg_dec( alu_t *alu, alu_reg_t num );
+int_t alu_reg_add( alu_t *alu, alu_reg_t num, alu_reg_t val );
+int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val );
+int_t alu_reg_mul( alu_t *alu, alu_reg_t num, alu_reg_t val );
+int_t alu_reg_div( alu_t *alu, alu_reg_t num, alu_reg_t val );
+int_t alu_reg_rem( alu_t *alu, alu_reg_t num, alu_reg_t val );
 
 int_t alu__op1
 (
@@ -519,8 +526,16 @@ int_t alu__shift
 	alu_t *alu
 	, uint_t num
 	, uint_t val
-	, bool left
-	, func_alu_reg_shift_t op2
+	, func_alu_reg__shift_t _shift
+	, func_alu_reg_shift_t shift
+);
+
+int_t alu___shift
+(
+	alu_t *alu
+	, uint_t num
+	, size_t bits
+	, func_alu_reg__shift_t _shift
 );
 
 #define alu_cmp( alu, num, val ) \
@@ -537,13 +552,18 @@ int_t alu__shift
 	alu__op2( alu, num, val, alu_reg_and )
 	
 #define alu_shl( alu, num, val ) \
-	alu__shift( alu, num, val, true, alu_reg__shift )
+	alu__shift( alu, num, val, alu_reg__shl, alu_reg__shift )
 #define alu_shr( alu, num, val ) \
-	alu__shift( alu, num, val, false, alu_reg__shift )
+	alu__shift( alu, num, val, alu_reg__shr, alu_reg__shift )
 #define alu_rol( alu, num, val ) \
-	alu__shift( alu, num, val, true, alu_reg__rotate )
+	alu__shift( alu, num, val, alu_reg__rol, alu_reg__rotate )
 #define alu_ror( alu, num, val ) \
-	alu__shift( alu, num, val, false, alu_reg__rotate )
+	alu__shift( alu, num, val, alu_reg__ror, alu_reg__rotate )
+
+#define alu__shl( alu, num, bits ) alu___shift( alu, num, bits, alu_reg__shl )
+#define alu__shr( alu, num, bits ) alu___shift( alu, num, bits, alu_reg__shr )
+#define alu__rol( alu, num, bits ) alu___shift( alu, num, bits, alu_reg__rol )
+#define alu__ror( alu, num, bits ) alu___shift( alu, num, bits, alu_reg__ror )
 	
 #define alu_neg( alu, num ) \
 	alu__op1( alu, num, alu_reg_neg )
@@ -595,8 +615,16 @@ int_t alu__uint_shift
 	alu_t *alu
 	, alu_uint_t num
 	, alu_uint_t val
-	, bool left
-	, func_alu_reg_shift_t op2
+	, func_alu_reg__shift_t _shift
+	, func_alu_reg_shift_t shift
+);
+
+int_t alu__uint__shift
+(
+	alu_t *alu
+	, alu_uint_t num
+	, size_t bits
+	, func_alu_reg__shift_t _shift
 );
 
 #define alu_uint_cmp( alu, num, val ) \
@@ -671,8 +699,16 @@ int_t alu__int_shift
 	alu_t *alu
 	, alu_int_t num
 	, alu_int_t val
-	, bool left
-	, func_alu_reg_shift_t op2
+	, func_alu_reg__shift_t _shift
+	, func_alu_reg_shift_t shift
+);
+
+int_t alu___shift
+(
+	alu_t *alu
+	, alu_int_t num
+	, size_t bits
+	, func_alu_reg__shift_t _shift
 );
 
 #define alu_int_cmp( alu, num, val ) \

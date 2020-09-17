@@ -52,7 +52,7 @@ int_t alu__shift
 	alu_t *alu
 	, uint_t num
 	, uint_t val
-	, bool left
+	, func_alu_reg__shift_t _shift
 	, func_alu_reg_shift_t shift
 )
 {
@@ -61,7 +61,38 @@ int_t alu__shift
 	alu_reg_init( alu, _num, num, 0 );
 	alu_reg_init( alu, _val, val, 0 );
 	
-	return shift( alu, _num, _val, left );
+	return shift( alu, _num, _val, _shift );
+}
+
+int_t alu___shift
+(
+	alu_t *alu
+	, uint_t num
+	, size_t bits
+	, func_alu_reg__shift_t _shift
+)
+{
+	int ret;
+	uint_t tmp = 0;
+	alu_reg_t _num, _tmp;
+	
+	ret = alu_get_reg_node( alu, &tmp, 0 );
+	
+	if ( ret == 0 )
+	{
+	
+		alu_reg_init( alu, _num, num, 0 );
+		alu_reg_init( alu, _tmp, tmp, 0 );
+		
+		ret = _shift( alu, _num, _tmp, bits );
+		
+		alu_rem_reg_node( alu, &tmp );
+		
+		return ret;
+	}
+	
+	alu_error( ret );
+	return ret;
 }
 
 int_t alu_reg_set( alu_t *alu, alu_reg_t num, bool fillwith )
@@ -630,10 +661,11 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
 }
 
-int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by )
+int_t alu_reg__shl( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 {
 	alu_bit_t n = {0}, v;
 	void *part;
+	(void)tmp;
 	
 	if ( by )
 	{
@@ -672,20 +704,12 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by )
 	return 0;
 }
 
-int_t alu__shl( alu_t *alu, uint_t num, size_t by )
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return alu_reg__shl( alu, _num, by );
-}
-
-int_t alu_reg__shr( alu_t *alu, alu_reg_t num, size_t by )
+int_t alu_reg__shr( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 {
 	alu_bit_t n, v, e;
 	void *part;
 	bool neg;
+	(void)tmp;
 	
 	if ( by )
 	{
@@ -721,30 +745,18 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t num, size_t by )
 	return 0;
 }
 
-int_t alu__shr( alu_t *alu, uint_t num, size_t by )
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return alu_reg__shr( alu, _num, by );
-}
-
 int_t alu_reg__shift
 (
-	alu_t *alu,
-	alu_reg_t num,
-	alu_reg_t val,
-	bool left
+	alu_t *alu
+	, alu_reg_t num
+	, alu_reg_t val
+	, func_alu_reg__shift_t _shift
 )
 {
 	int ret, cmp;
 	uint_t _tmp = 0;
 	alu_reg_t tmp;
 	size_t by = 0, ndiff = num.upto - num.from;
-	int_t (*shift)( alu_t*, alu_reg_t, size_t )
-		= (int_t (*)( alu_t*, alu_reg_t, size_t ))
-		SET2IF( left, (uintptr_t)alu_reg__shl, (uintptr_t)alu_reg__shr );
 	
 	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
@@ -760,11 +772,11 @@ int_t alu_reg__shift
 		if ( cmp < 0 )
 		{
 			alu_reg_get_raw( alu, val, &by, sizeof(size_t) );
-			ret = shift( alu, num, by );
+			ret = _shift( alu, num, tmp, by );
 		}
 		else
 		{
-			ret = shift( alu, num, -1 );
+			ret = _shift( alu, num, tmp, -1 );
 		}
 		
 		alu_rem_reg_node( alu, &_tmp );
@@ -784,31 +796,33 @@ int_t alu_reg_mul
 )
 {
 	int ret = 0;
-	uint_t _tmp = 0;
-	alu_reg_t tmp;
+	uint_t nodes[2] = {0};
+	alu_reg_t cpy, tmp;
 	bool carry = 0;
 	alu_bit_t p, v;
 	void *part;
 	
-	ret = alu_get_reg_node( alu, &_tmp, 0 );
+	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	if ( ret == 0 )
 	{
 		num.node %= alu_used( alu );
 		val.node %= alu_used( alu );
-		alu_reg_init( alu, tmp, _tmp, 0 );
+		
+		alu_reg_init( alu, cpy, nodes[0], 0 );
+		alu_reg_init( alu, tmp, nodes[2], 0 );
 		
 		part = alu_reg_data( alu, val );
 		p = v = alu_bit_set_bit( part, val.from );
 		
-		alu_reg_mov( alu, tmp, num );
+		alu_reg_mov( alu, cpy, num );
 		alu_reg_set_nil( alu, num );
 		
 		for ( ; v.b < val.upto; v = alu_bit_inc( v ) )
 		{
 			if ( *(v.S) & v.B )
 			{	
-				(void)alu_reg__shl( alu, tmp, v.b - p.b );
-				ret = alu_reg_add( alu, num, tmp );
+				(void)alu_reg__shl( alu, cpy, tmp, v.b - p.b );
+				ret = alu_reg_add( alu, num, cpy );
 				p = v;
 				
 				if ( ret == EOVERFLOW )
@@ -823,7 +837,7 @@ int_t alu_reg_mul
 			}
 		}
 		
-		alu_rem_reg_node( alu, &_tmp );
+		alu_rem_reg_nodes( alu, nodes, 2 );
 	
 		return carry ? EOVERFLOW : ret;
 	}
@@ -852,69 +866,82 @@ int_t alu_reg_divide
 )
 {
 	int ret = 0;
-	alu_reg_t tmp;
+	uint_t _tmp = 0;
+	alu_reg_t seg, tmp;
 	alu_bit_t n;
 	size_t bits = 0;
 	bool nNeg, vNeg;
 	void *num_part, *val_part;
 	
-	num.node %= alu_used( alu );
-	val.node %= alu_used( alu );
-	rem.node %= alu_used( alu );
+	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
-	num_part = alu_reg_data( alu, num );
-	val_part = alu_reg_data( alu, val );
-	
-	tmp = rem;
-	
-	n = alu_bit_set_bit( num_part, num.upto - 1 );
-	nNeg = alu_reg_below0( alu, num );
-	
-	n = alu_bit_set_bit( val_part, val.upto - 1 );
-	vNeg = alu_reg_below0( alu, val );
-	
-	if ( nNeg )
-		alu_reg_neg( alu, num );
-	
-	if ( vNeg )
-		alu_reg_neg( alu, val );
-	
-	(void)alu_reg_mov( alu, rem, num );
-	(void)alu_reg_set_nil( alu, num );
-
-	n = alu_reg_end_bit( alu, rem );
-	tmp.upto = tmp.from = n.b + 1;
-	n = alu_bit_set_bit( num_part, num.from );
-	
-	for ( ; bits < num.upto && alu_reg_cmp( alu, rem, val ) >= 0; ++bits )
+	if ( ret == 0 )
 	{
-		tmp.from--;
-		if ( alu_reg_cmp( alu, tmp, val ) >= 0 )
+		alu_reg_init( alu, tmp, _tmp, 0 );
+	
+		num.node %= alu_used( alu );
+		val.node %= alu_used( alu );
+		rem.node %= alu_used( alu );
+		
+		num_part = alu_reg_data( alu, num );
+		val_part = alu_reg_data( alu, val );
+		
+		seg = rem;
+		
+		n = alu_bit_set_bit( num_part, num.upto - 1 );
+		nNeg = alu_reg_below0( alu, num );
+		
+		n = alu_bit_set_bit( val_part, val.upto - 1 );
+		vNeg = alu_reg_below0( alu, val );
+		
+		if ( nNeg )
+			alu_reg_neg( alu, num );
+		
+		if ( vNeg )
+			alu_reg_neg( alu, val );
+		
+		(void)alu_reg_mov( alu, rem, num );
+		(void)alu_reg_set_nil( alu, num );
+
+		n = alu_reg_end_bit( alu, rem );
+		seg.upto = seg.from = n.b + 1;
+		n = alu_bit_set_bit( num_part, num.from );
+		
+		for ( ; bits < num.upto && alu_reg_cmp( alu, rem, val ) >= 0; ++bits )
 		{
-			ret = alu_reg_sub( alu, tmp, val );
-			
-			if ( ret == ENODATA )
-				break;
-			
-			alu_reg__shl( alu, num, bits );
-			*(n.S) |= n.B;
-			bits = 0;
+			seg.from--;
+			if ( alu_reg_cmp( alu, seg, val ) >= 0 )
+			{
+				ret = alu_reg_sub( alu, seg, val );
+				
+				if ( ret == ENODATA )
+					break;
+				
+				alu_reg__shl( alu, num, tmp, bits );
+				*(n.S) |= n.B;
+				bits = 0;
+			}
 		}
+		
+		ret = 0;
+		if ( seg.from > rem.from )
+			alu_reg__shl( alu, num, tmp, bits + 1 );
+		
+		if ( nNeg != vNeg )
+			alu_reg_neg( alu, num );
+		
+		if ( nNeg )
+			alu_reg_neg( alu, rem );
+		
+		if ( vNeg )
+			alu_reg_neg( alu, val );
+		
+		alu_rem_reg_node( alu, &_tmp );
+		
+		return ret;
 	}
 	
-	ret = 0;
-	if ( tmp.from > rem.from )
-		alu_reg__shl( alu, num, bits + 1 );
-	
-	if ( nNeg != vNeg )
-		alu_reg_neg( alu, num );
-	
-	if ( nNeg )
-		alu_reg_neg( alu, rem );
-	
-	if ( vNeg )
-		alu_reg_neg( alu, val );
-	
+	alu_error( ret );
 	return ret;
 }
 
@@ -1016,16 +1043,6 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	return 0;
 }
 
-int_t alu__rol( alu_t *alu, uint_t num, uint_t tmp, size_t by )
-{
-	alu_reg_t _num, _tmp;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _tmp, tmp, 0 );
-	
-	return alu_reg__rol( alu, _num, _tmp, by );
-}
-
 int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 {
 	alu_bit_t n, v;
@@ -1073,31 +1090,18 @@ int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	return 0;
 }
 
-int_t alu__ror( alu_t *alu, uint_t num, uint_t tmp, size_t by )
-{
-	alu_reg_t _num, _tmp;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _tmp, tmp, 0 );
-	
-	return alu_reg__ror( alu, _num, _tmp, by );
-}
-
 int_t alu_reg__rotate
 (
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, bool left
+	, func_alu_reg__shift_t _shift
 )
 {
 	int ret, cmp;
 	uint_t _tmp = 0;
 	alu_reg_t tmp;
 	size_t by = 0, ndiff = num.upto - num.from;
-	int_t (*rotate)( alu_t*, alu_reg_t, alu_reg_t, size_t )
-		= (int_t (*)( alu_t*, alu_reg_t, alu_reg_t, size_t ))
-		SET2IF( left, (uintptr_t)alu_reg__rol, (uintptr_t)alu_reg__ror );
 	
 	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
@@ -1111,11 +1115,11 @@ int_t alu_reg__rotate
 		if ( cmp < 0 )
 		{
 			alu_reg_get_raw( alu, val, &by, sizeof(size_t) );
-			ret = rotate( alu, num, tmp, by );
+			ret = _shift( alu, num, tmp, by );
 		}
 		else
 		{
-			ret = rotate( alu, num, tmp, -1 );
+			ret = _shift( alu, num, tmp, -1 );
 		}
 		
 		alu_rem_reg_node( alu, &_tmp );

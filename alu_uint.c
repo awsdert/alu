@@ -53,7 +53,7 @@ int_t alu__uint_shift
 	alu_t *alu
 	, alu_uint_t num
 	, alu_uint_t val
-	, bool left
+	, func_alu_reg__shift_t _shift
 	, func_alu_reg_shift_t shift
 )
 {
@@ -62,7 +62,7 @@ int_t alu__uint_shift
 	alu_reg_init( alu, _num, num, 0 );
 	alu_reg_init( alu, _val, val, 0 );
 	
-	return shift( alu, _num, _val, left );
+	return shift( alu, _num, _val, _shift );
 }
 
 int_t alu_str2uint( alu_t *alu, alu_src_t src, alu_uint_t dst, alu_base_t base )

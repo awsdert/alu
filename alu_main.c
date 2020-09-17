@@ -445,7 +445,7 @@ int_t alu_lit2reg
 {
 	size_t i, perN, bits, _base, _one = 1;
 	uint_t nodes[ALU_LIT_COUNT] = {0};
-	alu_reg_t NIL, VAL, BASE, ONE, DOT, EXP, BIAS, MAN;
+	alu_reg_t NIL, VAL, BASE, ONE, DOT, EXP, BIAS, MAN, TMP;
 	alu_bit_t n;
 	int ret;
 	long pos, prevpos, exp_dig, man_dig;
@@ -590,6 +590,7 @@ int_t alu_lit2reg
 	alu_reg_init( alu, BASE, nodes[ALU_LIT_BASE], 0 );
 	alu_reg_init( alu, ONE, nodes[ALU_LIT_ONE], 0 );
 	alu_reg_init( alu, VAL, nodes[ALU_LIT_VAL], 0 );
+	alu_reg_init( alu, TMP, nodes[ALU_LIT_TMP], 0 );
 	alu_reg_init( alu, DOT, nodes[ALU_LIT_DOT], 0 );
 	alu_reg_init( alu, EXP, nodes[ALU_LIT_EXP], 0 );
 	alu_reg_init( alu, BIAS, nodes[ALU_LIT_EXP_BIAS], 0 );
@@ -668,7 +669,7 @@ int_t alu_lit2reg
 		
 		/* Setup bias for exponent */
 		alu_reg_set_max( alu, BIAS );
-		alu_reg__shr( alu, BIAS, 1 );
+		alu_reg__shr( alu, BIAS, TMP, 1 );
 		
 		/* Set '0.1' */
 		alu_reg_set_raw( alu, ONE, &_one, ONE.info, sizeof(size_t) );
@@ -818,7 +819,7 @@ int_t alu_lit2reg
 			(
 				alu_reg_mov( alu, VAL, dst )
 				; alu_reg_cmp( alu, VAL, ONE ) > 0
-				; ++pos, alu_reg__shr( alu, VAL, 1 )
+				; ++pos, alu_reg__shr( alu, VAL, TMP, 1 )
 			);
 		}
 		else
@@ -827,7 +828,7 @@ int_t alu_lit2reg
 			(
 				alu_reg_mov( alu, VAL, ONE )
 				; alu_reg_cmp( alu, VAL, DOT ) > 0
-				; --pos, alu_reg__shr( alu, VAL, 1 )
+				; --pos, alu_reg__shr( alu, VAL, TMP, 1 )
 			);
 			
 			if ( alu_reg_cmp( alu, VAL, DOT ) == 0 )
@@ -846,13 +847,13 @@ int_t alu_lit2reg
 		{
 			pos -= man_dig;
 			alu_reg_set_max( alu, DOT );
-			alu_reg__shl( alu, DOT, pos );
+			alu_reg__shl( alu, DOT, TMP, pos );
 			alu_reg_not( alu, DOT );
 			alu_reg_and( alu, DOT, dst );
-			alu_reg__shl( alu, ONE, pos );
+			alu_reg__shl( alu, ONE, TMP, pos );
 			alu_reg_mov( alu, MAN, VAL );
 			alu_reg_mov( alu, VAL, ONE );
-			alu_reg__shr( alu, VAL, 1 );
+			alu_reg__shr( alu, VAL, TMP, 1 );
 			
 			i = alu_reg_cmp( alu, DOT, VAL );
 			
@@ -888,14 +889,14 @@ int_t alu_lit2reg
 				if ( alu_reg_cmp( alu, VAL, ONE ) >= 0 )
 				{
 					(void)alu_reg_sub( alu, VAL, ONE );
-					(void)alu_reg__shl( alu, MAN, bits );
+					(void)alu_reg__shl( alu, MAN, TMP, bits );
 					*(n.S) |= n.B;
 					bits = 0;
 				}
 			}
 			
 			if ( bits )
-				(void)alu_reg__shl( alu, MAN, bits );
+				(void)alu_reg__shl( alu, MAN, TMP, bits );
 		}
 		
 		/* TODO: Continue referencing code made in mitsy to build fpn */
@@ -906,14 +907,14 @@ int_t alu_lit2reg
 		set_exp:
 		/* Align and append Exponent */
 		(void)alu_set_bounds( alu, &EXP, 0, -1 );
-		alu_reg__shl( alu, EXP, man_dig );
+		alu_reg__shl( alu, EXP, TMP, man_dig );
 		alu_reg__or( alu, dst, EXP );
 		
 		set_sign:
 		if ( neg )
 		{
 			alu_reg_set_raw( alu, ONE, &_one, ONE.info, sizeof(size_t) );
-			alu_reg__shl( alu, ONE, exp_dig + man_dig );
+			alu_reg__shl( alu, ONE, TMP, exp_dig + man_dig );
 			alu_reg__or( alu, dst, ONE );
 		}
 	}
