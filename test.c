@@ -17,7 +17,8 @@ int reg_compare(
 	bool print_anyways
 )
 {
-	int ret = 0, cmp = 0, expect = 0;
+	int ret = 0;
+	ssize_t cmp = 0, expect = 0;
 	uint_t nodes[2] = {0};
 	alu_reg_t num = {0}, val = {0};
 	size_t bit = 0;
@@ -38,18 +39,15 @@ int reg_compare(
 	alu_reg_set_raw( alu, num, &_num, num.info, sizeof(size_t) );
 	alu_reg_set_raw( alu, val, &_val, val.info, sizeof(size_t) );
 	
-	if ( _num > _val )
-		expect = 1;
-	
-	if ( _num < _val )
-		expect = -1;
+	expect = SET2IF( _num > _val, 1, expect );
+	expect = SET2IF( _num < _val, -1, expect );
 
-	cmp = alu_reg_cmp( alu, num, val, &bit );
+	cmp = alu_reg_cmp( alu, num, val );
 	
 	if ( expect != cmp || print_anyways )
 	{
 		alu_printf(
-			"0x%016zX vs 0x%016zX Expected %i, Got %i, Bit = %zu\n",
+			"0x%016zX vs 0x%016zX Expected %zi, Got %zi, Bit = %zu\n",
 			_num, _val, expect, cmp, bit
 		);
 		alu_print_reg( "num", alu, num, false, true );
@@ -71,12 +69,12 @@ int reg_modify(
 )
 {
 	int ret = 0;
-	uint_t regv[3] = {-1};
-	alu_reg_t num = {0}, val = {0}, tmp = {0};
+	uint_t regv[2] = {-1};
+	alu_reg_t num = {0}, val = {0};
 	size_t expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	ret = alu_get_reg_nodes( alu, regv, 3, 0 );
+	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -86,9 +84,8 @@ int reg_modify(
 	
 	alu_reg_init( alu, num, regv[0], 0 );
 	alu_reg_init( alu, val, regv[1], 0 );
-	alu_reg_init( alu, tmp, regv[2], 0 );
 	
-	num.upto = val.upto = tmp.upto = bitsof(size_t);
+	num.upto = val.upto = bitsof(size_t);
 	
 	alu_set_raw( alu, num.node, _num, info );
 	alu_set_raw( alu, val.node, _val, info );
@@ -152,27 +149,27 @@ int reg_modify(
 	case 'l':
 		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
 		expect = rol( expect, _val );
-		alu_reg_rol( alu, num, val, tmp );
+		alu_reg_rol( alu, num, val );
 		break;
 	case '<':
 		sprintf( pfx, "0x%016zX << 0x%016zX", _num, _val );
 		expect <<= _val;
-		alu_reg_shl( alu, num, val, tmp );
+		alu_reg_shl( alu, num, val );
 		break;
 	case 'r':
 		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
 		expect = ror( expect, _val );
-		alu_reg_ror( alu, num, val, tmp );
+		alu_reg_ror( alu, num, val );
 		break;
 	case '>':
 		sprintf( pfx, "0x%016zX >> 0x%016zX", _num, _val );
 		expect >>= _val;
-		alu_reg_shr( alu, num, val, tmp );
+		alu_reg_shr( alu, num, val );
 		break;
 	case '*':
 		sprintf( pfx, "0x%016zX * 0x%016zX", _num, _val );
 		expect *= _val;
-		ret = alu_reg_mul( alu, num, val, tmp );
+		ret = alu_reg_mul( alu, num, val );
 		break;
 	case '/':
 		sprintf( pfx, "0x%016zX / 0x%016zX", _num, _val );
@@ -180,13 +177,13 @@ int reg_modify(
 			expect /= _val;
 		else
 			expect = 0;
-		ret = alu_reg_div( alu, num, val, tmp );
+		ret = alu_reg_div( alu, num, val );
 		break;
 	case '%':
 		sprintf( pfx, "0x%016zX %% 0x%016zX", _num, _val );
 		if ( _val )
 			expect %= _val;
-		ret = alu_reg_rem( alu, num, val, tmp );
+		ret = alu_reg_rem( alu, num, val );
 		break;
 	default: ret = ENOSYS;
 	}
@@ -195,7 +192,7 @@ int reg_modify(
 	{
 	case 0: case ENODATA: case EOVERFLOW: break;
 	default:
-		alu_rem_reg_nodes( alu, regv, 3 );
+		alu_rem_reg_nodes( alu, regv, 2 );
 		alu_error( ret );
 		return ret;
 	}
@@ -216,7 +213,7 @@ int reg_modify(
 #endif
 	}
 	
-	alu_rem_reg_nodes( alu, regv, 3 );
+	alu_rem_reg_nodes( alu, regv, 2 );
 	
 	return 0;
 }
@@ -376,7 +373,8 @@ int modify(
 	return ret;
 }
 
-int bitwise(
+int bitwise
+(
 	alu_t *alu,
 	bool doShift,
 	bool doRotate,
@@ -539,7 +537,7 @@ int mathmatical(
 int func_rdChar32( char32_t *dst, alu_block_t *src, long *nextpos )
 {
 	char *str = src->block;
-	if ( (size_t)(*nextpos) < src->bytes.used )
+	if ( (size_t)(*nextpos) < src->taken )
 	{
 		*dst = str[*nextpos];
 		return 0;
@@ -553,15 +551,18 @@ int func_wrChar32( char32_t src, alu_block_t *dst )
 {
 	int ret;
 	char *str;
-	if ( dst->bytes.used >= dst->bytes.last )
+	if ( dst->taken >= dst->given )
 	{
-		ret = alu_block_expand( dst, dst->bytes.used + 50 );
+		ret = alu_block_expand( dst, dst->taken + 50 );
 		if ( ret != 0 )
+		{
+			alu_error(ret);
 			return ret;
+		}
 	}
 	str = dst->block;
-	str[dst->bytes.used] = src;
-	dst->bytes.used++;
+	str[dst->taken] = src;
+	dst->taken++;
 	return 0;
 }
 
@@ -570,7 +571,7 @@ void func_flipstr( alu_block_t *dst )
 	char *str = dst->block, c;
 	size_t n, v;
 	
-	for ( n = 0, v = dst->bytes.used - 1; n < v; ++n, --v )
+	for ( n = 0, v = dst->taken - 1; n < v; ++n, --v )
 	{
 		c = str[n];
 		str[n] = str[v];
@@ -623,7 +624,7 @@ int reg_print_value
 		goto fail;
 	}
 	
-	(void)memset( __dst->block, 0, __dst->bytes.upto );
+	(void)memset( __dst->block, 0, __dst->given );
 	ret = alu_reg2str( alu, _dst, _tmp, base );
 	
 	if ( ret != 0 )
@@ -672,7 +673,7 @@ int uint_print_value
 		goto fail;
 	}
 	
-	(void)memset( __dst->block, 0, __dst->bytes.upto );
+	(void)memset( __dst->block, 0, __dst->given );
 	ret = alu_uint2str( alu, _dst, tmp, base );
 	
 	if ( ret != 0 )
@@ -721,7 +722,7 @@ int int_print_value
 		goto fail;
 	}
 	
-	(void)memset( __dst->block, 0, __dst->bytes.upto );
+	(void)memset( __dst->block, 0, __dst->given );
 	ret = alu_int2str( alu, _dst, tmp, base );
 	
 	
@@ -838,7 +839,6 @@ int print_value( alu_t *alu, bool print_anyways )
 	alu_base_t base = {0};
 	alu_block_t __src = {0}, __dst = {0};
 	char *src;
-	size_t size;
 	long nextpos;
 	
 	(void)alu_puts( "Printing values..." );
@@ -858,7 +858,6 @@ int print_value( alu_t *alu, bool print_anyways )
 	for ( i = 0; pos_int[i]; ++i )
 	{
 		src = pos_int[i];
-		size = strlen(src);
 		switch ( src[1] )
 		{
 		case 'x': case 'X': base.base = 16; break;
@@ -868,11 +867,9 @@ int print_value( alu_t *alu, bool print_anyways )
 		
 		nextpos = 0;
 		__src.block = src;
-		__src.bytes.used = strlen(src);
-		__src.bytes.last = __src.bytes.used;
-		__src.bytes.upto = size ? size : __src.bytes.used + 1;
+		__src.given = __src.taken = strlen(src);
 		
-		ret = alu_block_expand( &__dst, __src.bytes.upto * 2 );
+		ret = alu_block_expand( &__dst, __src.given * 2 );
 		if ( ret != 0 )
 			return ret;
 		
@@ -907,7 +904,6 @@ int print_value( alu_t *alu, bool print_anyways )
 	for ( i = 0; neg_int[i]; ++i )
 	{
 		src = neg_int[i];
-		size = strlen(src);
 		switch ( src[1] )
 		{
 		case 'x': case 'X': base.base = 16; break;
@@ -917,11 +913,9 @@ int print_value( alu_t *alu, bool print_anyways )
 		
 		nextpos = 0;
 		__src.block = src;
-		__src.bytes.used = strlen(src);
-		__src.bytes.last = __src.bytes.used;
-		__src.bytes.upto = size ? size : __src.bytes.used + 1;
+		__src.given = __src.taken = strlen(src);
 		
-		ret = alu_block_expand( &__dst, __src.bytes.upto * 2 );
+		ret = alu_block_expand( &__dst, __src.given * 2 );
 		
 		if ( ret != 0 )
 		{
@@ -995,7 +989,7 @@ int main()
 	}
 #endif
 
-	ret = print_value( alu, print_anyways );
+	ret = print_value( alu, true );
 	
 	if ( ret != 0 )
 	{

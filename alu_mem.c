@@ -12,8 +12,8 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 	{	
 		if ( mem->block )
 		{
-			want = SET2IF( dir > 0, HIGHEST( mem->bytes.upto, want ), want );
-			want = SET2IF( dir < 0, LOWEST( mem->bytes.upto, want ), want );
+			want = SET2IF( dir > 0, HIGHEST( mem->given, want ), want );
+			want = SET2IF( dir < 0, LOWEST( mem->given, want ), want );
 			
 			if ( want )
 			{
@@ -24,7 +24,7 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 				want *= SET2IF( size, sizeof(size_t), 1 );
 				want += SET1IF( size, sizeof(size_t) );
 				
-				if ( want != mem->bytes.upto )
+				if ( want != mem->given )
 				{				
 					errno = 0;
 					block = realloc( mem->block, want );
@@ -72,12 +72,11 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 			want -= 4 * sizeof(size_t);
 			
 			mem->block = block;
-			mem->bytes.upto = want;
-			mem->bytes.last = want - 1;
+			mem->given = want;
 			
-			for ( size = want; size > mem->bytes.used; block[--size] = 0 );
+			for ( size = want; size > mem->taken; block[--size] = 0 );
 			
-			mem->bytes.used = want;
+			mem->taken = want;
 			return 0;
 		}
 		

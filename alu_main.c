@@ -298,7 +298,7 @@ int_t alu_str2reg
 {
 	size_t b, perN;
 	uint_t nodes[ALU_BASE_COUNT] = {0};
-	alu_reg_t num, val, tmp;
+	alu_reg_t num, val;
 	alu_bit_t n;
 	int ret = 0;
 	char32_t c = -1;
@@ -339,7 +339,6 @@ int_t alu_str2reg
 	
 	alu_reg_init( alu, num, nodes[ALU_BASE_NUM], 0 );
 	alu_reg_init( alu, val, nodes[ALU_BASE_VAL], 0 );
-	alu_reg_init( alu, tmp, nodes[ALU_BASE_TMP], 0 );
 
 	/* Clear all registers in direct use */
 	perN = alu_size_perN( alu );
@@ -407,7 +406,7 @@ int_t alu_str2reg
 			);
 			
 			if ( ret != 0 )
-				return ret;
+				goto fail;
 			
 			alu_set_bounds( alu, &num, 0, -1 );
 			
@@ -418,7 +417,7 @@ int_t alu_str2reg
 		
 		alu_reg_set_raw( alu, num, &b, num.info, sizeof(size_t) );
 		
-		(void)alu_reg_mul( alu, dst, val, tmp );
+		(void)alu_reg_mul( alu, dst, val );
 		(void)alu_reg_add( alu, dst, num );
 	}
 	while ( ret == 0 );
@@ -426,7 +425,7 @@ int_t alu_str2reg
 	fail:
 	alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
 	
-	return 0;
+	return ret;
 }
 
 bool alu_reg_is_zero( alu_t *alu, alu_reg_t reg, alu_bit_t *end_bit )
@@ -446,7 +445,7 @@ int_t alu_lit2reg
 {
 	size_t i, perN, bits, _base, _one = 1;
 	uint_t nodes[ALU_LIT_COUNT] = {0};
-	alu_reg_t NIL, VAL, BASE, ONE, DOT, EXP, BIAS, MAN, TMP;
+	alu_reg_t NIL, VAL, BASE, ONE, DOT, EXP, BIAS, MAN;
 	alu_bit_t n;
 	int ret;
 	long pos, prevpos, exp_dig, man_dig;
@@ -589,7 +588,6 @@ int_t alu_lit2reg
 	
 	alu_reg_init( alu, NIL, ALU_REG_ID_ZERO, 0 );
 	alu_reg_init( alu, BASE, nodes[ALU_LIT_BASE], 0 );
-	alu_reg_init( alu, TMP, nodes[ALU_LIT_TMP], 0 );
 	alu_reg_init( alu, ONE, nodes[ALU_LIT_ONE], 0 );
 	alu_reg_init( alu, VAL, nodes[ALU_LIT_VAL], 0 );
 	alu_reg_init( alu, DOT, nodes[ALU_LIT_DOT], 0 );
@@ -678,7 +676,7 @@ int_t alu_lit2reg
 		/* Multiply '0.1' by base to get '1.0',
 		 * maybe be more digits than size_t supports */
 		for ( pos = prevpos; pos < *(src.nextpos); ++pos )
-			(void)alu_reg_mul( alu, ONE, BASE, TMP );
+			(void)alu_reg_mul( alu, ONE, BASE );
 		
 		/* Only universal number literals need this, example of one:
 		 * 0~L36(A.z)e+10 */
@@ -761,7 +759,7 @@ int_t alu_lit2reg
 			}
 		}
 		
-		if ( alu_reg_cmp( alu, EXP, BIAS, NULL ) > 0 )
+		if ( alu_reg_cmp( alu, EXP, BIAS ) > 0 )
 		{
 			if ( exp_neg )
 			{
@@ -781,22 +779,22 @@ int_t alu_lit2reg
 		
 		for
 		(
-			; alu_reg_cmp( alu, EXP, NIL, NULL ) > 0
+			; alu_reg_cmp( alu, EXP, NIL ) > 0
 			; (void)alu_reg_dec( alu, EXP )
 		)
 		{
-			ret = alu_reg_mul( alu, dst, BASE, TMP );
+			ret = alu_reg_mul( alu, dst, BASE );
 			if ( ret == EOVERFLOW )
 				goto set_inf;
 		}
 		
 		for
 		(
-			; alu_reg_cmp( alu, EXP, NIL, NULL ) < 0
+			; alu_reg_cmp( alu, EXP, NIL ) < 0
 			; (void)alu_reg_inc( alu, EXP )
 		)
 		{
-			ret = alu_reg_mul( alu, ONE, BASE, TMP );
+			ret = alu_reg_mul( alu, ONE, BASE );
 			
 			if ( ret == EOVERFLOW )
 				goto set_nil;
@@ -814,12 +812,12 @@ int_t alu_lit2reg
 		
 		/* Calculate final exponent */
 		
-		if ( alu_reg_cmp( alu, dst, ONE, NULL ) >= 0 )
+		if ( alu_reg_cmp( alu, dst, ONE ) >= 0 )
 		{
 			for
 			(
-				alu_reg_copy( alu, VAL, dst )
-				; alu_reg_cmp( alu, VAL, ONE, NULL ) > 0
+				alu_reg_mov( alu, VAL, dst )
+				; alu_reg_cmp( alu, VAL, ONE ) > 0
 				; ++pos, alu_reg__shr( alu, VAL, 1 )
 			);
 		}
@@ -827,19 +825,19 @@ int_t alu_lit2reg
 		{
 			for
 			(
-				alu_reg_copy( alu, VAL, ONE )
-				; alu_reg_cmp( alu, VAL, DOT, NULL ) > 0
+				alu_reg_mov( alu, VAL, ONE )
+				; alu_reg_cmp( alu, VAL, DOT ) > 0
 				; --pos, alu_reg__shr( alu, VAL, 1 )
 			);
 			
-			if ( alu_reg_cmp( alu, VAL, DOT, NULL ) == 0 )
+			if ( alu_reg_cmp( alu, VAL, DOT ) == 0 )
 			{
 				--pos;
 			}
 		}
 		
 		/* Set bias */
-		alu_reg_copy( alu, dst, BIAS );
+		alu_reg_mov( alu, dst, BIAS );
 		alu_reg_set_raw( alu, VAL, &man_dig, 0, sizeof(size_t) );
 		
 		
@@ -852,11 +850,11 @@ int_t alu_lit2reg
 			alu_reg_not( alu, DOT );
 			alu_reg_and( alu, DOT, dst );
 			alu_reg__shl( alu, ONE, pos );
-			alu_reg_copy( alu, MAN, VAL );
-			alu_reg_copy( alu, VAL, ONE );
+			alu_reg_mov( alu, MAN, VAL );
+			alu_reg_mov( alu, VAL, ONE );
 			alu_reg__shr( alu, VAL, 1 );
 			
-			i = alu_reg_cmp( alu, DOT, VAL, NULL );
+			i = alu_reg_cmp( alu, DOT, VAL );
 			
 			if ( i > 0 )
 				(void)alu_reg_inc( alu, MAN );
@@ -877,8 +875,8 @@ int_t alu_lit2reg
 		}
 		else
 		{
-			(void)alu_reg_copy( alu, MAN, dst );	
-			(void)alu_reg_copy( alu, VAL, DOT );
+			(void)alu_reg_mov( alu, MAN, dst );	
+			(void)alu_reg_mov( alu, VAL, DOT );
 			
 			part = alu_reg_data( alu, MAN );
 			n = alu_bit_set_bit( part, MAN.from );
@@ -887,7 +885,7 @@ int_t alu_lit2reg
 			{
 				bits++;
 				
-				if ( alu_reg_cmp( alu, VAL, ONE, NULL ) >= 0 )
+				if ( alu_reg_cmp( alu, VAL, ONE ) >= 0 )
 				{
 					(void)alu_reg_sub( alu, VAL, ONE );
 					(void)alu_reg__shl( alu, MAN, bits );
@@ -903,7 +901,7 @@ int_t alu_lit2reg
 		/* TODO: Continue referencing code made in mitsy to build fpn */
 		
 		/* Construct FPN from modified values */
-		alu_reg_copy( alu, dst, MAN );
+		alu_reg_mov( alu, dst, MAN );
 		
 		set_exp:
 		/* Align and append Exponent */
@@ -1001,7 +999,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	alu_reg_init( alu, div, nodes[ALU_BASE_VAL], 0 );
 	alu_reg_init( alu, val, nodes[ALU_BASE_TMP], 0 );
 	
-	alu_reg_copy( alu, num, src );
+	alu_reg_mov( alu, num, src );
 	
 	alu_reg_set_raw( alu, div, &(base.base), div.info, sizeof(size_t) );
 	
@@ -1045,7 +1043,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 		
 		++digit;
 	}
-	while ( alu_reg_cmp( alu, num, div, NULL ) >= 0 );
+	while ( alu_reg_cmp( alu, num, div ) >= 0 );
 	
 	alu_get_raw( alu, num.node, &_num );
 	ret = dst.next( base_str[_num], dst.dst );

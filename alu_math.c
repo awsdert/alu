@@ -1,6 +1,70 @@
 #include "alu.h"
+int_t alu__op1
+(
+	alu_t *alu
+	, uint_t num
+	, func_alu_reg_op1_t op1
+)
+{
+	alu_reg_t _num;
+	
+	alu_reg_init( alu, _num, num, 0 );
+	
+	return op1( alu, _num );
+}
 
-int_t alu_reg_fill( alu_t *alu, alu_reg_t num, bool fillwith )
+int_t alu__op2
+(
+	alu_t *alu
+	, uint_t num
+	, uint_t val
+	, func_alu_reg_op2_t op2
+)
+{
+	alu_reg_t _num, _val;
+	
+	alu_reg_init( alu, _num, num, 0 );
+	alu_reg_init( alu, _val, val, 0 );
+	
+	return op2( alu, _num, _val );
+}
+
+int_t alu__op3
+(
+	alu_t *alu
+	, uint_t num
+	, uint_t val
+	, uint_t reg
+	, func_alu_reg_op3_t op3
+)
+{
+	alu_reg_t _num, _val, _reg;
+	
+	alu_reg_init( alu, _num, num, 0 );
+	alu_reg_init( alu, _val, val, 0 );
+	alu_reg_init( alu, _reg, reg, 0 );
+	
+	return op3( alu, _num, _val, _reg );
+}
+
+int_t alu__shift
+(
+	alu_t *alu
+	, uint_t num
+	, uint_t val
+	, bool left
+	, func_alu_reg_shift_t shift
+)
+{
+	alu_reg_t _num, _val;
+	
+	alu_reg_init( alu, _num, num, 0 );
+	alu_reg_init( alu, _val, val, 0 );
+	
+	return shift( alu, _num, _val, left );
+}
+
+int_t alu_reg_set( alu_t *alu, alu_reg_t num, bool fillwith )
 {
 	void *part;
 	alu_bit_t n;
@@ -31,11 +95,11 @@ int_t alu_reg_fill( alu_t *alu, alu_reg_t num, bool fillwith )
 	return 0;
 }
 
-int_t alu_fill( alu_t *alu, uint_t num, bool fillwith )
+int_t alu_set( alu_t *alu, uint_t num, bool fillwith )
 {
 	alu_reg_t _num;
 	alu_reg_init( alu, _num, num, 0 );
-	return alu_reg_fill( alu, _num, fillwith );
+	return alu_reg_set( alu, _num, fillwith );
 }
 
 int_t alu_reg_get_raw
@@ -148,7 +212,7 @@ int_t alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info )
 	return alu_reg_set_raw( alu, _num, &raw, info, sizeof(size_t) );
 }
 
-int alu_reg_copy(
+int alu_reg_mov(
 	alu_t *alu,
 	alu_reg_t num,
 	alu_reg_t val
@@ -191,13 +255,13 @@ int alu_reg_copy(
 	return alu_err_null_ptr( "alu" );
 }
 
-int_t alu_copy( alu_t *alu, uint_t num, uint_t val )
+int_t alu_mov( alu_t *alu, uint_t num, uint_t val )
 {	
 	alu_reg_t _num, _val;
 	alu_reg_init( alu, _num, num, 0 );
 	alu_reg_init( alu, _val, val, 0 );
 	
-	return alu_reg_copy( alu, _num, _val );
+	return alu_reg_mov( alu, _num, _val );
 }
 
 alu_bit_t alu_reg_end_bit( alu_t *alu, alu_reg_t num )
@@ -232,7 +296,6 @@ int_t alu_reg_cmp(
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, size_t *bit
 )
 {
 	int a, b, c = 0;
@@ -256,7 +319,7 @@ int_t alu_reg_cmp(
 	if ( nNeg != vNeg )
 	{
 		c = -1 + vNeg + vNeg;
-		goto done;
+		return c;
 	}
 	
 	ndiff = n.b - num.from;
@@ -273,7 +336,7 @@ int_t alu_reg_cmp(
 		
 		c = a - b;
 		if ( c != 0 )
-			goto done;
+			return c;
 		
 		vdiff--;
 		v = alu_bit_dec( v );
@@ -285,7 +348,7 @@ int_t alu_reg_cmp(
 		
 		c = a - b;
 		if ( c != 0 )
-			goto done;
+			return c;
 		
 		ndiff--;
 		n = alu_bit_dec( n );
@@ -299,7 +362,7 @@ int_t alu_reg_cmp(
 		
 		c = a - b;
 		if ( c != 0 )
-			goto done;
+			return c;
 			
 		if ( !ndiff )
 			break;
@@ -310,21 +373,7 @@ int_t alu_reg_cmp(
 	}
 	while ( 1 );
 	
-	done:
-	if ( bit )
-		*bit = ndiff;
-	
 	return c;
-}
-
-int_t alu_cmp( alu_t *alu, uint_t num, uint_t val, size_t *bit )
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return alu_reg_cmp( alu, _num, _val, bit );
 }
 
 int_t alu_size2reg( alu_t *alu, uint_t num, size_t val )
@@ -368,16 +417,6 @@ int_t alu_reg_not( alu_t *alu, alu_reg_t num )
 	return alu_err_null_ptr( "alu" );
 }
 
-
-int_t alu_not( alu_t *alu, uint_t num )
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return alu_reg_not( alu, _num );
-}
-
 int_t alu_reg_inc( alu_t *alu, alu_reg_t num )
 {
 	bool carry = 0;
@@ -412,15 +451,6 @@ int_t alu_reg_inc( alu_t *alu, alu_reg_t num )
 		*(n.S) |= n.B;
 	
 	return carry ? EOVERFLOW : 0;
-}
-
-int_t alu_inc( alu_t *alu, uint_t num )
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return alu_reg_inc( alu, _num );
 }
 
 int_t alu_reg_dec( alu_t *alu, alu_reg_t num )
@@ -458,15 +488,6 @@ int_t alu_reg_dec( alu_t *alu, alu_reg_t num )
 	}
 	
 	return carry ? EOVERFLOW : 0;
-}
-
-int_t alu_dec( alu_t *alu, uint_t num )
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return alu_reg_dec( alu, _num );
 }
 
 int_t alu_reg_add( alu_t *alu, alu_reg_t num, alu_reg_t val )
@@ -539,16 +560,6 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
 }
 
-int_t alu_add( alu_t *alu, uint_t num, uint_t val )
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return alu_reg_add( alu, _num, _val );
-}
-
 int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val )
 {
 	bool carry = false, changed = false;
@@ -617,16 +628,6 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	}
 	
 	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
-}
-
-int_t alu_sub( alu_t *alu, uint_t num, uint_t val )
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return alu_reg_sub( alu, _num, _val );
 }
 
 int_t alu_reg__shl( alu_t *alu, alu_reg_t num, size_t by )
@@ -734,98 +735,101 @@ int_t alu_reg__shift
 	alu_t *alu,
 	alu_reg_t num,
 	alu_reg_t val,
-	alu_reg_t tmp,
 	bool left
 )
 {
-	int cmp;
+	int ret, cmp;
+	uint_t _tmp = 0;
+	alu_reg_t tmp;
 	size_t by = 0, ndiff = num.upto - num.from;
 	int_t (*shift)( alu_t*, alu_reg_t, size_t )
 		= (int_t (*)( alu_t*, alu_reg_t, size_t ))
-		(((uintptr_t)alu_reg__shl * left) | ((uintptr_t)alu_reg__shr * !left));
-		
-	num.node %= alu_used( alu );
-	val.node %= alu_used( alu );
-	tmp.node %= alu_used( alu );
+		SET2IF( left, (uintptr_t)alu_reg__shl, (uintptr_t)alu_reg__shr );
 	
-	alu_reg_set_raw( alu, tmp, &ndiff, tmp.info, sizeof(size_t) );
-	cmp = alu_reg_cmp( alu, val, tmp, NULL );
+	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
-	if ( cmp >= 0 )
+	if ( ret == 0 )
 	{
-		return shift( alu, num, -1 );
+		num.node %= alu_used( alu );
+		val.node %= alu_used( alu );
+		alu_reg_init( alu, tmp, _tmp, 0 );
+		
+		alu_reg_set_raw( alu, tmp, &ndiff, tmp.info, sizeof(size_t) );
+		cmp = alu_reg_cmp( alu, val, tmp );
+		
+		if ( cmp < 0 )
+		{
+			alu_reg_get_raw( alu, val, &by, sizeof(size_t) );
+			ret = shift( alu, num, by );
+		}
+		else
+		{
+			ret = shift( alu, num, -1 );
+		}
+		
+		alu_rem_reg_node( alu, &_tmp );
+		return ret;
 	}
 	
-	alu_reg_get_raw( alu, val, &by, sizeof(size_t) );
-	return shift( alu, num, by );
+	alu_error( ret );
+	return ret;
 }
 
-int_t alu__shift( alu_t *alu, uint_t num, uint_t val, uint_t tmp, bool left )
-{
-	alu_reg_t _num, _val, _tmp;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	alu_reg_init( alu, _tmp, tmp, 0 );
-	
-	return alu_reg__shift( alu, _num, _val, _tmp, left );
-}
 
 int_t alu_reg_mul
 (
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, alu_reg_t tmp
 )
 {
 	int ret = 0;
+	uint_t _tmp = 0;
+	alu_reg_t tmp;
 	bool carry = 0;
 	alu_bit_t p, v;
 	void *part;
 	
-	num.node %= alu_used( alu );
-	val.node %= alu_used( alu );
-	tmp.node %= alu_used( alu );
-	
-	part = alu_reg_data( alu, val );
-	p = v = alu_bit_set_bit( part, val.from );
-	
-	alu_reg_copy( alu, tmp, num );
-	alu_reg_set_nil( alu, num );
-	
-	for ( ; v.b < val.upto; v = alu_bit_inc( v ) )
+	ret = alu_get_reg_node( alu, &_tmp, 0 );
+	if ( ret == 0 )
 	{
-		if ( *(v.S) & v.B )
-		{	
-			(void)alu_reg__shl( alu, tmp, v.b - p.b );
-			ret = alu_reg_add( alu, num, tmp );
-			p = v;
-			
-			if ( ret == EOVERFLOW )
-				carry = true;
-			else if ( ret == ENODATA )
-				break;
-			else if ( ret != 0 )
-			{
-				alu_error( ret );
-				break;
+		num.node %= alu_used( alu );
+		val.node %= alu_used( alu );
+		alu_reg_init( alu, tmp, _tmp, 0 );
+		
+		part = alu_reg_data( alu, val );
+		p = v = alu_bit_set_bit( part, val.from );
+		
+		alu_reg_mov( alu, tmp, num );
+		alu_reg_set_nil( alu, num );
+		
+		for ( ; v.b < val.upto; v = alu_bit_inc( v ) )
+		{
+			if ( *(v.S) & v.B )
+			{	
+				(void)alu_reg__shl( alu, tmp, v.b - p.b );
+				ret = alu_reg_add( alu, num, tmp );
+				p = v;
+				
+				if ( ret == EOVERFLOW )
+					carry = true;
+				else if ( ret == ENODATA )
+					break;
+				else if ( ret != 0 )
+				{
+					alu_error( ret );
+					break;
+				}
 			}
 		}
+		
+		alu_rem_reg_node( alu, &_tmp );
+	
+		return carry ? EOVERFLOW : ret;
 	}
 	
-	return carry ? EOVERFLOW : ret;
-}
-
-int_t alu_mul( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
-{
-	alu_reg_t _num, _val, _tmp;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	alu_reg_init( alu, _tmp, tmp, 0 );
-	
-	return alu_reg_mul( alu, _num, _val, _tmp );
+	alu_error(ret);
+	return ret;
 }
 
 int_t alu_reg_neg( alu_t *alu, alu_reg_t num )
@@ -837,15 +841,6 @@ int_t alu_reg_neg( alu_t *alu, alu_reg_t num )
 		
 	alu_error(ret);
 	return ret;
-}
-
-int_t alu_neg( alu_t *alu, uint_t num )
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return alu_reg_neg( alu, _num );
 }
 
 int_t alu_reg_divide
@@ -884,17 +879,17 @@ int_t alu_reg_divide
 	if ( vNeg )
 		alu_reg_neg( alu, val );
 	
-	(void)alu_reg_copy( alu, rem, num );
+	(void)alu_reg_mov( alu, rem, num );
 	(void)alu_reg_set_nil( alu, num );
 
 	n = alu_reg_end_bit( alu, rem );
 	tmp.upto = tmp.from = n.b + 1;
 	n = alu_bit_set_bit( num_part, num.from );
 	
-	for ( ; bits < num.upto && alu_reg_cmp( alu, rem, val, NULL ) >= 0; ++bits )
+	for ( ; bits < num.upto && alu_reg_cmp( alu, rem, val ) >= 0; ++bits )
 	{
 		tmp.from--;
-		if ( alu_reg_cmp( alu, tmp, val, NULL ) >= 0 )
+		if ( alu_reg_cmp( alu, tmp, val ) >= 0 )
 		{
 			ret = alu_reg_sub( alu, tmp, val );
 			
@@ -923,37 +918,29 @@ int_t alu_reg_divide
 	return ret;
 }
 
-int_t alu_divide( alu_t *alu, uint_t num, uint_t val, uint_t rem )
-{
-	alu_reg_t _num, _val, _rem;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	alu_reg_init( alu, _rem, rem, 0 );
-	
-	return alu_reg_divide( alu, _num, _val, _rem );
-}
-
 int_t alu_reg_div
 (
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, alu_reg_t tmp
 )
 {
-	return alu_reg_divide( alu, num, val, tmp );
-}
-
-int_t alu_div( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
-{
-	alu_reg_t _num, _val, _tmp;
+	int ret = 0;
+	uint_t _tmp = 0;
+	alu_reg_t tmp;
 	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	alu_reg_init( alu, _tmp, tmp, 0 );
+	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
-	return alu_reg_divide( alu, _num, _val, _tmp );
+	if ( ret == 0 )
+	{
+		alu_reg_init( alu, tmp, _tmp, 0 );
+		ret = alu_reg_divide( alu, num, val, tmp );
+		alu_rem_reg_node( alu, &_tmp );
+		return ret;
+	}
+	
+	alu_error( ret );
+	return ret;
 }
 
 int_t alu_reg_rem
@@ -961,25 +948,25 @@ int_t alu_reg_rem
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, alu_reg_t tmp
 )
 {
-	int ret = alu_reg_divide( alu, num, val, tmp );
+	int ret = 0;
+	uint_t _tmp = 0;
+	alu_reg_t tmp;
 	
-	(void)alu_reg_copy( alu, num, tmp );
+	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
+	if ( ret == 0 )
+	{
+		alu_reg_init( alu, tmp, _tmp, 0 );
+		ret = alu_reg_divide( alu, num, val, tmp );
+		(void)alu_reg_mov( alu, num, tmp );
+		alu_rem_reg_node( alu, &_tmp );
+		return ret;
+	}
+	
+	alu_error( ret );
 	return ret;
-}
-
-int_t alu_rem( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
-{	
-	alu_reg_t _num, _val, _tmp;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	alu_reg_init( alu, _tmp, tmp, 0 );
-	
-	return alu_reg_div( alu, _num, _val, _tmp );
 }
 
 int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
@@ -1002,7 +989,7 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	num_part = alu_reg_data( alu, num );
 	tmp_part = alu_reg_data( alu, tmp );
 	
-	alu_reg_copy( alu, tmp, num );
+	alu_reg_mov( alu, tmp, num );
 	
 	n = alu_bit_set_bit( num_part, num.upto );
 	v = alu_bit_set_bit( tmp_part, tmp.upto - by );
@@ -1058,7 +1045,7 @@ int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 		num_part = alu_reg_data( alu, num );
 		tmp_part = alu_reg_data( alu, tmp );
 		
-		alu_reg_copy( alu, tmp, num );
+		alu_reg_mov( alu, tmp, num );
 		
 		n = alu_bit_set_bit( num_part, num.from );
 		v = alu_bit_set_bit( tmp_part, tmp.from + by );
@@ -1101,26 +1088,42 @@ int_t alu_reg__rotate
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, alu_reg_t tmp
 	, bool left
 )
 {
-	int cmp;
+	int ret, cmp;
+	uint_t _tmp = 0;
+	alu_reg_t tmp;
 	size_t by = 0, ndiff = num.upto - num.from;
 	int_t (*rotate)( alu_t*, alu_reg_t, alu_reg_t, size_t )
 		= (int_t (*)( alu_t*, alu_reg_t, alu_reg_t, size_t ))
-		(((uintptr_t)alu_reg__rol * left) | ((uintptr_t)alu_reg__ror * !left));
+		SET2IF( left, (uintptr_t)alu_reg__rol, (uintptr_t)alu_reg__ror );
 	
-	alu_reg_set_raw( alu, tmp, &ndiff, 0, sizeof(size_t) );
-	cmp = alu_reg_cmp( alu, val, tmp, NULL );
+	ret = alu_get_reg_node( alu, &_tmp, 0 );
 	
-	if ( cmp >= 0 )
+	if ( ret == 0 )
 	{
-		return rotate( alu, num, tmp, -1 );
+		alu_reg_init( alu, tmp, _tmp, 0 );
+	
+		alu_reg_set_raw( alu, tmp, &ndiff, 0, sizeof(size_t) );
+		cmp = alu_reg_cmp( alu, val, tmp );
+		
+		if ( cmp < 0 )
+		{
+			alu_reg_get_raw( alu, val, &by, sizeof(size_t) );
+			ret = rotate( alu, num, tmp, by );
+		}
+		else
+		{
+			ret = rotate( alu, num, tmp, -1 );
+		}
+		
+		alu_rem_reg_node( alu, &_tmp );
+		return ret;
 	}
 	
-	alu_reg_get_raw( alu, val, &by, sizeof(size_t) );
-	return rotate( alu, num, tmp, by );
+	alu_error( ret );
+	return ret;
 }
 
 size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val )
@@ -1170,16 +1173,6 @@ int_t alu_reg_and( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	return 0;
 }
 
-int_t alu_and( alu_t *alu, uint_t num, uint_t val )
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return alu_reg_and( alu, _num, _val );
-}
-
 int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val )
 {
 	alu_bit_t n, v;
@@ -1209,16 +1202,6 @@ int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	return 0;
 }
 
-int_t alu__or( alu_t *alu, uint_t num, uint_t val )
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return alu_reg__or( alu, _num, _val );
-}
-
 int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val )
 {
 	alu_bit_t n, v;
@@ -1245,14 +1228,4 @@ int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	}
 	
 	return 0;
-}
-
-int_t alu_xor( alu_t *alu, uint_t num, uint_t val )
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return alu_reg_xor( alu, _num, _val );
 }

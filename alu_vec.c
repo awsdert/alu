@@ -29,8 +29,8 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
 					--used;
 					dst = block + (used * perN) + diff;
 					src = block + (used * vec->perN);
-					memmove( dst, src, vec->perN );
-					memset( dst - diff, 0, diff );
+					(void)memmove( dst, src, vec->perN );
+					(void)memset( dst - diff, 0, diff );
 				}
 				goto done;
 			}
@@ -46,8 +46,8 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
 				--used;
 				dst = block + (used * perN);
 				src = block + (used * vec->perN);
-				memset( src, 0, diff );
-				memmove( dst, src + diff, perN );
+				(void)memset( src, 0, diff );
+				(void)memmove( dst, src + diff, perN );
 			}
 			
 			ret = alu_block( &(vec->mem), want * perN, dir );
@@ -65,12 +65,8 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
 		}
 		
 		alu_error(ret);
-	}
-	else
-	{
-		ret = EDESTADDRREQ;
+		return ret;
 	}
 	
-	alu_error( ret );
-	return ret;
+	return alu_err_null_ptr( "vec" );
 }
