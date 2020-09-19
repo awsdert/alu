@@ -15,7 +15,7 @@ int_t alu_uint_get_raw( alu_t *alu, alu_uint_t num, uintmax_t *val )
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	
-	return alu_reg_get_raw( alu, NUM, val, sizeof(uintmax_t) );
+	return alu_reg_get_raw( alu, NUM, val, sizeof(uintmax_t), 0 );
 }
 
 int_t alu__uint_op1

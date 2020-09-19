@@ -429,6 +429,7 @@ int_t alu_reg_get_raw
 	, alu_reg_t num
 	, void *raw
 	, size_t size
+	, uint_t info
 );
 
 
