@@ -41,7 +41,6 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 	part = alu_reg_data( alu, reg );
 	n = alu_bit_set_bit( part, reg.upto );
 
-	alu_printf( "*part = %016jX", *((uintmax_t*)part) );
 	reg.upto = alu_bits_perN(alu);
 
 	if ( print_info )
