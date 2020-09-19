@@ -8,11 +8,11 @@ struct alu_bit alu_bit_set_bit
 )
 {
 	alu_bit_t pos = {0};
-	pos.b = bit;
-	pos.p = bit % bitsof(size_t);
-	pos.s = bit / bitsof(size_t);
-	pos.S = init + pos.s;
-	pos.B = SIZE_T_C(1) << pos.p;
+	pos.bit = bit;
+	pos.pos = bit % bitsof(size_t);
+	pos.seg = bit / bitsof(size_t);
+	pos.ptr = init + pos.seg;
+	pos.mask = SIZE_T_C(1) << pos.pos;
 	return pos;
 }
 
@@ -23,53 +23,55 @@ struct alu_bit alu_bit_set_byte
 )
 {
 	alu_bit_t pos = {0};
-	pos.b = byte * CHAR_BIT;
-	pos.s = byte / sizeof(size_t);
-	pos.S = init + pos.s;
-	pos.B = SIZE_T_C(1);
+	pos.bit = byte * CHAR_BIT;
+	pos.seg = byte / sizeof(size_t);
+	pos.ptr = init + pos.seg;
+	pos.mask = SIZE_T_C(1);
 	return pos;
 }
 
 struct alu_bit alu_bit_inc( struct alu_bit pos )
 {
-	pos.b++;
-	pos.p++;
-	pos.B <<= 1;
-	if ( pos.B )
-		return pos;
-	pos.p = 0;
-	pos.B = SIZE_T_C(1);
-	pos.s++;
-	pos.S++;
+	uintptr_t ptr = (uintptr_t)(pos.ptr);
+	
+	pos.bit++;
+	pos.pos++;
+	pos.mask <<= 1;
+	pos.pos = SET2IF( pos.mask, pos.pos, 0 );
+	pos.mask = SET2IF( pos.mask, pos.mask, SIZE_T_C(1) );
+	pos.seg = SET2IF( pos.mask, pos.seg, pos.seg + 1 );
+	pos.ptr = (size_t*)SET2IF( pos.mask, ptr, ptr + sizeof(size_t) );
+	
 	return pos;
 }
 
 struct alu_bit alu_bit_dec( struct alu_bit pos )
 {
-	pos.b--;
-	pos.p--;
-	pos.B >>= 1;
-	if ( pos.B )
-		return pos;
-	pos.p = bitsof(size_t) - 1;
-	pos.B = SIZE_END_BIT;
-	pos.s--;
-	pos.S--;
+	uintptr_t ptr = (uintptr_t)(pos.ptr);
+	
+	pos.bit--;
+	pos.pos--;
+	pos.mask >>= 1;
+	pos.pos = SET2IF( pos.mask, pos.pos, bitsof(size_t) - 1 );
+	pos.mask = SET2IF( pos.mask, pos.mask, SIZE_END_BIT );
+	pos.seg = SET2IF( pos.mask, pos.seg, pos.seg - 1 );
+	pos.ptr = (size_t*)SET2IF( pos.mask, ptr, ptr - sizeof(size_t) );
+	
 	return pos;
 }
 
 void alu_print_bit( char *pfx, struct alu_bit pos, bool dereference4value )
 {
-	char value = dereference4value ? ('0' + !!(*(pos.S) & pos.B)) : '?';
+	char value = dereference4value ? ('0' + !!(*(pos.ptr) & pos.mask)) : '?';
 	if ( !pfx ) pfx = "?";
 	
 	alu_printf(
 		"%s.s = %zu, %s.b = %zu, %s.p = %zu",
-		pfx, pos.s, pfx, pos.b, pfx, pos.p
+		pfx, pos.seg, pfx, pos.bit, pfx, pos.pos
 	);
 	
 	alu_printf(
 		"Value = %c, %s.S = %p, %s.B = %016zX",
-		value, pfx, (void*)(pos.S), pfx, pos.B
+		value, pfx, (void*)(pos.ptr), pfx, pos.mask
 	);
 }

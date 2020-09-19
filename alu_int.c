@@ -1,4 +1,23 @@
 #include "alu.h"
+
+int_t alu_int_set_raw( alu_t *alu, alu_int_t num, intmax_t val )
+{
+	alu_reg_t NUM;
+	
+	alu_reg_init( alu, NUM, num, ALU_INFO__SIGN );
+	
+	return alu_reg_set_raw( alu, NUM, &val, sizeof(intmax_t), ALU_INFO__SIGN );
+}
+
+int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val )
+{
+	alu_reg_t NUM;
+	
+	alu_reg_init( alu, NUM, num, ALU_INFO__SIGN );
+	
+	return alu_reg_get_raw( alu, NUM, val, sizeof(intmax_t) );
+}
+
 int_t alu__int_op1
 (
 	alu_t *alu

@@ -11,14 +11,14 @@
 
 int reg_compare(
 	alu_t *alu,
-	ssize_t _num,
-	ssize_t _val,
+	intmax_t _num,
+	intmax_t _val,
 	uint_t info,
 	bool print_anyways
 )
 {
 	int ret = 0;
-	ssize_t cmp = 0, expect = 0;
+	intmax_t cmp = 0, expect = 0;
 	uint_t nodes[2] = {0};
 	alu_reg_t num = {0}, val = {0};
 	size_t bit = 0;
@@ -36,8 +36,8 @@ int reg_compare(
 	
 	num.upto = val.upto = bitsof(size_t);
 	
-	alu_reg_set_raw( alu, num, &_num, num.info, sizeof(size_t) );
-	alu_reg_set_raw( alu, val, &_val, val.info, sizeof(size_t) );
+	alu_int_set_raw( alu, num.node, _num );
+	alu_int_set_raw( alu, val.node, _val );
 	
 	expect = SET2IF( _num > _val, 1, expect );
 	expect = SET2IF( _num < _val, -1, expect );
@@ -59,22 +59,22 @@ int reg_compare(
 	return ret;
 }
 
-int reg_modify(
-	alu_t *alu,
-	size_t _num,
-	size_t _val,
-	uint_t info,
-	int op,
-	bool print_anyways
+int modify(
+	alu_t *alu
+	, intmax_t _num
+	, intmax_t _val
+	, uint_t info
+	, bool print_anyways
+	, int op
 )
 {
 	int ret = 0;
-	uint_t regv[2] = {-1};
+	uint_t nodes[2] = {0};
 	alu_reg_t num = {0}, val = {0};
-	size_t expect = 0;
+	intmax_t expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	ret = alu_get_reg_nodes( alu, regv, 2, 0 );
+	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -82,21 +82,13 @@ int reg_modify(
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, regv[0], 0 );
-	alu_reg_init( alu, val, regv[1], 0 );
+	alu_reg_init( alu, num, nodes[0], info );
+	alu_reg_init( alu, val, nodes[1], info );
 	
-	num.upto = val.upto = bitsof(size_t);
+	alu_int_set_raw( alu, num.node, _num );
+	alu_int_set_raw( alu, val.node, _val );
 	
-	alu_set_raw( alu, num.node, _num, info );
-	alu_set_raw( alu, val.node, _val, info );
-	
-#if 0
-	alu_printf(
-		"num = %i, val = %i, "
-		"N = 0x%016zX, V = 0x%016zX, _num = 0x%016zX, _val = 0x%016zX",
-		num, val, *N, *V,  _num, _val
-	);
-#endif
+	num.upto = val.upto = bitsof(intmax_t);
 	
 	expect = _num;
 	switch ( op )
@@ -192,30 +184,26 @@ int reg_modify(
 	{
 	case 0: case ENODATA: case EOVERFLOW: break;
 	default:
-		alu_rem_reg_nodes( alu, regv, 2 );
 		alu_error( ret );
-		return ret;
+		alu_printf( "op = '%c'", op );
+		goto fail;
 	}
 	
-	alu_get_raw( alu, num.node, &_num );
+	ret = alu_int_get_raw( alu, num.node, &_num );
 
 	if ( expect != _num || print_anyways )
 	{
 		alu_printf(
-			"%s, Expected 0x%016zX, Got 0x%016zX, op = '%c'\n",
+			"%s, Expected 0x%016jX, Got 0x%016jX, op = '%c'\n",
 			pfx, expect, _num, op
 		);
-
-#if 1
-		alu_print_reg( "num#1", alu, num, 0, 1 );
-		alu_set_raw( alu, num.node, expect, 0 );
-		alu_print_reg( "num#2", alu, num, 0, 1 );
-#endif
 	}
 	
-	alu_rem_reg_nodes( alu, regv, 2 );
+	fail:
 	
-	return 0;
+	alu_rem_reg_nodes( alu, nodes, 2 );
+	
+	return ret;
 }
 
 # define RNG_MOD 0xC0FFEE
@@ -355,24 +343,6 @@ int compare( alu_t *alu, bool print_anyways )
 	return 0;
 }
 
-int modify(
-	alu_t *alu,
-	ssize_t _num,
-	ssize_t _val,
-	int op,
-	bool print_anyways
-)
-{
-	int ret = 0;
-	ret = reg_modify( alu, _num, _val, 0, op, print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-
-	ret = reg_modify( alu, _num, _val, ALU_INFO__SIGN, op, print_anyways );
-	return ret;
-}
-
 int bitwise
 (
 	alu_t *alu,
@@ -382,57 +352,58 @@ int bitwise
 )
 {
 	int ret = 0;
+	size_t i;
+	intmax_t num = 0xDEADC0DE, val;
+	uint_t info = ALU_INFO__SIGN;
+	char bit_ops[] = "~&|^", mov_ops[] = "<>", rot_ops[] = "lr";
+	
 	alu_puts( "Checking Bitwise Operations..." );
 	alu_puts( "===========================================" );
 	
-	ret = modify( alu, 0xDEADC0DE, 0, '~', print_anyways );
+	val = 0xC0FFEE;
 	
-	if ( ret != 0 )
-		return ret;
+	for ( i = 0; bit_ops[i]; ++i )
+	{
+		ret = modify( alu, num, val, info, print_anyways, bit_ops[i] );
+		
+		if ( ret != 0 )
+			return ret;
+	}
 	
-	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '&', print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-	
-	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '|', print_anyways );
-	
-	if ( ret != 0 )
-		return ret;
-	
-	ret = modify( alu, 0xDEADC0DE, 0xC0FFEE, '^', print_anyways );
+	val = 4;
 	
 	if ( doShift )
 	{
-		if ( ret != 0 )
-			return ret;
-		
 		alu_puts( "Shifting values..." );
 		(void)alu_puts( "===========================================" );
 		
-		ret = modify( alu, 0xDEADC0DELL, 4, '<', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-		
-		ret = modify( alu, -0xDEADC0DELL, 4, '>', print_anyways );
+		for ( i = 0; mov_ops[i]; ++i )
+		{
+			ret = modify( alu, num, val, info, print_anyways, mov_ops[i] );
+			
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 	}
 	
 	if ( doRotate )
-	{
-		if ( ret != 0 )
-			return ret;
-		
+	{	
 		alu_puts( "Rotating values..." );
 		(void)alu_puts( "===========================================" );
 			
-		ret = modify( alu, 0xDEADC0DE, 4, 'l', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-		
-		ret = modify( alu, 0xDEADC0DE, 4, 'r', print_anyways );
-	
+		for ( i = 0; rot_ops[i]; ++i )
+		{
+			ret = modify( alu, num, val, info, print_anyways, rot_ops[i] );
+			
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 	}
 	
 	return ret;
@@ -448,87 +419,72 @@ int mathmatical(
 	int ret = 0;
 	alu_puts( "Checking Mathematic Operations..." );
 	(void)alu_puts( "===========================================" );
+	size_t i;
+	uint_t info = ALU_INFO__SIGN;
+	intmax_t num = 0xDEADC0DE, val;
+	char inc_ops[] = "i+*", dec_ops[] = "d-/%";
+	
+	val = 0xBAD;
 	
 	if ( doInc )
 	{
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'i', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-		
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '+', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
+		for ( i = 0; inc_ops[i]; ++i )
+		{
+			ret = modify( alu, num, val, info, print_anyways, inc_ops[i] );
 			
-		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '*', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '*', print_anyways );
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 	}
 	
 	if ( doDec )
 	{
-		if ( ret != 0 )
-			return ret;
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, 'd', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-		
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '-', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-		
-		ret = modify( alu, 0xDEADC0DE, 0, '/', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
+		for ( i = 0; dec_ops[i]; ++i )
+		{
+			ret = modify( alu, num, val, info, print_anyways, dec_ops[i] );
 			
-		ret = modify( alu, 0xDEADC0DE, 0, '%', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 			
-		ret = modify( alu, 12, 10, '/', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
+		for ( i = 0; dec_ops[i]; ++i )
+		{
+			ret = modify( alu, -num, val, info, print_anyways, dec_ops[i] );
 			
-		ret = modify( alu, 12, 10, '%', print_anyways );
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 		
-		if ( ret != 0 )
-			return ret;
+		for ( i = 0; dec_ops[i]; ++i )
+		{
+			ret = modify( alu, -num, -val, info, print_anyways, dec_ops[i] );
 			
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '/', print_anyways );
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 		
-		if ( ret != 0 )
-			return ret;
+		for ( i = 0; dec_ops[i]; ++i )
+		{
+			ret = modify( alu, num, 0, info, print_anyways, dec_ops[i] );
 			
-		ret = modify( alu, 0xDEADC0DE, 0xBAD, '%', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '/', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, -0xDEADC0DELL, 0xBAD, '%', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '/', print_anyways );
-		
-		if ( ret != 0 )
-			return ret;
-			
-		ret = modify( alu, -0xDEADC0DELL, -0xBADLL, '%', print_anyways );
+			if ( ret != 0 )
+			{
+				alu_error( ret );
+				return ret;
+			}
+		}
 	}
 	
 	return ret;
@@ -624,6 +580,7 @@ int reg_print_value
 		goto fail;
 	}
 	
+	__dst->taken = 0;
 	(void)memset( __dst->block, 0, __dst->given );
 	ret = alu_reg2str( alu, _dst, _tmp, base );
 	
@@ -942,7 +899,7 @@ int print_value( alu_t *alu, bool print_anyways )
 int main()
 {
 	int ret = 0;
-	uint_t preallocate = 32;
+	uint_t preallocate = 64;
 	//uint_t seed = time(NULL);
 	bool print_anyways = false;
 	
@@ -959,7 +916,7 @@ int main()
 		return EXIT_FAILURE;
 	}
 
-#if 1
+#if 0
 	ret = compare( alu, print_anyways );
 	
 	if ( ret != 0 )

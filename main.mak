@@ -3,7 +3,8 @@ include dst_sys.mak
 include dst_cc.mak
 
 PRJ:=ALU
-ALL_GOALS:=info objects build run debug gede clean rebuild rebuildall
+PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)
+ALL_GOALS:=info objects build run debug gede clean rebuild rebuildall profile
 
 PRJ_SRC_DIR:=
 PRJ_INC_DIR:=
@@ -23,16 +24,18 @@ PRJ_OBJ_FILES:=$(PRJ_SRC_FILES:%.c=%)
 PRJ_BIN_OBJ_FILES:=test
 PRJ_LIB_OBJ_FILES:=$(filter-out $(PRJ_BIN_OBJ_FILES),$(PRJ_OBJ_FILES))
 
-PRJ_DST_BIN:=alu$(DBG_SFX)$(DST_BIN_SFX)
-PRJ_DST_LIB:=$(DST_LIB_PFX)alu$(DBG_SFX)$(DST_LIB_SFX)
-PRJ_DST_OBJ:=$(PRJ_OBJ_FILES:%=%$(DBG_SFX)$(DST_OBJ_SFX))
+PRJ_DST_BIN:=alu$(PRJ_SFX)$(DST_BIN_SFX)
+PRJ_DST_LIB:=$(DST_LIB_PFX)alu$(PRJ_SFX)$(DST_LIB_SFX)
+PRJ_DST_OBJ:=$(PRJ_OBJ_FILES:%=%$(PRJ_SFX)$(DST_OBJ_SFX))
 PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 
-SRC_FLAGS:=$(DBG_FLAGS) -fPIC -shared -Wall -Wextra -pedantic -I $(FBSTDC_INC_DIR)
-LIB_FLAGS:=$(DBG_FLAGS) -fPIC -shared
-BIN_FLAGS:=$(DBG_FLAGS) -fPIE $(COP)L .
+ERR_FLAGS:=$(COP)Wall $(COP)Wextra $(F_pedantic)
+INC_FLAGS:=-I $(FBSTDC_INC_DIR)
+SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
+LIB_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
+BIN_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L .
 
-COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG) $(COP)l alu$(DBG_SFX)
+COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG) $(COP)l alu$(PRJ_SFX)
 COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG)
 COMPILE_OBJ=$(CC) $(SRC_FLAGS) $1 $(COP)o $2 -c $3
 
@@ -67,6 +70,7 @@ info: .FORCE
 all:
 	make build
 	make debug
+	make profile
 
 rebuildall: clean all
 
@@ -76,9 +80,11 @@ clean:
 	rm -f *.AppImage *.exe *.so *.dll *.o *.obj
 
 run: $(PRJ_TARGETS)
-	$(call ifin,$(MAKECMDGOALS),debug,gdb -ex run,) ./$(PRJ_DST_BIN)
+	$(DBG_APP) $(PFL_APP) ./$(PRJ_DST_BIN)
 	
 debug: $(PRJ_TARGETS)
+
+profile: $(PRJ_TARGETS)
 
 gede: debug
 	gede --args ./$(PRJ_DST_BIN)
@@ -87,40 +93,40 @@ build: $(PRJ_TARGETS)
 
 objects: $(PRJ_DST_OBJ)
 
-%$(DBG_SFX).AppImage: libalu$(DBG_SFX).so $(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).o)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).o))
+%$(PRJ_SFX).AppImage: libalu$(PRJ_SFX).so $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).o)
+	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).o))
 
-%$(DBG_SFX).16.exe: alu$(DBG_SFX).16.dll $(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).16.obj)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).16.obj))
+%$(PRJ_SFX).16.exe: alu$(PRJ_SFX).16.dll $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).16.obj)
+	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).16.obj))
 
-%$(DBG_SFX).32.exe: alu$(DBG_SFX).32.dll $(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).32.obj)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).32.obj))
+%$(PRJ_SFX).32.exe: alu$(PRJ_SFX).32.dll $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).32.obj)
+	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).32.obj))
 
-%$(DBG_SFX).64.exe: alu$(DBG_SFX).64.dll $(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).64.obj)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(DBG_SFX).64.obj))
+%$(PRJ_SFX).64.exe: alu$(PRJ_SFX).64.dll $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).64.obj)
+	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).64.obj))
 	
-lib%$(DBG_SFX).so: $(PRJ_LIB_OBJ_FILES:%=%$(DBG_SFX).o)
+lib%$(PRJ_SFX).so: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).o)
 	$(call COMPILE_DLL,,$@,$^)
 
-%$(DBG_SFX).16.dll: $(PRJ_LIB_OBJ_FILES:%=%$(DBG_SFX).16.obj)
+%$(PRJ_SFX).16.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).16.obj)
 	$(call COMPILE_DLL,,$@,$^)
 
-%$(DBG_SFX).32.dll: $(PRJ_LIB_OBJ_FILES:%=%$(DBG_SFX).32.obj)
+%$(PRJ_SFX).32.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).32.obj)
 	$(call COMPILE_DLL,,$@,$^)
 
-%$(DBG_SFX).64.dll: $(PRJ_LIB_OBJ_FILES:%=%$(DBG_SFX).64.obj)
+%$(PRJ_SFX).64.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).64.obj)
 	$(call COMPILE_DLL,,$@,$^)
 
-%$(DBG_SFX).o: %.c
+%$(PRJ_SFX).o: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-%$(DBG_SFX).16.obj: %.c
+%$(PRJ_SFX).16.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-%$(DBG_SFX).32.obj: %.c
+%$(PRJ_SFX).32.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-%$(DBG_SFX).64.obj: %.c
+%$(PRJ_SFX).64.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 	
 %.c: $(PRJ_INC_FILES)

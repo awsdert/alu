@@ -59,8 +59,15 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir );
 # define alu_block_shrink( MEM, WANT ) alu_block( MEM, WANT, -1 )
 # define alu_block_release( MEM ) (void)alu_block( MEM, 0, -1 )
 
+/** @brief Holds various values for bit position in a number
+ * @param seg Index number of size_t sized data segments
+ * @param bit Overall bit from 0 to alu_reg.upto
+ * @param pos Position of bit from 0 to bitsof(size_t) - 1
+ * @param ptr Segment that is bit is in
+ * @param mask Mask needed to reference specific bit
+**/
 typedef struct alu_bit {
-	size_t s, b, p, *S, B;
+	size_t seg, bit, pos, *ptr, mask;
 } alu_bit_t;
 
 void alu_print_bit( char *pfx, alu_bit_t pos, bool getbit );
@@ -164,7 +171,7 @@ typedef alu_vec_t alu_t;
 		(alu_reg).info = inf; \
 		(alu_reg).mant = 0; \
 		(alu_reg).from = 0; \
-		(alu_reg).upto = alu_size_perN( alu ) * CHAR_BIT; \
+		(alu_reg).upto = alu_bits_perN( alu ); \
 	} \
 	while (0)
 
@@ -176,6 +183,25 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 	( SET1IF( CMP, ONTRUE ) | SET1IF( !(CMP), ONFALSE ) )
 
 #define TRUEIF( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
+
+#define alu_man_dig( bits ) \
+	SET2IF \
+	( \
+		(bits) < 6 \
+		, 3, SET2IF \
+		( \
+			(bits) < bitsof(float) \
+			, (bits) / 2, SET2IF \
+			( \
+				(bits) < bitsof(double) \
+				, FLT_MANT_DIG, SET2IF \
+				( \
+					(bits) < bitsof(long double) \
+					, DBL_MANT_DIG, LDBL_MANT_DIG \
+				) \
+			) \
+		) \
+	)
 
 #define alu_size_perN( alu ) ((alu)->perN)
 #define alu_bits_perN( alu ) (alu_size_perN(alu) * CHAR_BIT)
@@ -384,7 +410,7 @@ int_t alu_reg_mov( alu_t *alu, alu_reg_t dst, alu_reg_t src );
 int_t alu_mov( alu_t *alu, uint_t num, uint_t val );
 int_t alu_reg_set( alu_t *alu, alu_reg_t num, bool fillwith );
 int_t alu_set( alu_t *alu, uint_t num, bool fillwith );
-#define alu_reg_set_nil( alu, num ) alu_reg_set( alu, num, 0 )
+#define alu_reg_clr( alu, num ) alu_reg_set( alu, num, 0 )
 #define alu_reg_set_max( alu, num ) alu_reg_set( alu, num, 1 )
 #define alu_set_nil( alu, num ) alu_set( alu, num, 0 )
 #define alu_set_max( alu, num ) alu_set( alu, num, 1 )
@@ -393,8 +419,8 @@ int_t alu_reg_set_raw
 	alu_t *alu
 	, alu_reg_t num
 	, void *raw
-	, uint_t info
 	, size_t size
+	, uint_t info
 );
 
 int_t alu_reg_get_raw
@@ -586,6 +612,9 @@ int_t alu___shift
 #define alu_divide( alu, num, val, reg ) \
 	alu__op3( alu, num, val, reg, alu_reg_divide )
 
+int_t alu_uint_set_raw( alu_t *alu, alu_uint_t num, uintmax_t val );
+int_t alu_uint_get_raw( alu_t *alu, alu_uint_t num, uintmax_t *val );
+
 int_t alu__uint_op1
 (
 	alu_t *alu
@@ -669,6 +698,9 @@ int_t alu__uint__shift
 	alu__uint_op2( alu, num, val, alu_reg_rem )
 #define alu_uint_divide( alu, num, val, reg ) \
 	alu__uint_op3( alu, num, val, reg, alu_reg_divide )
+
+int_t alu_int_set_raw( alu_t *alu, alu_int_t num, intmax_t val );
+int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val );
 
 int_t alu__int_op1
 (
