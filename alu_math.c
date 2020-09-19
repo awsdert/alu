@@ -218,11 +218,7 @@ int_t alu_reg_set_raw
 
 		part = alu_reg_data( alu, tmp );
 		memcpy( part, raw, size );
-		alu_printf( "tmp = %u", tmp.node );
-		alu_printf( "*raw = %016jX", *((uintmax_t*)raw) );
-		alu_printf( "*part = %016jX", *((uintmax_t*)part) );
 		
-		alu_print_reg( "tmp", alu, tmp, 0, 1 );
 		ret = alu_reg_mov( alu, num, tmp );
 		
 		alu_rem_reg_node( alu, &_tmp );
@@ -338,13 +334,6 @@ int_t alu_reg_cmp(
 	
 	nNeg = alu_reg_signed( num ) & (n.bit == num.upto - 1);
 	vNeg = alu_reg_signed( val ) & (v.bit == val.upto - 1);
-	
-#if 0
-	alu_print_reg( "num", alu, num, 1, 1 );
-	alu_print_reg( "val", alu, val, 1, 1 );
-	alu_print_bit( "n", n, 1 );
-	alu_print_bit( "v", v, 1 );
-#endif
 	
 	if ( nNeg != vNeg )
 	{
@@ -777,21 +766,14 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 			return 0;
 		}
 		
-		alu_printf( "neg = %c, by = %zu", '0' + neg, by );
-		
 		num.node %= alu_used( alu );
 		tmp.node %= alu_used( alu );
 		tmp.from = num.from;
 		tmp.upto = num.upto;
 		
-		alu_print_reg( "num", alu, num, 0, true );
-		
 		/* We have the register so might as well */
 		alu_reg_mov( alu, tmp, num );
 		alu_reg_clr( alu, num );
-		
-		alu_print_reg( "tmp", alu, tmp, 0, true );
-		alu_print_reg( "num", alu, num, 0, true );
 		
 		part = alu_reg_data( alu, num );
 		n = alu_bit_set_bit( part, num.upto );
