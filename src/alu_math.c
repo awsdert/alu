@@ -1311,7 +1311,7 @@ int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val )
 		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
 	)
 	{
-		*(n.ptr) |= (*(v.ptr) & v.mask) ? n.mask : SIZE_T_C(0);
+		*(n.ptr) |= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
 	}
 	
 	return 0;
@@ -1339,7 +1339,7 @@ int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val )
 		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
 	)
 	{
-		*(n.ptr) ^= (*(v.ptr) & v.mask) ? n.mask : SIZE_T_C(0);
+		*(n.ptr) ^= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
 	}
 	
 	return 0;

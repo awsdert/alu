@@ -31,7 +31,7 @@ PRJ_APP_OBJ_FILES:=$(PRJ_CHK_OBJ_FILES) $(PRJ_BIN_OBJ_FILES)
 PRJ_LIB_OBJ_FILES:=$(filter-out $(PRJ_APP_OBJ_FILES),$(PRJ_OBJ_FILES))
 
 PRJ_DST_CHK:=$(PRJ_BIN_DIR)/check_alu$(PRJ_SFX)$(DST_BIN_SFX)
-PRJ_DST_BIN:=$(PRJ_BIN_DIR)/alu$(PRJ_SFX)$(DST_BIN_SFX)
+PRJ_DST_BIN:=$(PRJ_BIN_DIR)/test_alu$(PRJ_SFX)$(DST_BIN_SFX)
 PRJ_DST_LIB:=$(PRJ_LIB_DIR)/$(DST_LIB_PFX)alu$(PRJ_SFX)$(DST_LIB_SFX)
 PRJ_DST_OBJ:=$(PRJ_OBJ_FILES:%=%$(PRJ_SFX)$(DST_OBJ_SFX))
 PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
@@ -47,6 +47,8 @@ COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG)
 COMPILE_OBJ=$(CC) $(SRC_FLAGS) $1 $(COP)o $2 -c $3
 
 $(info PRJ_SRC_FILES = '$(PRJ_SRC_FILES)')
+$(info PRJ_BIN_OBJ_FILES = '$(PRJ_BIN_OBJ_FILES)')
+$(info PRJ_LIB_OBJ_FILES = '$(PRJ_LIB_OBJ_FILES)')
 
 $(call mkdir,$(PRJ_EXT_DIR))
 $(call github_clone,$(UNIC_DIR),$(PRJ_EXT_DIR),awsdert/unic)
@@ -83,7 +85,10 @@ rebuildall: clean all
 rebuild: clean build
 
 clean:
-	rm -f *.AppImage *.exe *.so *.dll *.o *.obj
+	rm -f $(PRJ_BIN_DIR)/*.AppImage $(PRJ_BIN_DIR)/*.exe
+	rm -f $(PRJ_LIB_DIR)/*.so $(PRJ_LIB_DIR)/*.dll
+	rm -f $(PRJ_SRC_DIR)/*.o $(PRJ_SRC_DIR)/*.obj
+	rm -f $(PRJ_CHK_DIR)/*.o $(PRJ_CHK_DIR)/*.obj
 
 run: $(PRJ_TARGETS)
 	$(DBG_APP) $(PFL_APP) ./$(PRJ_DST_BIN)
@@ -99,34 +104,34 @@ build: $(PRJ_TARGETS)
 
 objects: $(PRJ_DST_OBJ)
 
-$(PRJ_BIN_DIR)/%$(PRJ_SFX).AppImage: libalu$(PRJ_SFX).so $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).o)
+%.AppImage: libalu$(PRJ_SFX).so %.o
 	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).o))
 
-$(PRJ_BIN_DIR)/%$(PRJ_SFX).16.exe: alu$(PRJ_SFX).16.dll $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).16.obj)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).16.obj))
+%.exe: alu$(PRJ_SFX).dll %.obj
+	$(call COMPILE_EXE,,$@,$%.obj))
 
-$(PRJ_BIN_DIR)/%$(PRJ_SFX).32.exe: alu$(PRJ_SFX).32.dll $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).32.obj)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).32.obj))
+%.32.exe: alu$(PRJ_SFX).32.dll %.32.obj
+	$(call COMPILE_EXE,,$@,$%.32.obj))
 
-$(PRJ_BIN_DIR)/%$(PRJ_SFX).64.exe: alu$(PRJ_SFX).64.dll $(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).64.obj)
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).64.obj))
+%.64.exe: alu$(PRJ_SFX).64.dll %.64.obj
+	$(call COMPILE_EXE,,$@,$%.64.obj))
 	
-$(PRJ_LIB_DIR)/lib%$(PRJ_SFX).so: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).o)
+lib%.so: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).o)
 	$(call COMPILE_DLL,,$@,$^)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).16.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).16.obj)
+%.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).obj)
 	$(call COMPILE_DLL,,$@,$^)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).32.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).32.obj)
+%.32.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).32.obj)
 	$(call COMPILE_DLL,,$@,$^)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).64.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).64.obj)
+%.64.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).64.obj)
 	$(call COMPILE_DLL,,$@,$^)
 
 %$(PRJ_SFX).o: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-%$(PRJ_SFX).16.obj: %.c
+%$(PRJ_SFX).obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
 %$(PRJ_SFX).32.obj: %.c

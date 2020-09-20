@@ -238,83 +238,92 @@ size_t rng( size_t n )
 
 void print_limits()
 {
-	alu_printf( "CHAR_BIT = %u", CHAR_BIT );
-	alu_printf("CHAR_SIGNED = %i", CHAR_SIGNED);
-	alu_printf("CHAR_UNSIGNED = %i", CHAR_UNSIGNED);
+	alu_printf( "UNIC_CHAR_BIT = %u", UNIC_CHAR_BIT );
+	alu_printf("UNIC_CHAR_SIGNED = %i", UNIC_CHAR_SIGNED);
+	alu_printf("UNIC_CHAR_UNSIGNED = %i", UNIC_CHAR_UNSIGNED);
 #if (char)-1 < 0
 	alu_printf("(char)-1 < 0 = %i", 1);
 #else
 	alu_printf("(char)-1 < 0 = %i", 0);
 #endif
 	alu_puts( "===========================================" );
-	alu_printf( "UMAX_FOR_1BYTE = %llX", (ullong_t)UMAX_FOR_1BYTE );
-	alu_printf( "UMAX_FOR_2BYTE = %llX", (ullong_t)UMAX_FOR_2BYTE );
-	alu_printf( "UMAX_FOR_4BYTE = %llX", (ullong_t)UMAX_FOR_4BYTE );
-	alu_printf( "UMAX_FOR_8BYTE = %llX", (ullong_t)UMAX_FOR_8BYTE );
+#define _print( BYTES, SFX ) \
+	alu_printf \
+	( \
+		"UNIC_" #BYTES "_" #SFX " = %llX" \
+		, (ullong_t)UNIC_##BYTES##BYTE_##SFX \
+	);
+#define print( BYTES ) \
+	_print( BYTES, UMAX ); _print( BYTES, MAX ); _print( BYTES, MIN )
+	print( 1 );
+	print( 2 );
+	print( 4 );
+	print( 8 );
+#undef print
+#undef _print
 	alu_puts( "===========================================" );
-	alu_printf( "MAX_FOR_1BYTE = %llX", (llong_t)MAX_FOR_1BYTE );
-	alu_printf( "MAX_FOR_2BYTE = %llX", (llong_t)MAX_FOR_2BYTE );
-	alu_printf( "MAX_FOR_4BYTE = %llX", (llong_t)MAX_FOR_4BYTE );
-	alu_printf( "MAX_FOR_8BYTE = %llX", (llong_t)MAX_FOR_8BYTE );
-	alu_puts( "===========================================" );
-	alu_printf( "MIN_FOR_1BYTE = %llX", (llong_t)MIN_FOR_1BYTE );
-	alu_printf( "MIN_FOR_2BYTE = %llX", (llong_t)MIN_FOR_2BYTE );
-	alu_printf( "MIN_FOR_4BYTE = %llX", (llong_t)MIN_FOR_4BYTE );
-	alu_printf( "MIN_FOR_8BYTE = %llX", (llong_t)MIN_FOR_8BYTE );
-	alu_puts( "===========================================" );
-	alu_printf( "SIZEOF_CCINT = %i", SIZEOF_CCINT );
-	alu_printf( "SIZEOF_CHAR = %i", SIZEOF_CHAR );
-	alu_printf( "SIZEOF_SHRT = %i", SIZEOF_SHRT );
-	alu_printf( "SIZEOF_INT = %i", SIZEOF_INT );
-	alu_printf( "SIZEOF_LONG = %i", SIZEOF_LONG );
+	alu_printf( "UNIC_SIZEOF_CHAR = %i", UNIC_SIZEOF_CHAR );
+	alu_printf( "UNIC_SIZEOF_SHRT = %i", UNIC_SIZEOF_SHRT );
+	alu_printf( "UNIC_SIZEOF_INT = %i", UNIC_SIZEOF_INT );
+	alu_printf( "UNIC_SIZEOF_LONG = %i", UNIC_SIZEOF_LONG );
 #ifdef LLONG_MAX
-	alu_printf( "SIZEOF_LLONG = %i", SIZEOF_LLONG );
+	alu_printf( "UNIC_SIZEOF_LLONG = %i", UNIC_SIZEOF_LLONG );
 #endif
-	alu_printf( "SIZEOF_SIZE_T = %i, Actual = %" PRI_SIZE_T "u",
-		SIZEOF_SIZE_T, sizeof(size_t) );
-	alu_printf( "SIZEOF_PTRDIFF_T = %i, Actual = %zu",
-		SIZEOF_PTRDIFF_T, sizeof(ptrdiff_t) );
-	alu_printf( "SIZEOF_INTPTR_T = %i, Actual = %zu",
-		SIZEOF_INTPTR_T, sizeof(intptr_t) );
-	alu_printf( "SIZEOF_INTMAX_T = %i, Actual = %zu",
-		SIZEOF_INTMAX_T, sizeof(intmax_t) );
+#define print( NAME, TYPE ) \
+	alu_printf \
+	( \
+		"UNIC_SIZEOF_" #NAME " = %i, Actual = %zu" \
+		, UNIC_SIZEOF_##NAME \
+		, sizeof(TYPE) \
+	)
+	print( SIZE, size_t );
+	print( PTRDIFF, ptrdiff_t );
+	print( INTPTR, intptr_t );
+	print( INTMAX, intmax_t );
+#undef print
 	alu_puts( "===========================================" );
-	alu_printf( "CHAR_WIDTH = %u", CHAR_WIDTH );
-	alu_printf( "SHRT_WIDTH = %u", SHRT_WIDTH );
-	alu_printf( "INT_WIDTH = %u", INT_WIDTH );
-	alu_printf( "LONG_WIDTH = %u", LONG_WIDTH );
+#define print( NAME ) alu_printf( "UNIC_" #NAME " = %u", UNIC_##NAME )
+	print( CHAR_WIDTH );
+	print( SHRT_WIDTH );
+	print( INT_WIDTH );
+	print( LONG_WIDTH );
 #ifdef LLONG_MAX
-	alu_printf( "LLONG_WIDTH = %i", LLONG_WIDTH );
+	print( LLONG_WIDTH );
 #endif
-	alu_printf( "INT8_T_WIDTH = %u", INT8_T_WIDTH );
-	alu_printf( "INT_FAST8_T_WIDTH = %u", INT_FAST8_T_WIDTH );
-	alu_printf( "INT_LEAST8_T_WIDTH = %u", INT_LEAST8_T_WIDTH );
+	print( INT8_WIDTH );
+	print( INT_FAST8_WIDTH );
+	print( INT_LEAST8_WIDTH );
+#undef print
 	alu_puts( "===========================================" );
-	alu_printf( "UCHAR_MAX = %X", UCHAR_MAX );
-	alu_printf( "USHRT_MAX = %X", USHRT_MAX );
-	alu_printf( "UINT_MAX = %X", UINT_MAX );
-	alu_printf( "ULONG_MAX = %lX", ULONG_MAX );
+#define print( NAME ) \
+	alu_printf( "UNIC_" #NAME " = %016llX", (ullong_t)UNIC_##NAME )
+	print( UCHAR_MAX );
+	print( USHRT_MAX );
+	print( UINT_MAX );
+	print( ULONG_MAX );
 #ifdef LLONG_MAX
-	alu_printf( "ULLONG_MAX = %llX", ULLONG_MAX );
+	print( ULLONG_MAX );
 #endif
+#undef print
 	alu_puts( "===========================================" );
-	alu_printf( "CHAR_MAX = %X", CHAR_MAX );
-	alu_printf( "SCHAR_MAX = %X", SCHAR_MAX );
-	alu_printf( "SHRT_MAX = %X", SHRT_MAX );
-	alu_printf( "INT_MAX = %X", INT_MAX );
-	alu_printf( "LONG_MAX = %lX", LONG_MAX );
+#define print( NAME ) \
+	alu_printf( "UNIC_" #NAME " = %016llX", (llong_t)UNIC_##NAME )
+	print( SCHAR_MAX );
+	print( SHRT_MAX );
+	print( INT_MAX );
+	print( LONG_MAX );
 #ifdef LLONG_MAX
-	alu_printf( "LLONG_MAX = %llX", LLONG_MAX );
+	print( LLONG_MAX );
 #endif
 	alu_puts( "===========================================" );
-	alu_printf( "CHAR_MIN = %X", CHAR_MIN );
-	alu_printf( "SCHAR_MIN = %X", SCHAR_MIN );
-	alu_printf( "SHRT_MIN = %X", SHRT_MIN );
-	alu_printf( "INT_MIN = %X", INT_MIN );
-	alu_printf( "LONG_MIN = %lX", LONG_MIN );
+	print( SCHAR_MIN );
+	print( SHRT_MIN );
+	print( INT_MIN );
+	print( LONG_MIN );
 #ifdef LLONG_MIN
-	alu_printf( "LLONG_MIN = %llX", LLONG_MIN );
+	print( LLONG_MIN );
 #endif
+#undef print
 	alu_puts( "===========================================" );
 }
 
