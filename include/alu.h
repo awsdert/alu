@@ -1,7 +1,7 @@
 #ifndef INC_ALU_H
 # define INC_ALU_H
 
-#include <fbstdint.h>
+#include <unic/stdint.h>
 #include <errno.h>
 #include <uchar.h>
 #include <float.h>

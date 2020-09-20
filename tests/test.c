@@ -1,4 +1,4 @@
-#include "alu.h"
+#include <alu.h>
 #include <string.h>
 #include <time.h>
 #include <stdio.h>

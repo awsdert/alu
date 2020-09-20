@@ -1,12 +1,5 @@
 TOP_DIR:=../
-include $(TOP_DIR)mak/func.mak
-include $(TOP_DIR)mak/dst_sys.mak
-include $(TOP_DIR)mak/dst_cc.mak
-
-PRJ:=ALU
-PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)
-ALL_GOALS:=info objects build run debug gede clean rebuild rebuildall profile
-
+PRJ_MAK_DIR:=$(TOP_DIR)mak
 PRJ_CHK_DIR:=$(TOP_DIR)tests
 PRJ_SRC_DIR:=$(TOP_DIR)src
 PRJ_INC_DIR:=$(TOP_DIR)include
@@ -14,18 +7,26 @@ PRJ_LIB_DIR:=$(TOP_DIR)lib
 PRJ_BIN_DIR:=$(TOP_DIR)bin
 PRJ_EXT_DIR:=$(TOP_DIR)cloned
 
+include $(PRJ_MAK_DIR)/func.mak
+include $(PRJ_MAK_DIR)/dst_sys.mak
+include $(PRJ_MAK_DIR)/dst_cc.mak
+
+PRJ:=ALU
+PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)
+ALL_GOALS:=info objects build run debug gede clean rebuild rebuildall profile
+
 UNIC_DIR:=$(PRJ_EXT_DIR)/unic
 UNIC_INC_DIR:=$(UNIC_DIR)/include
 
 RPATH_FLAG=-Wl,-rpath=$(PRJ_LIB_DIR)
 
-PRJ_CHK_FILES:=$(wildcard $(PRJ_CHK_DIR)*.c)
-PRJ_SRC_FILES:=$(PRJ_CHK_FILES) $(wildcard $(PRJ_SRC_DIR)*.c)
-PRJ_INC_FILES:=$(wildcard $(PRJ_INC_DIR)*.h)
+PRJ_CHK_FILES:=$(wildcard $(PRJ_CHK_DIR)/*.c)
+PRJ_SRC_FILES:=$(PRJ_CHK_FILES) $(wildcard $(PRJ_SRC_DIR)/*.c)
+PRJ_INC_FILES:=$(wildcard $(PRJ_INC_DIR)/*.h)
 PRJ_OBJ_FILES:=$(PRJ_SRC_FILES:%.c=%)
 
-PRJ_CHK_OBJ_FILES:=$(PRJ_CHK_DIR)check_alu
-PRJ_BIN_OBJ_FILES:=$(PRJ_CHK_DIR)test
+PRJ_CHK_OBJ_FILES:=$(PRJ_CHK_DIR)/check_alu
+PRJ_BIN_OBJ_FILES:=$(PRJ_CHK_DIR)/test
 PRJ_APP_OBJ_FILES:=$(PRJ_CHK_OBJ_FILES) $(PRJ_BIN_OBJ_FILES)
 PRJ_LIB_OBJ_FILES:=$(filter-out $(PRJ_APP_OBJ_FILES),$(PRJ_OBJ_FILES))
 
@@ -122,21 +123,21 @@ $(PRJ_LIB_DIR)/%$(PRJ_SFX).32.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).32.obj)
 $(PRJ_LIB_DIR)/%$(PRJ_SFX).64.dll: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).64.obj)
 	$(call COMPILE_DLL,,$@,$^)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).o: %.c
+%$(PRJ_SFX).o: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).16.obj: %.c
+%$(PRJ_SFX).16.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).32.obj: %.c
+%$(PRJ_SFX).32.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 
-$(PRJ_LIB_DIR)/%$(PRJ_SFX).64.obj: %.c
+%$(PRJ_SFX).64.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 	
-$(PRJ_SRC_DIR)/%.c: $(PRJ_INC_FILES)
+%.c: $(PRJ_INC_FILES)
 
-$(TOP_DIR)mak/%.mak.o:
+$(PRJ_MAK_DIR)/%.mak.o:
 	@echo Why '$<'?
 
 .PHONY: all $(ALL_GOALS)
