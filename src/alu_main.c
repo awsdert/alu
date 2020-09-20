@@ -68,7 +68,7 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 		}
 		while ( n.bit > reg.from )
 		{
-			n = alu_bit_dec(n);
+			alu_bit_dec(&n);
 			(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
 		}
 		fputc( '\n', stderr );

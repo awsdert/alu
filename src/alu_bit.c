@@ -7,13 +7,13 @@ struct alu_bit alu_bit_set_bit
 	size_t bit
 )
 {
-	alu_bit_t pos = {0};
-	pos.bit = bit;
-	pos.pos = bit % bitsof(uintmax_t);
-	pos.seg = bit / bitsof(uintmax_t);
-	pos.ptr = init + (pos.seg);
-	pos.mask = UNIC_SIZE_C(1) << pos.pos;
-	return pos;
+	alu_bit_t alu_bit = {0};
+	alu_bit.bit = bit;
+	alu_bit.pos = bit % bitsof(uintmax_t);
+	alu_bit.seg = bit / bitsof(uintmax_t);
+	alu_bit.ptr = init + (alu_bit.seg);
+	alu_bit.mask = UNIC_SIZE_C(1) << alu_bit.pos;
+	return alu_bit;
 }
 
 struct alu_bit alu_bit_set_byte
@@ -22,52 +22,101 @@ struct alu_bit alu_bit_set_byte
 	size_t byte
 )
 {
-	alu_bit_t pos = {0};
-	pos.bit = byte * CHAR_BIT;
-	pos.seg = byte / sizeof(size_t);
-	pos.ptr = init + pos.seg;
-	pos.mask = UNIC_SIZE_C(1);
-	return pos;
+	alu_bit_t alu_bit = {0};
+	alu_bit.bit = byte * CHAR_BIT;
+	alu_bit.seg = byte / sizeof(size_t);
+	alu_bit.ptr = init + alu_bit.seg;
+	alu_bit.mask = UNIC_SIZE_C(1);
+	return alu_bit;
 }
 
-struct alu_bit alu_bit_inc( struct alu_bit pos )
+void alu_bit_inc( alu_bit_t *alu_bit )
 {
-	uintptr_t ptr = (uintptr_t)(pos.ptr);
+	uintptr_t ptr;
 	
-	pos.bit++;
-	pos.mask <<= 1;
-	pos.pos = SET2IF( pos.mask, pos.pos + 1, 0 );
-	pos.seg = SET2IF( pos.mask, pos.seg, pos.seg + 1 );
-	pos.ptr = (size_t*)SET2IF( pos.mask, ptr, ptr + sizeof(size_t) );
-	pos.mask = SET2IF( pos.mask, pos.mask, UNIC_SIZE_C(1) );
-	return pos;
-}
-
-struct alu_bit alu_bit_dec( struct alu_bit pos )
-{
-	uintptr_t ptr = (uintptr_t)(pos.ptr);
+	if ( alu_bit )
+	{
+		ptr = (uintptr_t)(alu_bit->ptr);
 	
-	pos.bit--;
-	pos.mask >>= 1;
-	pos.pos = SET2IF( pos.mask, pos.pos - 1, bitsof(size_t) - 1 );
-	pos.seg = SET2IF( pos.mask, pos.seg, pos.seg - 1 );
-	pos.ptr = (size_t*)SET2IF( pos.mask, ptr, ptr - sizeof(size_t) );
-	pos.mask = SET2IF( pos.mask, pos.mask, UNIC_SIZE_END_BIT );
-	return pos;
+		alu_bit->bit++;
+		alu_bit->mask <<= 1;
+		alu_bit->pos = SET2IF
+		(
+			alu_bit->mask
+			, alu_bit->pos + 1
+			, 0
+		);
+		alu_bit->seg = SET2IF
+		(
+			alu_bit->mask
+			, alu_bit->seg
+			, alu_bit->seg + 1
+		);
+		alu_bit->ptr = (size_t*)SET2IF
+		(
+			alu_bit->mask
+			, ptr
+			, ptr + sizeof(size_t)
+		);
+		alu_bit->mask = SET2IF
+		(
+			alu_bit->mask
+			, alu_bit->mask
+			, UNIC_SIZE_C(1)
+		);
+	}
 }
 
-void alu_print_bit( char *pfx, struct alu_bit pos, bool dereference4value )
+void alu_bit_dec( alu_bit_t *alu_bit )
 {
-	char value = dereference4value ? ('0' + !!(*(pos.ptr) & pos.mask)) : '?';
+	uintptr_t ptr;
+	
+	if ( alu_bit )
+	{
+		ptr = (uintptr_t)(alu_bit->ptr);
+	
+		alu_bit->bit--;
+		alu_bit->mask >>= 1;
+		alu_bit->pos = SET2IF
+		(
+			alu_bit->mask
+			, alu_bit->pos - 1
+			, bitsof(size_t) - 1
+		);
+		alu_bit->seg = SET2IF
+		(
+			alu_bit->mask
+			, alu_bit->seg
+			, alu_bit->seg - 1
+		);
+		alu_bit->ptr = (size_t*)SET2IF
+		(
+			alu_bit->mask
+			, ptr
+			, ptr - sizeof(size_t)
+		);
+		
+		alu_bit->mask = SET2IF
+		(
+			alu_bit->mask
+			, alu_bit->mask
+			, UNIC_SIZE_END_BIT
+		);
+	}
+}
+
+void alu_print_bit( char *pfx, alu_bit_t alu_bit, bool dereference4value )
+{
+	char value = dereference4value ? ('0' + !!(*(alu_bit.ptr) & alu_bit.mask)) : '?';
 	if ( !pfx ) pfx = "?";
 	
 	alu_printf(
 		"%s.s = %zu, %s.b = %zu, %s.p = %zu",
-		pfx, pos.seg, pfx, pos.bit, pfx, pos.pos
+		pfx, alu_bit.seg, pfx, alu_bit.bit, pfx, alu_bit.pos
 	);
 	
 	alu_printf(
 		"Value = %c, %s.S = %p, %s.B = %016zX",
-		value, pfx, (void*)(pos.ptr), pfx, pos.mask
+		value, pfx, (void*)(alu_bit.ptr), pfx, alu_bit.mask
 	);
 }

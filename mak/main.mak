@@ -26,13 +26,16 @@ PRJ_INC_FILES:=$(wildcard $(PRJ_INC_DIR)/*.h)
 PRJ_OBJ_FILES:=$(PRJ_SRC_FILES:%.c=%)
 
 PRJ_CHK_OBJ_FILES:=$(PRJ_CHK_DIR)/check_alu
-PRJ_BIN_OBJ_FILES:=$(PRJ_CHK_DIR)/test
+PRJ_BIN_OBJ_FILES:=$(PRJ_CHK_DIR)/test_alu
 PRJ_APP_OBJ_FILES:=$(PRJ_CHK_OBJ_FILES) $(PRJ_BIN_OBJ_FILES)
 PRJ_LIB_OBJ_FILES:=$(filter-out $(PRJ_APP_OBJ_FILES),$(PRJ_OBJ_FILES))
 
-PRJ_DST_CHK:=$(PRJ_BIN_DIR)/check_alu$(PRJ_SFX)$(DST_BIN_SFX)
-PRJ_DST_BIN:=$(PRJ_BIN_DIR)/test_alu$(PRJ_SFX)$(DST_BIN_SFX)
-PRJ_DST_LIB:=$(PRJ_LIB_DIR)/$(DST_LIB_PFX)alu$(PRJ_SFX)$(DST_LIB_SFX)
+PRJ_LIB_NAME:=alu$(PRJ_SFX)
+$(info PRJ_LIB_NAME=$(PRJ_LIB_NAME))
+
+PRJ_DST_CHK:=check_$(PRJ_LIB_NAME)$(DST_BIN_SFX)
+PRJ_DST_BIN:=test_$(PRJ_LIB_NAME)$(DST_BIN_SFX)
+PRJ_DST_LIB:=$(DST_LIB_PFX)$(PRJ_LIB_NAME)$(DST_LIB_SFX)
 PRJ_DST_OBJ:=$(PRJ_OBJ_FILES:%=%$(PRJ_SFX)$(DST_OBJ_SFX))
 PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 
@@ -40,10 +43,10 @@ ERR_FLAGS:=$(COP)Wall $(COP)Wextra $(F_pedantic)
 INC_FLAGS:=-I $(UNIC_INC_DIR) -I $(PRJ_INC_DIR)
 SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
 LIB_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
-BIN_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L .
+BIN_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
 
-COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG) $(COP)l alu$(PRJ_SFX)
-COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $2 $3 $(RPATH_FLAG)
+COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $(PRJ_BIN_DIR)/$2 $(PRJ_CHK_DIR)/$3 $(RPATH_FLAG) $(COP)l $(PRJ_LIB_NAME)
+COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $(PRJ_LIB_DIR)/$2 $3 $(RPATH_FLAG)
 COMPILE_OBJ=$(CC) $(SRC_FLAGS) $1 $(COP)o $2 -c $3
 
 $(info PRJ_SRC_FILES = '$(PRJ_SRC_FILES)')
@@ -59,6 +62,8 @@ $(info Finished checking)
 
 $(info PRJ_DST_BIN=$(PRJ_DST_BIN))
 $(info PRJ_DST_LIB=$(PRJ_DST_LIB))
+
+VPATH:=$(PRJ_BIN_DIR):$(PRJ_LIB_DIR):$(VPATH)
 
 info: .FORCE
 	@echo CC=$(CC)
@@ -90,31 +95,31 @@ clean:
 	rm -f $(PRJ_SRC_DIR)/*.o $(PRJ_SRC_DIR)/*.obj
 	rm -f $(PRJ_CHK_DIR)/*.o $(PRJ_CHK_DIR)/*.obj
 
-run: $(PRJ_TARGETS)
-	$(DBG_APP) $(PFL_APP) ./$(PRJ_DST_BIN)
+run: build
+	cd $(PRJ_BIN_DIR) && $(DBG_APP) $(PFL_APP) $(PRJ_DST_BIN)
 	
-debug: $(PRJ_TARGETS)
+debug: build
 
-profile: $(PRJ_TARGETS)
+profile: build
 
 gede: debug
-	gede --args ./$(PRJ_DST_BIN)
+	gede --args $(PRJ_DST_BIN)
 
-build: $(PRJ_TARGETS)
+build: $(PRJ_DST_BIN)
 
 objects: $(PRJ_DST_OBJ)
 
-%.AppImage: libalu$(PRJ_SFX).so %.o
-	$(call COMPILE_EXE,,$@,$(PRJ_BIN_OBJ_FILES:%=%$(PRJ_SFX).o))
+%.AppImage: lib$(PRJ_LIB_NAME).so $(PRJ_CHK_DIR)/%.o
+	$(call COMPILE_EXE,,$@,$*.o)
 
-%.exe: alu$(PRJ_SFX).dll %.obj
-	$(call COMPILE_EXE,,$@,$%.obj))
+%.exe: $(PRJ_LIB_NAME).dll $(PRJ_CHK_DIR)/%.obj
+	$(call COMPILE_EXE,,$@,$*.obj)
 
-%.32.exe: alu$(PRJ_SFX).32.dll %.32.obj
-	$(call COMPILE_EXE,,$@,$%.32.obj))
+%.32.exe: $(PRJ_LIB_NAME).32.dll $(PRJ_CHK_DIR)/%.32.obj
+	$(call COMPILE_EXE,,$@,$*.32.obj)
 
-%.64.exe: alu$(PRJ_SFX).64.dll %.64.obj
-	$(call COMPILE_EXE,,$@,$%.64.obj))
+%.64.exe: $(PRJ_LIB_NAME).64.dll $(PRJ_CHK_DIR)/%.64.obj
+	$(call COMPILE_EXE,,$@,$*.64.obj)
 	
 lib%.so: $(PRJ_LIB_OBJ_FILES:%=%$(PRJ_SFX).o)
 	$(call COMPILE_DLL,,$@,$^)

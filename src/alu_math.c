@@ -113,7 +113,7 @@ int_t alu_reg_set( alu_t *alu, alu_reg_t num, bool fillwith )
 	(
 		n = alu_bit_set_bit( part, num.from )
 		; n.bit < num.upto
-		; n = alu_bit_inc(n)
+		; alu_bit_inc(&n)
 	)
 	{
 		/* Set bit to 0 */
@@ -319,12 +319,12 @@ int alu_reg_mov(
 		v = alu_bit_set_bit( V, val.from );
 		e = alu_bit_set_bit( N, num.from + LOWEST( ndiff, vdiff ) );
 		
-		for ( ; n.bit < e.bit; n = alu_bit_inc(n), v = alu_bit_inc(v) )
+		for ( ; n.bit < e.bit; alu_bit_inc(&n), alu_bit_inc(&v) )
 		{
 			*(n.ptr) |= SET1IF( *(v.ptr) & v.mask, n.mask );
 		}
 		
-		for ( ; n.bit < num.upto; n = alu_bit_inc(n) )
+		for ( ; n.bit < num.upto; alu_bit_inc(&n) )
 		{
 			*(n.ptr) |= SET1IF( neg, n.mask );
 		}
@@ -359,7 +359,7 @@ alu_bit_t alu_reg_end_bit( alu_t *alu, alu_reg_t num )
 	
 	while ( b > num.from )
 	{
-		n = alu_bit_dec( n );
+		alu_bit_dec(&n);
 		b = SET1IF( !( *(n.ptr) & n.mask ), n.bit );
 	}
 	
@@ -413,7 +413,7 @@ int_t alu_reg_cmp(
 			return c;
 		
 		vdiff--;
-		v = alu_bit_dec( v );
+		alu_bit_dec(&v);
 	}
 	
 	while ( ndiff > vdiff )
@@ -425,7 +425,7 @@ int_t alu_reg_cmp(
 			return c;
 		
 		ndiff--;
-		n = alu_bit_dec( n );
+		alu_bit_dec(&n);
 	}
 	
 	/* Finally compare what matches bit alignment */
@@ -442,8 +442,8 @@ int_t alu_reg_cmp(
 			break;
 		
 		ndiff--;
-		n = alu_bit_dec( n );
-		v = alu_bit_dec( v );
+		alu_bit_dec(&n);
+		alu_bit_dec(&v);
 	}
 	while ( 1 );
 	
@@ -495,7 +495,7 @@ int_t alu_reg_inc( alu_t *alu, alu_reg_t num )
 	
 	n = alu_bit_set_bit( part, num.from );
 	
-	for ( ; n.bit < num.upto; n = alu_bit_inc( n ) )
+	for ( ; n.bit < num.upto; alu_bit_inc(&n) )
 	{
 		is1 = !!(*(n.ptr) & n.mask);
 		*(n.ptr) &= ~(n.mask);
@@ -519,7 +519,7 @@ int_t alu_reg_dec( alu_t *alu, alu_reg_t num )
 	
 	n = alu_bit_set_bit( part, num.from );
 	
-	for ( ; n.bit < num.upto; n = alu_bit_inc( n ) )
+	for ( ; n.bit < num.upto; alu_bit_inc(&n) )
 	{
 		is1 = !!(*(n.ptr) & n.mask);
 		*(n.ptr) &= ~(n.mask);
@@ -551,7 +551,7 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	for
 	(
 		; n.bit < pos
-		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
+		; alu_bit_inc(&n), alu_bit_inc(&v)
 	)
 	{
 		if ( carry )
@@ -583,7 +583,7 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t num, alu_reg_t val )
 		for
 		(
 			; n.bit < num.upto
-			; n = alu_bit_inc( n )
+			; alu_bit_inc(&n)
 		)
 		{
 			if ( (*(n.ptr) & n.mask) )
@@ -618,7 +618,7 @@ int_t alu_reg_add_raw( alu_t *alu, alu_reg_t num, void *raw, size_t size )
 	for
 	(
 		; n.bit < pos
-		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
+		; alu_bit_inc(&n), alu_bit_inc(&v)
 	)
 	{
 		if ( carry )
@@ -650,7 +650,7 @@ int_t alu_reg_add_raw( alu_t *alu, alu_reg_t num, void *raw, size_t size )
 		for
 		(
 			; n.bit < num.upto
-			; n = alu_bit_inc( n )
+			; alu_bit_inc(&n)
 		)
 		{
 			if ( (*(n.ptr) & n.mask) )
@@ -688,7 +688,7 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	for
 	(
 		; n.bit < pos
-		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
+		; alu_bit_inc(&n), alu_bit_inc(&v)
 	)
 	{
 		if ( carry )
@@ -720,7 +720,7 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t num, alu_reg_t val )
 		for
 		(
 			; n.bit < num.upto
-			; n = alu_bit_inc( n )
+			; alu_bit_inc(&n)
 		)
 		{
 			if ( (*(n.ptr) & n.mask) )
@@ -783,8 +783,8 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 		{	
 			*(n.ptr) |= SET1IF( *(v.ptr) & v.mask, n.mask );
 			
-			n = alu_bit_inc( n );
-			v = alu_bit_inc( v );
+			alu_bit_inc(&n);
+			alu_bit_inc(&v);
 		}
 	}
 	
@@ -839,15 +839,15 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 		while ( by )
 		{
 			--by;
-			n = alu_bit_dec( n );
+			alu_bit_dec(&n);
 			
 			*(n.ptr) |= SET1IF( neg, n.mask );
 		}
 		
 		while ( n.bit > num.from )
 		{
-			n = alu_bit_dec( n );
-			v = alu_bit_dec( v );
+			alu_bit_dec(&n);
+			alu_bit_dec(&v);
 			
 			*(n.ptr) |= SET1IF( *(v.ptr) & v.mask, n.mask );
 		}
@@ -928,7 +928,7 @@ int_t alu_reg_mul
 		alu_reg_mov( alu, cpy, num );
 		alu_reg_clr( alu, num );
 		
-		for ( ; v.bit < val.upto; v = alu_bit_inc( v ) )
+		for ( ; v.bit < val.upto; alu_bit_inc(&v) )
 		{
 			if ( *(v.ptr) & v.mask )
 			{	
@@ -1134,8 +1134,8 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	
 	while ( v.bit > tmp.from )
 	{
-		v = alu_bit_dec( v );
-		n = alu_bit_dec( n );
+		alu_bit_dec(&v);
+		alu_bit_dec(&n);
 		
 		*(n.ptr) &= ~(n.mask);
 		*(n.ptr) |= (n.mask * !!(*(v.ptr) & v.mask));
@@ -1144,8 +1144,8 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 	v = alu_bit_set_bit( tmp_part, tmp.upto );
 	while ( n.bit > num.from )
 	{
-		v = alu_bit_dec( v );
-		n = alu_bit_dec( n );
+		alu_bit_dec(&v);
+		alu_bit_dec(&n);
 		
 		*(n.ptr) &= ~(n.mask);
 		*(n.ptr) |= (n.mask * !!(*(v.ptr) & v.mask));
@@ -1183,8 +1183,8 @@ int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 			*(n.ptr) &= ~(n.mask);
 			*(n.ptr) |= SET1IF( *(v.ptr) & v.mask, n.mask );
 
-			v = alu_bit_inc( v );
-			n = alu_bit_inc( n );
+			alu_bit_inc(&v);
+			alu_bit_inc(&n);
 		}
 		
 		v = alu_bit_set_bit( tmp_part, tmp.from );
@@ -1193,8 +1193,8 @@ int_t alu_reg__ror( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by )
 			*(n.ptr) &= ~(n.mask);
 			*(n.ptr) |= SET1IF( *(v.ptr) & v.mask, n.mask );
 			
-			v = alu_bit_inc( v );
-			n = alu_bit_inc( n );
+			alu_bit_inc(&v);
+			alu_bit_inc(&n);
 		}
 	}
 	
@@ -1271,7 +1271,7 @@ int_t alu_reg_and( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	for
 	(
 		; n.bit < pos
-		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
+		; alu_bit_inc(&n), alu_bit_inc(&v)
 	)
 	{
 		/* TODO: Do branchless version of this */
@@ -1282,7 +1282,7 @@ int_t alu_reg_and( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	while ( n.bit < num.upto )
 	{
 		*(n.ptr) &= ~(n.mask);
-		n = alu_bit_inc(n);
+		alu_bit_inc(&n);
 	}
 	
 	return 0;
@@ -1308,7 +1308,7 @@ int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	for
 	(
 		; n.bit < pos
-		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
+		; alu_bit_inc(&n), alu_bit_inc(&v)
 	)
 	{
 		*(n.ptr) |= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
@@ -1336,7 +1336,7 @@ int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val )
 	for
 	(
 		; n.bit < pos
-		; n = alu_bit_inc( n ), v = alu_bit_inc( v )
+		; alu_bit_inc(&n), alu_bit_inc(&v)
 	)
 	{
 		*(n.ptr) ^= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);

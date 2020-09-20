@@ -1,6 +1,7 @@
 #ifndef INC_ALU_H
 # define INC_ALU_H
 
+#include <unic/limits.h>
 #include <unic/stdint.h>
 #include <errno.h>
 #include <uchar.h>
@@ -93,11 +94,11 @@ alu_bit_t alu_bit_set_byte
 /** @brief increments bit position
  * @param pos object holding various values needed for bit position
  * **/
-alu_bit_t alu_bit_inc( alu_bit_t pos );
+void alu_bit_inc( alu_bit_t *pos );
 /** @brief decrements bit position
  * @param pos object holding various values needed for bit position
  * **/
-alu_bit_t alu_bit_dec( alu_bit_t pos );
+void alu_bit_dec( alu_bit_t *pos );
 
 typedef struct alu_vec
 {
