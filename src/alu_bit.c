@@ -72,13 +72,14 @@ void alu_print_bit( char *pfx, alu_bit_t alu_bit, bool dereference4value )
 	char value = dereference4value ? ('0' + !!(*(alu_bit.ptr) & alu_bit.mask)) : '?';
 	if ( !pfx ) pfx = "?";
 	
-	alu_printf(
-		"%s.s = %zu, %s.b = %zu, %s.p = %zu",
-		pfx, alu_bit.seg, pfx, alu_bit.bit, pfx, alu_bit.pos
-	);
-	
-	alu_printf(
-		"Value = %c, %s.S = %p, %s.B = %016jX",
-		value, pfx, (void*)(alu_bit.ptr), pfx, alu_bit.mask
+	fprintf( stderr,
+		"%s = %c, ptr = %p, mask = %016jX, pos = %zu, seg = %zu, bit = %zu\n"
+		, pfx
+		, value
+		, (void*)(alu_bit.ptr)
+		, alu_bit.mask
+		, alu_bit.pos
+		, alu_bit.seg
+		, alu_bit.bit
 	);
 }

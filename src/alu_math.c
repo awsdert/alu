@@ -147,8 +147,6 @@ int_t alu_reg_get_raw
 	void *part;
 	alu_reg_t TMP;
 	
-	alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": src", alu, src, 0, 1 );
-	
 	if ( raw )
 	{
 		ret = alu_get_reg_node( alu, &tmp, size );
@@ -232,8 +230,8 @@ int alu_reg_mov(
 {
 	int ret;
 	void *D, *S;
-	alu_bit_t d, s, e;
-	size_t ndiff, vdiff;
+	alu_bit_t d, s;
+	size_t ndiff, vdiff, upto;
 	bool neg, NaN = false;
 	alu_reg_t DEXP, DMAN, SEXP, SMAN;
 	
@@ -248,8 +246,7 @@ int alu_reg_mov(
 		S = alu_reg_data( alu, dst );
 		
 		/* Check for +/- */
-		s = alu_reg_end_bit( alu, src );
-		neg = SET1IF( s.bit == (src.upto - 1), 1 );
+		neg = alu_reg_below0( alu, src );
 		
 		if ( alu_reg_floating( src ) )
 		{
@@ -320,12 +317,14 @@ int alu_reg_mov(
 		
 		d = alu_bit_set_bit( D, dst.from );
 		s = alu_bit_set_bit( S, src.from );
-		e = alu_bit_set_bit( D, dst.from + LOWEST( ndiff, vdiff ) );
+		upto = dst.from + LOWEST( ndiff, vdiff );
 		
-		for ( ; d.bit < e.bit; alu_bit_inc(&d), alu_bit_inc(&s) )
+		for ( ; d.bit < upto; alu_bit_inc(&d), alu_bit_inc(&s) )
 		{
+			//alu_print_bit( __FILE__ ":" INT2STR(__LINE__) ": mov() s", s, 1 );
 			*(d.ptr) &= ~(d.mask);
 			*(d.ptr) |= SET1IF( *(s.ptr) & s.mask, s.mask );
+			//alu_print_bit( __FILE__ ":" INT2STR(__LINE__) ": mov() d", d, 1 );
 		}
 		
 		for ( ; d.bit < dst.upto; alu_bit_inc(&d) )
@@ -333,6 +332,8 @@ int alu_reg_mov(
 			*(d.ptr) &= ~(d.mask);
 			*(d.ptr) |= SET1IF( neg, d.mask );
 		}
+		
+		alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": mov() dst", alu, dst, 0, 1 );
 		
 		return 0;
 	}

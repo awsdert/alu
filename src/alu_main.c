@@ -39,9 +39,6 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 	
 	reg.node %= alu_used( alu );
 	part = alu_reg_data( alu, reg );
-	n = alu_bit_set_bit( part, reg.upto );
-
-	reg.upto = alu_bits_perN(alu);
 
 	if ( print_info )
 	{
@@ -60,6 +57,8 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 	
 	if ( print_value )
 	{
+		n = alu_bit_set_bit( part, reg.upto );
+		
 		fprintf( stderr, "%s = ", pfx );
 		if ( n.bit == reg.from )
 		{
