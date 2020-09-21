@@ -136,7 +136,7 @@ int_t alu_set( alu_t *alu, uint_t num, bool fillwith )
 int_t alu_reg_get_raw
 (
 	alu_t *alu
-	, alu_reg_t num
+	, alu_reg_t src
 	, void *raw
 	, size_t size
 	, uint_t info
@@ -147,6 +147,8 @@ int_t alu_reg_get_raw
 	void *part;
 	alu_reg_t TMP;
 	
+	alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": src", alu, src, 0, 1 );
+	
 	if ( raw )
 	{
 		ret = alu_get_reg_node( alu, &tmp, size );
@@ -156,7 +158,7 @@ int_t alu_reg_get_raw
 			alu_reg_init( alu, TMP, tmp, info );
 			TMP.upto = size * CHAR_BIT;
 			
-			alu_reg_mov( alu, TMP, num );
+			alu_reg_mov( alu, TMP, src );
 			
 			part = alu_reg_data( alu, TMP );
 			(void)memcpy( raw, part, size );
@@ -224,109 +226,112 @@ int_t alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info )
 
 int alu_reg_mov(
 	alu_t *alu,
-	alu_reg_t num,
-	alu_reg_t val
+	alu_reg_t dst,
+	alu_reg_t src
 )
 {
 	int ret;
-	void *N, *V;
-	alu_bit_t n = {0}, v, e;
+	void *D, *S;
+	alu_bit_t d, s, e;
 	size_t ndiff, vdiff;
 	bool neg, NaN = false;
-	alu_reg_t NEXP, NMAN, VEXP, VMAN;
+	alu_reg_t DEXP, DMAN, SEXP, SMAN;
 	
-	ret = alu_reg_clr( alu, num );
+	ret = alu_reg_clr( alu, dst );
 	
 	if ( ret == 0 )
 	{
-		num.node %= alu_used( alu );
-		val.node %= alu_used( alu );
+		dst.node %= alu_used( alu );
+		src.node %= alu_used( alu );
 		
-		N = alu_reg_data( alu, num );
-		V = alu_reg_data( alu, num );
+		D = alu_reg_data( alu, dst );
+		S = alu_reg_data( alu, dst );
 		
-		if ( alu_reg_floating( val ) )
+		/* Check for +/- */
+		s = alu_reg_end_bit( alu, src );
+		neg = SET1IF( s.bit == (src.upto - 1), 1 );
+		
+		if ( alu_reg_floating( src ) )
 		{
-			alu_reg_init( alu, VEXP, val.node, 0 );
-			alu_reg_init( alu, VMAN, val.node, 0 );
+			alu_reg_init( alu, SEXP, src.node, 0 );
+			alu_reg_init( alu, SMAN, src.node, 0 );
 			
-			VEXP.upto = val.upto - 1;
-			VEXP.from = val.from + val.mant;
-			VMAN.upto = val.from + val.mant;
-			VMAN.from = val.from;
-			
-			/* Check for +/- */
-			v = alu_reg_end_bit( alu, VEXP );
-			neg = SET1IF( *(v.ptr) & v.mask, 1 );
+			SEXP.upto = src.upto - 1;
+			SEXP.from = src.from + src.mant;
+			SMAN.upto = src.from + src.mant;
+			SMAN.from = src.from;
 			
 			/* Check for NaN */
-			NEXP.upto = VEXP.upto;
-			NEXP.from = VEXP.from;
-			alu_reg_set_max( alu, NEXP );
-			ret = alu_reg_cmp( alu, VEXP, NEXP );
-			alu_reg_clr( alu, NEXP );
+			DEXP.upto = SEXP.upto;
+			DEXP.from = SEXP.from;
+			alu_reg_set_max( alu, DEXP );
+			ret = alu_reg_cmp( alu, SEXP, DEXP );
+			alu_reg_clr( alu, DEXP );
 			
 			if ( ret == 0 )
 			{
-				v = alu_reg_end_bit( alu, VMAN );
+				s = alu_reg_end_bit( alu, SMAN );
 				/* When exponent is max value all 0s indicates +/-infinity,
 				 * anything else indicates NaN */
-				NaN = !!(*(v.ptr) & v.mask);
+				NaN = !!(*(s.ptr) & s.mask);
 			}
 			
-			if ( alu_reg_floating( num ) )
+			if ( alu_reg_floating( dst ) )
 			{
-				alu_reg_init( alu, NEXP, num.node, 0 );
+				alu_reg_init( alu, DEXP, dst.node, 0 );
 				
-				NEXP.upto = num.upto - 1;
-				NEXP.from = num.from + num.mant;
-				NMAN.upto = num.upto - 1;
-				NMAN.from = num.from + num.mant;
-				alu_reg_set_max( alu, NEXP );
+				DEXP.upto = dst.upto - 1;
+				DEXP.from = dst.from + dst.mant;
+				DMAN.upto = dst.upto - 1;
+				DMAN.from = dst.from + dst.mant;
+				alu_reg_set_max( alu, DEXP );
 				
-				ret = alu_reg_cmp( alu, VEXP, NEXP );
+				ret = alu_reg_cmp( alu, SEXP, DEXP );
 				
 				if ( ret >= 0 )
 				{
 					/* Set the sign then Infinity/NaN */
-					n = alu_bit_set_bit( N, NEXP.upto );
+					d = alu_bit_set_bit( D, DEXP.upto );
 					
-					*(n.ptr) |= SET1IF( neg, n.mask );
+					*(d.ptr) |= SET1IF( neg, d.mask );
 					
-					return alu_reg_set( alu, NMAN, NaN );
+					return alu_reg_set( alu, DMAN, NaN );
 				}
 				
 				/* Simplify code and pass on duties to another instance */
-				alu_reg_mov( alu, NEXP, VEXP );
+				alu_reg_mov( alu, DEXP, SEXP );
 				
-				ndiff = NMAN.upto - NMAN.from;
-				vdiff = VMAN.upto - VMAN.from;
+				ndiff = DMAN.upto - DMAN.from;
+				vdiff = SMAN.upto - SMAN.from;
 				
-				NMAN.from = NMAN.upto - LOWEST( ndiff, vdiff );
+				DMAN.from = DMAN.upto - LOWEST( ndiff, vdiff );
 				
-				return alu_reg_mov( alu, NMAN, VMAN );
+				return alu_reg_mov( alu, DMAN, SMAN );
 			}
 			// FIXME: Finish implementing moving alu_fpn_t to alu_int_t/alu_uint_t
 			//if ( alu_reg_cmp( alu, EXP, BIAS ) >= 0 )
 			return ENOSYS;
 		}
 		
-		neg = alu_reg_below0( alu, val );
-		ndiff = num.upto - num.from;
-		vdiff = val.upto - val.from;
+		ndiff = dst.upto - dst.from;
+		vdiff = src.upto - src.from;
 		
-		n = alu_bit_set_bit( N, num.from );
-		v = alu_bit_set_bit( V, val.from );
-		e = alu_bit_set_bit( N, num.from + LOWEST( ndiff, vdiff ) );
+		alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": mov() src", alu, src, 0, 1 );
 		
-		for ( ; n.bit < e.bit; alu_bit_inc(&n), alu_bit_inc(&v) )
+		d = alu_bit_set_bit( D, dst.from );
+		s = alu_bit_set_bit( S, src.from );
+		e = alu_bit_set_bit( D, dst.from + LOWEST( ndiff, vdiff ) );
+		
+		for ( ; d.bit < e.bit; alu_bit_inc(&d), alu_bit_inc(&s) )
 		{
-			*(n.ptr) |= SET1IF( *(v.ptr) & v.mask, n.mask );
+			*(d.ptr) &= ~(d.mask);
+			*(d.ptr) |= SET1IF( *(s.ptr) & s.mask, s.mask );
 		}
 		
-		for ( ; n.bit < num.upto; alu_bit_inc(&n) )
+		for ( ; d.bit < dst.upto; alu_bit_inc(&d) )
 		{
-			*(n.ptr) |= SET1IF( neg, n.mask );
+			*(d.ptr) &= ~(d.mask);
+			*(d.ptr) |= SET1IF( neg, d.mask );
 		}
 		
 		return 0;
@@ -468,7 +473,7 @@ int_t alu_reg_not( alu_t *alu, alu_reg_t num )
 		mask = mask_init = mask_last = ~mask;
 		
 		mask_init <<= n.pos;
-		mask_last <<= (bitsof(size_t) - e.pos) - 1;
+		mask_last <<= (bitsof(uintmax_t) - e.pos) - 1;
 		
 		stop = e.seg - n.seg;
 		

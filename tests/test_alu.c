@@ -101,7 +101,9 @@ int modify(
 	case '~':
 		sprintf( pfx, "~0x%016zX", _num );
 		expect = ~expect;
+		alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": num", alu, num, 0, 1 );
 		alu_reg_not( alu, num );
+		alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": num", alu, num, 0, 1 );
 		break;
 	case '&':
 		sprintf( pfx, "0x%016zX & 0x%016zX", _num, _val );
@@ -197,6 +199,8 @@ int modify(
 			"%s, Expected 0x%016jX, Got 0x%016jX, op = '%c'\n",
 			pfx, expect, _num, op
 		);
+		alu_print_reg( "num", alu, num, 0, 1 );
+		alu_print_reg( "val", alu, val, 0, 1 );
 	}
 	
 	fail:

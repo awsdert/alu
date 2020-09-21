@@ -36,7 +36,7 @@ PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 
 ERR_FLAGS:=$(COP)Wall $(COP)Wextra $(F_pedantic)
 INC_FLAGS:=-I $(UNIC_INC_DIR) -I $(PRJ_INC_DIR)
-SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
+SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS) $(COP)D UNIC_FALLBACK
 LIB_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
 BIN_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
 
@@ -98,7 +98,7 @@ check: build
 	$(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 gede: debug
-	gede --args $(PRJ_DST_BIN)
+	gede --args $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 debug: build
 

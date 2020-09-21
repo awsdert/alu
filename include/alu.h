@@ -16,6 +16,9 @@
 		, THEFILE, THELINE, THEFUNC, __VA_ARGS__ \
 	)
 
+# define _INT2STR(VAL) #VAL
+# define INT2STR(VAL) _INT2STR(VAL)
+
 # define alu_printf( FORMAT, ... ) \
 	alu__printf( FORMAT, __FILE__, __LINE__, __func__, __VA_ARGS__ )
 
@@ -68,7 +71,7 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir );
  * @param mask Mask needed to reference specific bit
 **/
 typedef struct alu_bit {
-	size_t seg, bit, pos, *ptr, mask;
+	uintmax_t seg, bit, pos, *ptr, mask;
 } alu_bit_t;
 
 void alu_print_bit( char *pfx, alu_bit_t pos, bool getbit );
@@ -78,7 +81,7 @@ void alu_print_bit( char *pfx, alu_bit_t pos, bool getbit );
  * **/
 alu_bit_t alu_bit_set_bit
 (
-	size_t *init,
+	uintmax_t *init,
 	size_t bit
 );
 
@@ -87,7 +90,7 @@ alu_bit_t alu_bit_set_bit
  * **/
 alu_bit_t alu_bit_set_byte
 (
-	size_t *init,
+	uintmax_t *init,
 	size_t byte
 );
 
