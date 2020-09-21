@@ -243,7 +243,7 @@ int alu_reg_mov(
 		src.node %= alu_used( alu );
 		
 		D = alu_reg_data( alu, dst );
-		S = alu_reg_data( alu, dst );
+		S = alu_reg_data( alu, src );
 		
 		/* Check for +/- */
 		neg = alu_reg_below0( alu, src );
@@ -313,18 +313,14 @@ int alu_reg_mov(
 		ndiff = dst.upto - dst.from;
 		vdiff = src.upto - src.from;
 		
-		alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": mov() src", alu, src, 0, 1 );
-		
 		d = alu_bit_set_bit( D, dst.from );
 		s = alu_bit_set_bit( S, src.from );
 		upto = dst.from + LOWEST( ndiff, vdiff );
 		
 		for ( ; d.bit < upto; alu_bit_inc(&d), alu_bit_inc(&s) )
 		{
-			//alu_print_bit( __FILE__ ":" INT2STR(__LINE__) ": mov() s", s, 1 );
 			*(d.ptr) &= ~(d.mask);
 			*(d.ptr) |= SET1IF( *(s.ptr) & s.mask, s.mask );
-			//alu_print_bit( __FILE__ ":" INT2STR(__LINE__) ": mov() d", d, 1 );
 		}
 		
 		for ( ; d.bit < dst.upto; alu_bit_inc(&d) )
@@ -332,8 +328,6 @@ int alu_reg_mov(
 			*(d.ptr) &= ~(d.mask);
 			*(d.ptr) |= SET1IF( neg, d.mask );
 		}
-		
-		alu_print_reg( __FILE__ ":" INT2STR(__LINE__) ": mov() dst", alu, dst, 0, 1 );
 		
 		return 0;
 	}
