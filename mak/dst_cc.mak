@@ -13,7 +13,7 @@ COP:=$(call ifin,$(CC),vc,/,-)
 GDB:=$(call ifin,$(CC),vc,cdb,gdb)
 
 F_shared:=$(call ifin,$(CC),vc,,-shared)
-_F_Wl_rpath=-Wl,rpath=$1
+_F_Wl_rpath=-Wl,-rpath,$1
 F_Wl_rpath=$(call ifin,$(CC),vc,,$(call _F_Wl_rpath,$1))
 F_fPIC:=$(call ifin,$(CC),vc,,-fPIC)
 F_fPIE:=$(call ifin,$(CC),vc,,-fPIE)
