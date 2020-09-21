@@ -13,8 +13,9 @@ include $(PRJ_MAK_DIR)/dst_cc.mak
 
 PRJ:=ALU
 PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)
-ALL_GOALS:=info objects build run debug gede clean rebuild rebuildall profile
-ALL_GOALS+= bin_dir lib_dir libalu_so libalu_dll libalu_32dll libalu_64dll
+ALL_GOALS=bin_dir build check clean debug gede info lib_dir libalu_32dll
+ALL_GOALS+= libalu_64dll libalu_dll libalu_so objects profile rebuild rebuildall
+ALL_GOALS+= run test
 
 UNIC_DIR:=$(PRJ_EXT_DIR)/unic
 UNIC_INC_DIR:=$(UNIC_DIR)/include
@@ -39,8 +40,8 @@ SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
 LIB_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
 BIN_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
 
-COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $(PRJ_BIN_DIR)/$2 $(PRJ_CHK_DIR)/$3 $(RPATH_FLAG) $(COP)l $(PRJ_LIB_NAME)
-COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $(PRJ_LIB_DIR)/$2 $3 $(RPATH_FLAG)
+COMPILE_EXE=$(CC) $(BIN_FLAGS) $1 $(COP)o $(PRJ_BIN_DIR)/$2 $(PRJ_CHK_DIR)/$3 $(COP)l $(PRJ_LIB_NAME)
+COMPILE_DLL=$(CC) $(LIB_FLAGS) $1 $(COP)o $(PRJ_LIB_DIR)/$2 $3
 COMPILE_OBJ=$(CC) $(SRC_FLAGS) $1 $(COP)o $2 -c $3
 
 LIBALU_SO_OBJECTS:=$(PRJ_SRC_FILES:%.c=%$(PRJ_SFX).o)
@@ -91,10 +92,10 @@ clean:
 run: $(PRJ_BIN_NAME)
 	
 test: build
-	cd $(PRJ_BIN_DIR) && $(DBG_APP) $(PFL_APP) $(PRJ_DST_BIN)
+	$(DBG_APP) $(PFL_APP) $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 
 check: build
-	cd $(PRJ_BIN_DIR) && $(PRJ_DST_BIN)
+	$(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 gede: debug
 	gede --args $(PRJ_DST_BIN)
