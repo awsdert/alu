@@ -2,13 +2,15 @@
 #include <alu.h>
 #include <stdlib.h>
 
-#define REG_COUNT 4
+#define REG_COUNT 3
 
 START_TEST( test_alu_create )
 {
 	int ret;
 	alu_t _alu = {0}, *alu = &_alu;
-	uint_t want = 32, nodes[REG_COUNT] = {0};
+	alu_uint_t num, val, tmp;
+	void *data;
+	uint_t i, want = 32, nodes[REG_COUNT] = {0};
 	
 	puts( "Initialising ALU" );
 	ret = alu_setup_reg( alu, want, 0, 0 );
@@ -28,10 +30,29 @@ START_TEST( test_alu_create )
 	puts( "Getting registers" );
 	ret = alu_get_reg_nodes( alu, nodes, REG_COUNT, 0 );
 	
-	for ( want = 0; want < REG_COUNT; ++want )
+	for ( i = 0; i < REG_COUNT; ++i )
 	{
-		ck_assert( nodes[want] != 0 );
+		ck_assert( nodes[i] != 0 );
 	}
+	
+	num = nodes[0];
+	
+	alu_uint_set_raw( alu, num, want );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	val = nodes[1];
+	
+	alu_uint_set_raw( alu, val, i );
+	data = alu_data( alu, val );
+	ck_assert( memcmp( data, &i, sizeof(uint_t) ) == 0 );
+	
+	tmp = nodes[2];
+	
+	want <<= i;
+	alu_uint_shl( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
 	
 	alu_vec_release( alu, alu_size_perN(alu) );
 }

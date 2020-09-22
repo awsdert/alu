@@ -675,13 +675,13 @@ int_t alu__uint__shift
 	alu__uint_op2( alu, num, val, alu_reg_and )
 
 #define alu_uint_shl( alu, num, val ) \
-	alu__uint_shift( alu, num, val, true, alu_reg__shift )
+	alu__uint_shift( alu, num, val, alu_reg__shl, alu_reg__shift )
 #define alu_uint_shr( alu, num, val ) \
-	alu__uint_shift( alu, num, val, false, alu_reg__shift )
+	alu__uint_shift( alu, num, val, alu_reg__shr, alu_reg__shift )
 #define alu_uint_rol( alu, num, val ) \
-	alu__uint_shift( alu, num, val, true, alu_reg__rotate )
+	alu__uint_shift( alu, num, val, alu_reg__rol, alu_reg__rotate )
 #define alu_uint_ror( alu, num, val ) \
-	alu__uint_shift( alu, num, val, false, alu_reg__rotate )
+	alu__uint_shift( alu, num, val, alu_reg__ror, alu_reg__rotate )
 	
 #define alu_uint_neg( alu, num ) \
 	alu__uint_op1( alu, num, alu_reg_neg )
