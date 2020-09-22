@@ -232,7 +232,7 @@ int alu_reg_mov(
 	void *D, *S;
 	alu_bit_t d, s;
 	size_t ndiff, vdiff, upto;
-	bool neg, NaN = false;
+	bool neg, NaN = false, Inf = false;
 	alu_reg_t DEXP, DMAN, SEXP, SMAN;
 	
 	ret = alu_reg_clr( alu, dst );
@@ -258,20 +258,11 @@ int alu_reg_mov(
 			SMAN.upto = src.from + src.mant;
 			SMAN.from = src.from;
 			
-			/* Check for NaN */
+			/* Check if should set NaN or Infinity */
 			DEXP.upto = SEXP.upto;
 			DEXP.from = SEXP.from;
 			alu_reg_set_max( alu, DEXP );
-			ret = alu_reg_cmp( alu, SEXP, DEXP );
-			alu_reg_clr( alu, DEXP );
-			
-			if ( ret == 0 )
-			{
-				s = alu_reg_end_bit( alu, SMAN );
-				/* When exponent is max value all 0s indicates +/-infinity,
-				 * anything else indicates NaN */
-				NaN = !!(*(s.ptr) & s.mask);
-			}
+			Inf = (alu_reg_cmp( alu, SEXP, DEXP ) == 0);
 			
 			if ( alu_reg_floating( dst ) )
 			{
@@ -279,34 +270,64 @@ int alu_reg_mov(
 				
 				DEXP.upto = dst.upto - 1;
 				DEXP.from = dst.from + dst.mant;
-				DMAN.upto = dst.upto - 1;
-				DMAN.from = dst.from + dst.mant;
-				alu_reg_set_max( alu, DEXP );
+				DMAN.upto = dst.from + dst.mant;
+				DMAN.from = dst.from;
 				
-				ret = alu_reg_cmp( alu, SEXP, DEXP );
+				/* Set +/- */
+				d = alu_bit_set_bit( D, DEXP.upto );
+				*(d.ptr) &= ~(d.mask);
+				*(d.ptr) |= (neg * d.mask);
 				
-				if ( ret >= 0 )
-				{
-					/* Set the sign then Infinity/NaN */
-					d = alu_bit_set_bit( D, DEXP.upto );
-					
-					*(d.ptr) |= SET1IF( neg, d.mask );
-					
-					return alu_reg_set( alu, DMAN, NaN );
-				}
-				
-				/* Simplify code and pass on duties to another instance */
+				/* Simplify code and pass on duties to another instance, added
+				 * bonus of setting Infinity if >= Exponent limit */
 				alu_reg_mov( alu, DEXP, SEXP );
 				
 				ndiff = DMAN.upto - DMAN.from;
 				vdiff = SMAN.upto - SMAN.from;
 				
-				DMAN.from = DMAN.upto - LOWEST( ndiff, vdiff );
+				/* Make sure we copy the upper bits of the src mantissa */
+				SMAN.from = SMAN.upto - LOWEST( ndiff, vdiff );
 				
-				return alu_reg_mov( alu, DMAN, SMAN );
+				/* Whether it is NaN or a fittable number copying the mantissa
+				 * is fine as long as we make sure it was not Infinity to begin
+				 * with */
+				return Inf
+					? alu_reg_clr( alu, DMAN )
+					: alu_reg_mov( alu, DMAN, SMAN );
 			}
+			else if ( Inf )
+			{
+				/* Infinity is not something an integer can hold, default to
+				 * max of the integer, if -Infinity the not operation will flip
+				 * to min of the integer */
+				(void)alu_reg_set_max( alu, dst );
+				return neg ? alu_reg_not( alu, dst ) : 0;
+			}
+			
+			/* Mantissa is always bigger than exponent so it is safe to use
+			 * as the temporary copy of number to shift */
+			alu_reg__shr( alu, DEXP, DMAN, 1 );
+			
+			/* Check if exponent is negative - meaning the number is between
+			 * 0 & 1, if it is then just set the integer to 0 */
+			ret = alu_reg_cmp( alu, SEXP, DEXP );
+			
+			if ( ret < 0 )
+				return alu_reg_clr( alu, dst );
+			
+			DEXP.from = dst.from;
+			DEXP.upto = dst.upto;
+			ndiff = dst.upto - dst.from;
+			alu_reg_set_raw( alu, DEXP, &(ndiff), sizeof(size_t), 0 );
+			
+			ret = alu_reg_cmp( alu, DEXP, SEXP );
+			
+			/* Check if number is to big to fit in integer */
+			if ( ret >= 0 )
+				return alu_reg_set_max( alu, dst );
+			
 			// FIXME: Finish implementing moving alu_fpn_t to alu_int_t/alu_uint_t
-			//if ( alu_reg_cmp( alu, EXP, BIAS ) >= 0 )
+			// if ( alu_reg_cmp( alu, EXP, BIAS ) >= 0 )
 			return ENOSYS;
 		}
 		
