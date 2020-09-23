@@ -9,6 +9,7 @@ START_TEST( test_alu_create )
 	int ret;
 	alu_t _alu = {0}, *alu = &_alu;
 	alu_uint_t num, val, tmp;
+	alu_reg_t NUM, VAL, TMP;
 	void *data;
 	uint_t i, want = 32, nodes[REG_COUNT] = {0};
 	
@@ -36,21 +37,97 @@ START_TEST( test_alu_create )
 	}
 	
 	num = nodes[0];
+	alu_reg_init( alu, NUM, num, 0 );
 	
+	ck_assert( NUM.node == num );
+	ck_assert( NUM.upto == alu_bits_perN(alu) );
+	ck_assert( NUM.from == 0 );
+	ck_assert( NUM.mant == 0 );
+	ck_assert( NUM.info == 0 );
+	
+	NUM.upto = bitsof(uint_t);
 	alu_uint_set_raw( alu, num, want );
 	data = alu_data( alu, num );
 	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
 	
 	val = nodes[1];
+	alu_reg_init( alu, VAL, val, 0 );
 	
+	ck_assert( VAL.node == val );
+	ck_assert( VAL.upto == alu_bits_perN(alu) );
+	ck_assert( VAL.from == 0 );
+	ck_assert( VAL.mant == 0 );
+	ck_assert( VAL.info == 0 );
+	
+	VAL.upto = bitsof(uint_t);
 	alu_uint_set_raw( alu, val, i );
 	data = alu_data( alu, val );
 	ck_assert( memcmp( data, &i, sizeof(uint_t) ) == 0 );
 	
 	tmp = nodes[2];
+	alu_reg_init( alu, TMP, tmp, 0 );
+	
+	ck_assert( TMP.node == tmp );
+	ck_assert( TMP.upto == alu_bits_perN(alu) );
+	ck_assert( TMP.from == 0 );
+	ck_assert( TMP.mant == 0 );
+	ck_assert( TMP.info == 0 );
+	
+	TMP.upto = bitsof(uint_t);
+	
+	want ^= i;
+	alu_uint_xor( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want >>= i;
+	alu_uint_shr( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
 	
 	want <<= i;
 	alu_uint_shl( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want |= i;
+	alu_uint__or( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want &= i;
+	alu_uint_and( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want += i;
+	alu_uint_add( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want -= i;
+	alu_uint_sub( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want *= i;
+	alu_uint_mul( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	
+	want /= i;
+	alu_uint_div( alu, num, val );
+	data = alu_data( alu, num );
+	ck_assert_msg
+	(
+		memcmp( data, &want, sizeof(uint_t) ) == 0
+		, "Expected %u, Got %u"
+		, want
+		, *((uint_t*)data)
+	);
+	
+	want %= i;
+	alu_uint_rem( alu, num, val );
 	data = alu_data( alu, num );
 	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
 	
