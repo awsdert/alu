@@ -5,11 +5,11 @@ mkdir=$(info $(if $(wildcard $1),,$(shell mkdir $1)))
 # github_clone( target_dir, common_clone_dir, github_dir )
 github_clone=$(info $(if $(wildcard $1),,$(shell cd $2 && git clone https://github.com/$3)))
 # $(shell merge( target_dir ))
-merge=cd '$1' && git config pull.rebase false && git pull
+merge=cd '$1' && git fetch && git pull
 # $(shell rebase( target_dir ))
-rebase=cd '$1' && git config pull.rebase true && git pull
+rebase=cd '$1' && git pull --rebase
 # $(shell jump( target_dir ))
-jump=cd '$1' && git config pull.ff only && git pull
+jump=cd '$1' && git pull --fast-forward-only
 # $(shell pull( target_dir ))
 pull=cd '$1' && git pull
 # MSWIN_VARS( suffix )
