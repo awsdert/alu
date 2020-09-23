@@ -1057,7 +1057,7 @@ int_t alu_reg_divide
 		
 		ret = 0;
 		if ( seg.from > rem.from )
-			alu_reg__shl( alu, num, tmp, bits + 1 );
+			alu_reg__shl( alu, num, tmp, bits );
 		
 		if ( nNeg != vNeg )
 			alu_reg_neg( alu, num );

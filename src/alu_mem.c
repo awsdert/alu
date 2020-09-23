@@ -76,7 +76,6 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 			
 			for ( size = want; size > mem->taken; block[--size] = 0 );
 			
-			mem->taken = want;
 			return 0;
 		}
 		

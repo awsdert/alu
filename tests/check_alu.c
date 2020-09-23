@@ -4,14 +4,50 @@
 
 #define REG_COUNT 3
 
+int wrChar( char32_t c, void *dst )
+{
+	alu_block_t *ALUSTR = dst;
+	uint_t i = ALUSTR->taken;
+	int ret = alu_block_expand( dst, ++(ALUSTR->taken) );
+	char *alustr;
+	
+	if ( ret != 0 )
+	{
+		--(ALUSTR->taken);
+		return ret;
+	}
+	
+	alustr = ALUSTR->block;
+	alustr[i] = (char)c;
+	return 0;
+}
+void flip( void *dst )
+{
+	alu_block_t *ALUSTR = dst;
+	uint_t i, j;
+	char c, *alustr = ALUSTR->block;
+	
+	for ( i = 0, j = ALUSTR->taken - 1; i < j; ++i, --j )
+	{
+		c = alustr[i];
+		alustr[i] = alustr[j];
+		alustr[j] = c;
+	}
+}
+
 START_TEST( test_alu_create )
 {
-	int ret;
+	int ret, cmp;
 	alu_t _alu = {0}, *alu = &_alu;
 	alu_uint_t num, val, tmp;
 	alu_reg_t NUM, VAL, TMP;
+	alu_block_t ALUSTR = {0};
+	alu_dst_t alu_dst = {0};
+	//alu_src_t alu_src = {0};
+	alu_base_t base = {0};
+	char stdstr[bitsof(uint_t)] = {0}, *alustr;
 	void *data;
-	uint_t i, want = 32, nodes[REG_COUNT] = {0};
+	uint_t i, want = 32, temp, nodes[REG_COUNT] = {0};
 	
 	puts( "Initialising ALU" );
 	ret = alu_setup_reg( alu, want, 0, 0 );
@@ -75,62 +111,112 @@ START_TEST( test_alu_create )
 	
 	TMP.upto = bitsof(uint_t);
 	
-	want ^= i;
+	puts("Attempting comparison");
+	
+	/* alu_reg_cmp() can only return -1,0 or 1 for valid results, anything else
+	 * is an error code from errno.h */
+	cmp = alu_uint_cmp( alu, num, val );
+	ck_assert( cmp == 1 );
+	
+	puts("Attempting bitwise math");
+	
+	temp = want ^ i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_xor( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want >>= i;
+	temp = want >> i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_shr( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want <<= i;
+	temp = want << i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_shl( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want |= i;
+	temp = want | i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint__or( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want &= i;
+	temp = want & i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_and( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want += i;
+	puts("Attempting normal math");
+	
+	temp = want + i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_add( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want -= i;
+	temp = want - i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_sub( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want *= i;
+	temp = want * i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_mul( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	want /= i;
+	temp = want / i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_div( alu, num, val );
 	data = alu_data( alu, num );
 	ck_assert_msg
 	(
-		memcmp( data, &want, sizeof(uint_t) ) == 0
-		, "Expected %u, Got %u"
+		memcmp( data, &temp, sizeof(uint_t) ) == 0
+		, "%u / %u == %u, Got %u"
 		, want
+		, i
+		, temp
 		, *((uint_t*)data)
 	);
 	
-	want %= i;
+	temp = want % i;
+	alu_uint_set_raw( alu, num, want );
 	alu_uint_rem( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
+	puts("Attempting to print to string");
+	
+	alu_dst.dst = &ALUSTR;
+	alu_dst.next = wrChar;
+	alu_dst.flip = flip;
+	
+	base.base = 10;
+	sprintf( stdstr, "%u", want );
+	alu_uint_set_raw( alu, num, want );
+	ret = alu_uint2str( alu, alu_dst, num, base );
+	
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+	}
+	else
+	{
+		alustr = ALUSTR.block;
+		ck_assert_msg
+		(
+			memcmp( stdstr, alustr, strlen(stdstr) ) == 0
+			, "Expected '%s', Got '%s'"
+			, stdstr
+			, alustr
+		);
+	}
+		
 	alu_vec_release( alu, alu_size_perN(alu) );
 }
 END_TEST
