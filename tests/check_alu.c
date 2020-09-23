@@ -11,6 +11,8 @@ int wrChar( char32_t c, void *dst )
 	int ret = alu_block_expand( dst, ++(ALUSTR->taken) );
 	char *alustr;
 	
+	printf( "wrChar('%c',%p)", (char)c, dst );
+	
 	if ( ret != 0 )
 	{
 		--(ALUSTR->taken);
@@ -49,7 +51,7 @@ START_TEST( test_alu_create )
 	void *data;
 	uint_t i, want = 32, temp, nodes[REG_COUNT] = {0};
 	
-	puts( "Initialising ALU" );
+	puts( "Initialising ALU\n" );
 	ret = alu_setup_reg( alu, want, 0, 0 );
 	
 	ck_assert( ret == 0 );
@@ -64,7 +66,7 @@ START_TEST( test_alu_create )
 	ck_assert( alu_valid( alu ) != NULL );
 	ck_assert( alu_size_perN( alu ) >= sizeof(uintmax_t) );
 	
-	puts( "Getting registers" );
+	puts( "Getting registers\n" );
 	ret = alu_get_reg_nodes( alu, nodes, REG_COUNT, 0 );
 	
 	for ( i = 0; i < REG_COUNT; ++i )
@@ -111,14 +113,14 @@ START_TEST( test_alu_create )
 	
 	TMP.upto = bitsof(uint_t);
 	
-	puts("Attempting comparison");
+	puts("Attempting comparison\n");
 	
 	/* alu_reg_cmp() can only return -1,0 or 1 for valid results, anything else
 	 * is an error code from errno.h */
 	cmp = alu_uint_cmp( alu, num, val );
 	ck_assert( cmp == 1 );
 	
-	puts("Attempting bitwise math");
+	puts("Attempting bitwise math\n");
 	
 	temp = want ^ i;
 	alu_uint_set_raw( alu, num, want );
@@ -150,7 +152,7 @@ START_TEST( test_alu_create )
 	data = alu_data( alu, num );
 	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	puts("Attempting normal math");
+	puts("Attempting normal math\n");
 	
 	temp = want + i;
 	alu_uint_set_raw( alu, num, want );
@@ -168,7 +170,15 @@ START_TEST( test_alu_create )
 	alu_uint_set_raw( alu, num, want );
 	alu_uint_mul( alu, num, val );
 	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
+	ck_assert_msg
+	(
+		memcmp( data, &temp, sizeof(uint_t) ) == 0
+		, "%u * %u == %u, Got %u"
+		, want
+		, i
+		, temp
+		, *((uint_t*)data)
+	);
 	
 	temp = want / i;
 	alu_uint_set_raw( alu, num, want );
@@ -190,7 +200,7 @@ START_TEST( test_alu_create )
 	data = alu_data( alu, num );
 	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
 	
-	puts("Attempting to print to string");
+	puts("Attempting to print to string\n");
 	
 	alu_dst.dst = &ALUSTR;
 	alu_dst.next = wrChar;
@@ -227,7 +237,7 @@ Suite * alu_suite(void)
 	Suite *s;
 	TCase *tc_core;
 
-	s = suite_create("Money");
+	s = suite_create("ALU");
 
 	/* Core test case */
 	tc_core = tcase_create("Core");
@@ -244,7 +254,7 @@ int main(void)
 	Suite *s;
 	SRunner *sr;
 	
-	puts( "Running unit tests under 'check' test suite" );
+	puts( "Running unit tests under 'check' test suite\n" );
 
 	s = alu_suite();
 	sr = srunner_create(s);

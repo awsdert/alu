@@ -751,7 +751,7 @@ int_t alu_lit2reg
 				{
 					break;
 				}
-				(void)alu_reg_divide( alu, ONE, BASE, VAL );
+				(void)alu_reg_divide( alu, ONE, BASE, VAL, TMP );
 			}
 		}
 		
@@ -799,7 +799,7 @@ int_t alu_lit2reg
 		if ( alu_reg_is_zero( alu, ONE, &n ) )
 			goto set_nil;
 			
-		(void)alu_reg_divide( alu, dst, ONE, DOT );
+		(void)alu_reg_divide( alu, dst, ONE, DOT, TMP );
 		
 		if ( alu_reg_is_zero( alu, DOT, &n ) )
 			alu_uint_set_raw( alu, ONE.node, _one );
@@ -946,7 +946,7 @@ int_t alu_lit2reg
 
 int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 {
-	alu_reg_t NUM, VAL, TMP;
+	alu_reg_t NUM, VAL, REM, TMP;
 	int ret;
 	size_t digit = 0, _num, _val, failsafe = 0;
 	uint_t nodes[ALU_BASE_COUNT] = {0};
@@ -983,6 +983,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	
 	alu_reg_init( alu, NUM, nodes[ALU_BASE_NUM], 0 );
 	alu_reg_init( alu, VAL, nodes[ALU_BASE_VAL], 0 );
+	alu_reg_init( alu, REM, nodes[ALU_BASE_REM], 0 );
 	alu_reg_init( alu, TMP, nodes[ALU_BASE_TMP], 0 );
 	
 	neg = alu_reg_below0( alu, src );
@@ -992,19 +993,10 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	
 	if ( neg )
 		(void)alu_reg_neg( alu, NUM );
-	
-	switch ( base.base )
-	{
-	case 2: case 8: case 10: case 16: break;
-	default:
-		ret = dst.next( ')', dst.dst );
-		if ( ret != 0 )
-			goto fail;
-	}
 
 	for ( failsafe = NUM.from; failsafe < NUM.upto; ++failsafe )
 	{
-		ret = alu_reg_divide( alu, NUM, VAL, TMP );
+		ret = alu_reg_divide( alu, NUM, VAL, REM, TMP );
 		
 		if ( ret == ENODATA )
 		{
@@ -1041,66 +1033,6 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	
 	if ( ret != 0 )
 		goto fail;
-		
-	if ( base.base != 10 )
-	{
-		if ( base.base == 2 )
-		{
-			ret = dst.next( 'b', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-			
-			ret = dst.next( '0', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-		}
-		else if ( base.base == 8 )
-		{
-			ret = dst.next( 'o', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-			
-			ret = dst.next( '0', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-		}
-		else if ( base.base == 16 )
-		{
-			ret = dst.next( 'x', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-			
-			ret = dst.next( '0', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-		}
-		else
-		{
-			ret = dst.next( '(', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-			
-			while ( base.base > 10 )
-			{
-				ret = dst.next( base_str[base.base%10], dst.dst );
-				if ( ret != 0 )
-					goto fail;
-				base.base /= 10;
-			}
-			
-			ret = dst.next( base_str[base.base], dst.dst );
-			if ( ret != 0 )
-				goto fail;
-			
-			ret = dst.next( '~', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-			
-			ret = dst.next( '0', dst.dst );
-			if ( ret != 0 )
-				goto fail;
-		}
-	}
 	
 	dst.flip( dst.dst );
 	

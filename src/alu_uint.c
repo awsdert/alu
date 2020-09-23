@@ -18,54 +18,6 @@ int_t alu_uint_get_raw( alu_t *alu, alu_uint_t num, uintmax_t *val )
 	return alu_reg_get_raw( alu, NUM, val, sizeof(uintmax_t), 0 );
 }
 
-int_t alu__uint_op1
-(
-	alu_t *alu
-	, alu_uint_t num
-	, func_alu_reg_op1_t op1
-)
-{
-	alu_reg_t _num;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	
-	return op1( alu, _num );
-}
-
-int_t alu__uint_op2
-(
-	alu_t *alu
-	, alu_uint_t num
-	, alu_uint_t val
-	, func_alu_reg_op2_t op2
-)
-{
-	alu_reg_t _num, _val;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	
-	return op2( alu, _num, _val );
-}
-
-int_t alu__uint_op3
-(
-	alu_t *alu
-	, alu_uint_t num
-	, alu_uint_t val
-	, alu_uint_t reg
-	, func_alu_reg_op3_t op3
-)
-{
-	alu_reg_t _num, _val, _reg;
-	
-	alu_reg_init( alu, _num, num, 0 );
-	alu_reg_init( alu, _val, val, 0 );
-	alu_reg_init( alu, _reg, reg, 0 );
-	
-	return op3( alu, _num, _val, _reg );
-}
-
 int_t alu__uint_shift
 (
 	alu_t *alu

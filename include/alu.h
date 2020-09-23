@@ -343,6 +343,7 @@ enum
 {
 	ALU_BASE_NUM = 0,
 	ALU_BASE_VAL,
+	ALU_BASE_REM,
 	ALU_BASE_TMP,
 	ALU_BASE_COUNT
 };
@@ -451,6 +452,7 @@ int_t alu_reg_divide
 	, alu_reg_t num
 	, alu_reg_t val
 	, alu_reg_t rem
+	, alu_reg_t tmp
 );
 
 typedef int_t (*func_alu_reg_op1_t)
@@ -466,12 +468,13 @@ typedef int_t (*func_alu_reg_op2_t)
 	, alu_reg_t val
 );
 
-typedef int_t (*func_alu_reg_op3_t)
+typedef int_t (*func_alu_reg_op4_t)
 (
 	alu_t* alu
 	, alu_reg_t num
 	, alu_reg_t val
 	, alu_reg_t reg
+	, alu_reg_t tmp
 );
 
 typedef int_t (*func_alu_reg__shift_t)
@@ -531,7 +534,8 @@ int_t alu_reg_rem( alu_t *alu, alu_reg_t num, alu_reg_t val );
 int_t alu__op1
 (
 	alu_t *alu
-	, alu_uint_t num
+	, uint_t num
+	, uint_t info
 	, func_alu_reg_op1_t op1
 );
 
@@ -540,6 +544,7 @@ int_t alu__op2
 	alu_t *alu
 	, uint_t num
 	, uint_t val
+	, uint_t info
 	, func_alu_reg_op2_t op2
 );
 
@@ -549,7 +554,9 @@ int_t alu__op3
 	, uint_t num
 	, uint_t val
 	, uint_t reg
-	, func_alu_reg_op3_t op3
+	, uint_t tmp
+	, uint_t info
+	, func_alu_reg_op4_t op4
 );
 
 int_t alu__shift
@@ -620,29 +627,14 @@ int_t alu___shift
 int_t alu_uint_set_raw( alu_t *alu, alu_uint_t num, uintmax_t val );
 int_t alu_uint_get_raw( alu_t *alu, alu_uint_t num, uintmax_t *val );
 
-int_t alu__uint_op1
-(
-	alu_t *alu
-	, alu_uint_t num
-	, func_alu_reg_op1_t op1
-);
+#define alu__uint_op1( alu, num, op1 ) \
+	alu__op1( alu, num, 0, op1 )
 
-int_t alu__uint_op2
-(
-	alu_t *alu
-	, alu_uint_t num
-	, alu_uint_t val
-	, func_alu_reg_op2_t op2
-);
+#define alu__uint_op2( alu, num, val, op2 ) \
+	alu__op2( alu, num, val, 0, op2 )
 
-int_t alu__uint_op3
-(
-	alu_t *alu
-	, alu_uint_t num
-	, alu_uint_t val
-	, alu_uint_t reg
-	, func_alu_reg_op3_t op3
-);
+#define alu__uint_op4( alu, num, val, reg, tmp, op4 ) \
+	alu__op4( alu, num, val, reg, tmp, 0, op4 )
 
 int_t alu__uint_shift
 (
@@ -694,7 +686,7 @@ int_t alu__uint__shift
 	alu__uint_op2( alu, num, val, alu_reg_mul )
 	
 #define alu_uint_dec( alu, num ) \
-	alu__uint_op1( alu, num, alu_reg_inc )
+	alu__uint_op1( alu, num, alu_reg_dec )
 #define alu_uint_sub( alu, num, val ) \
 	alu__uint_op2( alu, num, val, alu_reg_sub )
 #define alu_uint_div( alu, num, val ) \
@@ -707,29 +699,14 @@ int_t alu__uint__shift
 int_t alu_int_set_raw( alu_t *alu, alu_int_t num, intmax_t val );
 int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val );
 
-int_t alu__int_op1
-(
-	alu_t *alu
-	, alu_int_t num
-	, func_alu_reg_op1_t op1
-);
+#define alu__int_op1( alu, num, op1 ) \
+	alu__op1( alu, num, 0, op1 )
 
-int_t alu__int_op2
-(
-	alu_t *alu
-	, alu_int_t num
-	, alu_int_t val
-	, func_alu_reg_op2_t op2
-);
+#define alu__int_op2( alu, num, val, op2 ) \
+	alu__op2( alu, num, val, 0, op2 )
 
-int_t alu__int_op3
-(
-	alu_t *alu
-	, alu_int_t num
-	, alu_int_t val
-	, alu_int_t reg
-	, func_alu_reg_op3_t op3
-);
+#define alu__int_op4( alu, num, val, reg, tmp, op4 ) \
+	alu__op4( alu, num, val, reg, tmp, 0, op4 )
 
 int_t alu__int_shift
 (
@@ -781,7 +758,7 @@ int_t alu___shift
 	alu__int_op2( alu, num, val, alu_reg_mul )
 	
 #define alu_int_dec( alu, num ) \
-	alu__int_op1( alu, num, alu_reg_inc )
+	alu__int_op1( alu, num, alu_reg_dec )
 #define alu_int_sub( alu, num, val ) \
 	alu__int_op2( alu, num, val, alu_reg_sub )
 #define alu_int_div( alu, num, val ) \
