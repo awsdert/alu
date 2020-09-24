@@ -2,8 +2,6 @@
 #include <alu.h>
 #include <stdlib.h>
 
-#define REG_COUNT 3
-
 int wrChar( char32_t c, void *dst )
 {
 	alu_block_t *ALUSTR = dst;
@@ -37,19 +35,231 @@ void flip( void *dst )
 	}
 }
 
+int test_alu_uint_set_raw( size_t line, alu_t* alu, uint_t num, uintmax_t val )
+{
+	int ret;
+	alu_reg_t NUM;
+	void *data;
+	
+	alu_reg_init( alu, NUM, num, 0 );
+	
+	ck_assert( NUM.node == num );
+	ck_assert( NUM.upto == alu_bits_perN(alu) );
+	ck_assert( NUM.from == 0 );
+	ck_assert( NUM.mant == 0 );
+	ck_assert( NUM.info == 0 );
+	
+	NUM.upto = bitsof(uintmax_t);
+	
+	ret = alu_reg_set_raw( alu, NUM, &val, sizeof(uintmax_t), 0 );
+	
+	if ( ret == 0 )
+	{
+		data = alu_data( alu, num );
+		
+		ck_assert_msg
+		(
+			memcmp( data, &val, sizeof(uintmax_t) ) == 0
+			, "Line %zu, Expected %ju, Got %ju"
+			, line
+			, val
+			, *((uintmax_t*)data)
+		);
+		
+		return 0;
+	}
+	
+	alu_error(ret);
+	return ret;
+}
+
+int test__alu_uint_op1
+(
+	size_t line
+	, alu_t* alu
+	, uint_t num
+	, char *op
+	, uintmax_t expect
+	, func_alu_reg_op1_t op1
+)
+{
+	int ret;
+	alu_reg_t NUM;
+	void *data;
+	
+	alu_reg_init( alu, NUM, num, 0 );
+	
+	ck_assert( NUM.node == num );
+	ck_assert( NUM.upto == alu_bits_perN(alu) );
+	ck_assert( NUM.from == 0 );
+	ck_assert( NUM.mant == 0 );
+	ck_assert( NUM.info == 0 );
+	
+	NUM.upto = bitsof(uintmax_t);
+	
+	ret = op1( alu, NUM );
+	
+	if ( ret == 0 )
+	{
+		data = alu_data( alu, num );
+		
+		ck_assert_msg
+		(
+			memcmp( data, &expect, sizeof(uintmax_t) ) == 0
+			, "Line %zu, %s = %ju, Got %ju"
+			, line
+			, op
+			, expect
+			, *((uintmax_t*)data)
+		);
+		
+		return 0;
+	}
+	
+	alu_error(ret);
+	return ret;
+}
+
+#define test_alu_uint_op1( alu, num, val, op, expect, op1 ) \
+	test__alu_uint_op1( __LINE__, alu, num, val, op, (expect), op1 )
+
+int test__alu_uint_op2
+(
+	size_t line
+	, alu_t* alu
+	, uint_t num
+	, uint_t val
+	, char *op
+	, uintmax_t expect
+	, func_alu_reg_op2_t op2
+)
+{
+	int ret;
+	alu_reg_t NUM, VAL;
+	void *data;
+	
+	alu_reg_init( alu, NUM, num, 0 );
+	
+	ck_assert( NUM.node == num );
+	ck_assert( NUM.upto == alu_bits_perN(alu) );
+	ck_assert( NUM.from == 0 );
+	ck_assert( NUM.mant == 0 );
+	ck_assert( NUM.info == 0 );
+	
+	alu_reg_init( alu, VAL, val, 0 );
+	
+	ck_assert( VAL.node == val );
+	ck_assert( VAL.upto == alu_bits_perN(alu) );
+	ck_assert( VAL.from == 0 );
+	ck_assert( VAL.mant == 0 );
+	ck_assert( VAL.info == 0 );
+	
+	NUM.upto = bitsof(uintmax_t);
+	VAL.upto = bitsof(uintmax_t);
+	
+	ret = op2( alu, NUM, VAL );
+	
+	if ( ret == 0 || ret == ENODATA )
+	{
+		data = alu_data( alu, num );
+		
+		ck_assert_msg
+		(
+			memcmp( data, &expect, sizeof(uintmax_t) ) == 0
+			, "Line %zu, %s = %ju, Got %ju"
+			, line
+			, op
+			, expect
+			, *((uintmax_t*)data)
+		);
+		
+		return 0;
+	}
+	
+	alu_error(ret);
+	return ret;
+}
+
+#define test_alu_uint_op2( alu, num, val, op, expect, op2 ) \
+	test__alu_uint_op2( __LINE__, alu, num, val, op, (expect), op2 )
+
+int test__alu_uint_shift
+(
+	size_t line
+	, alu_t* alu
+	, uint_t num
+	, uint_t val
+	, char *op
+	, uintmax_t expect
+	, func_alu_reg__shift_t _shift
+	, func_alu_reg_shift_t shift
+)
+{
+	int ret;
+	alu_reg_t NUM, VAL;
+	void *data;
+	
+	alu_reg_init( alu, NUM, num, 0 );
+	
+	ck_assert( NUM.node == num );
+	ck_assert( NUM.upto == alu_bits_perN(alu) );
+	ck_assert( NUM.from == 0 );
+	ck_assert( NUM.mant == 0 );
+	ck_assert( NUM.info == 0 );
+	
+	alu_reg_init( alu, VAL, val, 0 );
+	
+	ck_assert( VAL.node == val );
+	ck_assert( VAL.upto == alu_bits_perN(alu) );
+	ck_assert( VAL.from == 0 );
+	ck_assert( VAL.mant == 0 );
+	ck_assert( VAL.info == 0 );
+	
+	NUM.upto = bitsof(uintmax_t);
+	VAL.upto = bitsof(uintmax_t);
+	
+	ret = shift( alu, NUM, VAL, _shift );
+	
+	if ( ret == 0 )
+	{
+		data = alu_data( alu, num );
+		
+		ck_assert_msg
+		(
+			memcmp( data, &expect, sizeof(uintmax_t) ) == 0
+			, "Line %zu, %s = %ju, Got %ju"
+			, line
+			, op
+			, expect
+			, *((uintmax_t*)data)
+		);
+		
+		return 0;
+	}
+	
+	alu_error(ret);
+	return ret;
+}
+
+#define test_alu_uint_shift( alu, num, val, op, expect, _shift, shift ) \
+	test__alu_uint_shift( __LINE__, alu, num, val, op, (expect), _shift, shift )
+
+#define REG_COUNT 3
+
 START_TEST( test_alu_create )
 {
-	int ret, cmp;
+	int ret, cmp, expect_cmp;
 	alu_t _alu = {0}, *alu = &_alu;
 	alu_uint_t num, val, tmp;
-	alu_reg_t NUM, VAL, TMP;
+	alu_reg_t TMP;
+	alu_bit_t n;
 	alu_block_t ALUSTR = {0};
 	alu_dst_t alu_dst = {0};
 	//alu_src_t alu_src = {0};
 	alu_base_t base = {0};
-	char stdstr[bitsof(uint_t)] = {0}, *alustr;
-	void *data;
-	uint_t i, want = 32, temp, nodes[REG_COUNT] = {0};
+	char stdstr[bitsof(uint_t) * 2] = {0}, *alustr;
+	uchar_t *data;
+	uint_t i, want = bitsof(uintmax_t), nodes[REG_COUNT] = {0};
 	
 	puts( "Initialising ALU\n" );
 	ret = alu_setup_reg( alu, want, 0, 0 );
@@ -75,32 +285,15 @@ START_TEST( test_alu_create )
 	}
 	
 	num = nodes[0];
-	alu_reg_init( alu, NUM, num, 0 );
 	
-	ck_assert( NUM.node == num );
-	ck_assert( NUM.upto == alu_bits_perN(alu) );
-	ck_assert( NUM.from == 0 );
-	ck_assert( NUM.mant == 0 );
-	ck_assert( NUM.info == 0 );
-	
-	NUM.upto = bitsof(uint_t);
-	alu_uint_set_raw( alu, num, want );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &want, sizeof(uint_t) ) == 0 );
+	test_alu_uint_set_raw( __LINE__, alu, num, want );
 	
 	val = nodes[1];
-	alu_reg_init( alu, VAL, val, 0 );
 	
-	ck_assert( VAL.node == val );
-	ck_assert( VAL.upto == alu_bits_perN(alu) );
-	ck_assert( VAL.from == 0 );
-	ck_assert( VAL.mant == 0 );
-	ck_assert( VAL.info == 0 );
-	
-	VAL.upto = bitsof(uint_t);
-	alu_uint_set_raw( alu, val, i );
-	data = alu_data( alu, val );
-	ck_assert( memcmp( data, &i, sizeof(uint_t) ) == 0 );
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+	}
 	
 	tmp = nodes[2];
 	alu_reg_init( alu, TMP, tmp, 0 );
@@ -112,94 +305,184 @@ START_TEST( test_alu_create )
 	ck_assert( TMP.info == 0 );
 	
 	TMP.upto = bitsof(uint_t);
+	data = alu_data( alu, tmp );
+	n = alu_bit_set_bit( (void*)data, 0 );
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i, alu_bit_inc(&n) )
+	{
+		ck_assert( n.bit == i );
+		ck_assert( n.seg == (i / bitsof(uintmax_t)) );
+		ck_assert( n.pos == (i % bitsof(uintmax_t)) );
+		ck_assert( n.ptr == (void*)(data + (i / bitsof(uintmax_t))) );
+		ck_assert( n.mask == 1uLL << (i % bitsof(uintmax_t)) );
+	}
+	
+	while ( i > 0 )
+	{
+		--i;
+		alu_bit_dec(&n);
+		
+		ck_assert( n.bit == i );
+		ck_assert( n.seg == (i / bitsof(uintmax_t)) );
+		ck_assert( n.pos == (i % bitsof(uintmax_t)) );
+		ck_assert( n.ptr == (void*)(data + (i / bitsof(uintmax_t))) );
+		ck_assert( n.mask == 1uLL << (i % bitsof(uintmax_t)) );
+	}
 	
 	puts("Attempting comparison\n");
 	
 	/* alu_reg_cmp() can only return -1,0 or 1 for valid results, anything else
 	 * is an error code from errno.h */
+	expect_cmp = (want < i) ? -1 : ((want > i) ? 1 : 0);
+	test_alu_uint_set_raw( __LINE__, alu, val, i );	
+	test_alu_uint_set_raw( __LINE__, alu, num, want );
 	cmp = alu_uint_cmp( alu, num, val );
-	ck_assert( cmp == 1 );
-	
-	puts("Attempting bitwise math\n");
-	
-	temp = want ^ i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_xor( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	temp = want >> i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_shr( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	temp = want << i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_shl( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	temp = want | i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint__or( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	temp = want & i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_and( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	puts("Attempting normal math\n");
-	
-	temp = want + i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_add( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	temp = want - i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_sub( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
-	
-	temp = want * i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_mul( alu, num, val );
-	data = alu_data( alu, num );
 	ck_assert_msg
 	(
-		memcmp( data, &temp, sizeof(uint_t) ) == 0
-		, "%u * %u == %u, Got %u"
+		cmp == expect_cmp
+		, "%u vs %u == %i, Got %i"
 		, want
 		, i
-		, temp
-		, *((uint_t*)data)
+		, expect_cmp
+		, cmp
 	);
 	
-	temp = want / i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_div( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert_msg
-	(
-		memcmp( data, &temp, sizeof(uint_t) ) == 0
-		, "%u / %u == %u, Got %u"
-		, want
-		, i
-		, temp
-		, *((uint_t*)data)
-	);
+	puts("Attempting math\n");
 	
-	temp = want % i;
-	alu_uint_set_raw( alu, num, want );
-	alu_uint_rem( alu, num, val );
-	data = alu_data( alu, num );
-	ck_assert( memcmp( data, &temp, sizeof(uint_t) ) == 0 );
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u >> %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_shift
+		(
+			alu
+			, num
+			, val
+			, stdstr
+			, want >> i
+			, alu_reg__shr
+			, alu_reg__shift
+		);
+	}
 	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u << %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+			
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_shift
+		(
+			alu
+			, num
+			, val
+			, stdstr
+			, want << i
+			, alu_reg__shl
+			, alu_reg__shift
+		);
+	}
+		
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u ^ %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2( alu, num, val, stdstr, want ^ i, alu_reg_xor );
+	}
+		
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u | %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2( alu, num, val, stdstr, want | i, alu_reg__or );
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u & %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2( alu, num, val, stdstr, want & i, alu_reg_and );
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u + %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+			
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2( alu, num, val, stdstr, want + i, alu_reg_add );
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u - %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+			
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2( alu, num, val, stdstr, want - i, alu_reg_sub );
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u * %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+			
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2( alu, num, val, stdstr, want * i, alu_reg_mul );
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u / %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+			
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2
+		(
+			alu
+			, num
+			, val
+			, stdstr
+			, i ? want / i : 0
+			, alu_reg_div
+		);
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%u %% %u", want, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, val, i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, num, want );
+		test_alu_uint_op2
+		(
+			alu
+			, num
+			, val
+			, stdstr
+			, i ? want % i : want
+			, alu_reg_rem
+		);
+	}
+		
 	puts("Attempting to print to string\n");
 	
 	alu_dst.dst = &ALUSTR;
@@ -208,7 +491,7 @@ START_TEST( test_alu_create )
 	
 	base.base = 10;
 	sprintf( stdstr, "%u", want );
-	alu_uint_set_raw( alu, num, want );
+	test_alu_uint_set_raw( __LINE__, alu, num, want );
 	ret = alu_uint2str( alu, alu_dst, num, base );
 	
 	if ( ret != 0 )
