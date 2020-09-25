@@ -1155,8 +1155,8 @@ int_t alu_reg_divide
 			}
 		}
 		
-		if ( bits )
-			alu_reg__shl( alu, NUM, TMP, bits + 1 );
+		if ( SEG.from > REM.from )
+			alu_reg__shl( alu, NUM, TMP, (SEG.from - REM.from) );
 		
 		if ( ret != ENODATA && nNeg != vNeg )
 			alu_reg_neg( alu, NUM );
