@@ -499,8 +499,7 @@ int_t alu_reg_not( alu_t *alu, alu_reg_t num )
 		
 		for ( i = 1; i < stop; ++i ) n.ptr[i] = ~(n.ptr[i]);
 		
-		if ( stop )
-			*(e.ptr) ^= SET1IF( stop, mask_last );
+		*(e.ptr) ^= SET1IF( stop, mask_last );
 	
 		return 0;
 	}
