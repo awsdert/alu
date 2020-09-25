@@ -18,21 +18,40 @@ int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val )
 	return alu_reg_get_raw( alu, NUM, val, sizeof(intmax_t) );
 }
 
-int_t alu__int_shift
+int_t alu_int___shift
+(
+	alu_t *alu
+	, alu_int_t num
+	, alu_int_t tmp
+	, size_t bits
+	, func_alu_reg__shift_t _shift
+)
+{
+	alu_reg_t NUM, TMP;
+	
+	alu_reg_init( alu, NUM, num, ALU_INFO__SIGN );
+	alu_reg_init( alu, TMP, tmp, 0 );
+	
+	return _shift( alu, NUM, TMP, bits );
+}
+
+int_t alu_int__shift
 (
 	alu_t *alu
 	, alu_int_t num
 	, alu_int_t val
+	, alu_int_t tmp
 	, func_alu_reg__shift_t _shift
 	, func_alu_reg_shift_t shift
 )
 {
-	alu_reg_t _num, _val;
+	alu_reg_t NUM, VAL, TMP;
 	
-	alu_reg_init( alu, _num, num, ALU_INFO__SIGN );
-	alu_reg_init( alu, _val, val, ALU_INFO__SIGN );
+	alu_reg_init( alu, NUM, num, ALU_INFO__SIGN );
+	alu_reg_init( alu, VAL, val, ALU_INFO__SIGN );
+	alu_reg_init( alu, TMP, tmp, 0 );
 	
-	return shift( alu, _num, _val, _shift );
+	return shift( alu, NUM, VAL, TMP, _shift );
 }
 
 int_t alu_str2int( alu_t *alu, alu_src_t src, alu_int_t dst, alu_base_t base )

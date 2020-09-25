@@ -32,7 +32,7 @@ void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t info )
 	}
 }
 
-void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool print_value )
+void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool print_value, bool print_flags )
 {
 	void *part;
 	alu_bit_t n;
@@ -51,7 +51,10 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 			, reg.from
 			, reg.upto
 		);
-		
+	}
+	
+	if ( print_flags )
+	{
 		alu_print_info( pfx, alu, reg, -1 );
 	}
 	

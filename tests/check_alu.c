@@ -189,6 +189,7 @@ int test__alu_uint_shift
 	, alu_t* alu
 	, uint_t num
 	, uint_t val
+	, uint_t tmp
 	, char *op
 	, uintmax_t expect
 	, func_alu_reg__shift_t _shift
@@ -196,7 +197,7 @@ int test__alu_uint_shift
 )
 {
 	int ret;
-	alu_reg_t NUM, VAL;
+	alu_reg_t NUM, VAL, TMP;
 	void *data;
 	
 	alu_reg_init( alu, NUM, num, 0 );
@@ -215,10 +216,19 @@ int test__alu_uint_shift
 	ck_assert( VAL.mant == 0 );
 	ck_assert( VAL.info == 0 );
 	
+	alu_reg_init( alu, TMP, tmp, 0 );
+	
+	ck_assert( TMP.node == tmp );
+	ck_assert( TMP.upto == alu_bits_perN(alu) );
+	ck_assert( TMP.from == 0 );
+	ck_assert( TMP.mant == 0 );
+	ck_assert( TMP.info == 0 );
+	
 	NUM.upto = bitsof(uintmax_t);
 	VAL.upto = bitsof(uintmax_t);
+	TMP.upto = bitsof(uintmax_t);
 	
-	ret = shift( alu, NUM, VAL, _shift );
+	ret = shift( alu, NUM, VAL, TMP, _shift );
 	
 	if ( ret == 0 )
 	{
@@ -241,8 +251,8 @@ int test__alu_uint_shift
 	return ret;
 }
 
-#define test_alu_uint_shift( alu, num, val, op, expect, _shift, shift ) \
-	test__alu_uint_shift( __LINE__, alu, num, val, op, (expect), _shift, shift )
+#define test_alu_uint_shift( alu, num, val, tmp, op, expect, _shift, shift ) \
+	test__alu_uint_shift( __LINE__, alu, num, val, tmp, op, (expect), _shift, shift )
 
 #define REG_COUNT 3
 
@@ -377,6 +387,7 @@ START_TEST( test_alu_create )
 			alu
 			, num
 			, val
+			, tmp
 			, stdstr
 			, want >> i
 			, alu_reg__shr
@@ -396,6 +407,7 @@ START_TEST( test_alu_create )
 			alu
 			, num
 			, val
+			, tmp
 			, stdstr
 			, want << i
 			, alu_reg__shl

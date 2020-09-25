@@ -50,8 +50,8 @@ int reg_compare(
 			"0x%016zX vs 0x%016zX Expected %zi, Got %zi, Bit = %zu\n",
 			_num, _val, expect, cmp, bit
 		);
-		alu_print_reg( "num", alu, num, false, true );
-		alu_print_reg( "val", alu, val, false, true );
+		alu_print_reg( "num", alu, num, false, true, false );
+		alu_print_reg( "val", alu, val, false, true, false );
 	}
 	
 	alu_rem_reg_nodes( alu, nodes, 2 );
@@ -69,8 +69,8 @@ int modify(
 )
 {
 	int ret = 0;
-	uint_t nodes[2] = {0};
-	alu_reg_t num = {0}, val = {0};
+	uint_t nodes[3] = {0};
+	alu_reg_t NUM, VAL, TMP;
 	intmax_t expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
@@ -82,13 +82,14 @@ int modify(
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, nodes[0], info );
-	alu_reg_init( alu, val, nodes[1], info );
+	alu_reg_init( alu, NUM, nodes[0], info );
+	alu_reg_init( alu, VAL, nodes[1], info );
+	alu_reg_init( alu, TMP, nodes[2], 0 );
 	
-	alu_int_set_raw( alu, num.node, _num );
-	alu_int_set_raw( alu, val.node, _val );
+	alu_int_set_raw( alu, NUM.node, _num );
+	alu_int_set_raw( alu, VAL.node, _val );
 	
-	num.upto = val.upto = bitsof(intmax_t);
+	NUM.upto = VAL.upto = TMP.upto = bitsof(intmax_t);
 	
 	expect = _num;
 	switch ( op )
@@ -96,72 +97,72 @@ int modify(
 	case 'n':
 		sprintf( pfx, "-0x%016zX", _num );
 		expect = -expect;
-		alu_reg_neg( alu, num );
+		alu_reg_neg( alu, NUM );
 		break;
 	case '~':
 		sprintf( pfx, "~0x%016zX", _num );
 		expect = ~expect;
-		alu_reg_not( alu, num );
+		alu_reg_not( alu, NUM );
 		break;
 	case '&':
 		sprintf( pfx, "0x%016zX & 0x%016zX", _num, _val );
 		expect &= _val;
-		alu_reg_and( alu, num, val );
+		alu_reg_and( alu, NUM, VAL );
 		break;
 	case '|':
 		sprintf( pfx, "0x%016zX | 0x%016zX", _num, _val );
 		expect |= _val;
-		alu_reg__or( alu, num, val );
+		alu_reg__or( alu, NUM, VAL );
 		break;
 	case '^':
 		sprintf( pfx, "0x%016zX ^ 0x%016zX", _num, _val );
 		expect ^= _val;
-		alu_reg_xor( alu, num, val );
+		alu_reg_xor( alu, NUM, VAL );
 		break;
 	case 'i':
 		sprintf( pfx, "0x%016zX++", _num );
 		expect++;
-		ret = alu_reg_inc( alu, num );
+		ret = alu_reg_inc( alu, NUM );
 		break;
 	case 'd':
 		sprintf( pfx, "0x%016zX--", _num );
 		expect--;
-		ret = alu_reg_dec( alu, num );
+		ret = alu_reg_dec( alu, NUM );
 		break;
 	case '+':
 		sprintf( pfx, "0x%016zX + 0x%016zX", _num, _val );
 		expect += _val;
-		ret = alu_reg_add( alu, num, val );
+		ret = alu_reg_add( alu, NUM, VAL );
 		break;
 	case '-':
 		sprintf( pfx, "0x%016zX - 0x%016zX", _num, _val );
 		expect -= _val;
-		ret = alu_reg_sub( alu, num, val );
+		ret = alu_reg_sub( alu, NUM, VAL );
 		break;
 	case 'l':
 		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
 		expect = rol( expect, _val );
-		alu_reg_rol( alu, num, val );
+		alu_reg_rol( alu, NUM, VAL, TMP );
 		break;
 	case '<':
 		sprintf( pfx, "0x%016zX << 0x%016zX", _num, _val );
 		expect <<= _val;
-		alu_reg_shl( alu, num, val );
+		alu_reg_shl( alu, NUM, VAL, TMP );
 		break;
 	case 'r':
 		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
 		expect = ror( expect, _val );
-		alu_reg_ror( alu, num, val );
+		alu_reg_ror( alu, NUM, VAL, TMP );
 		break;
 	case '>':
 		sprintf( pfx, "0x%016zX >> 0x%016zX", _num, _val );
 		expect >>= _val;
-		alu_reg_shr( alu, num, val );
+		alu_reg_shr( alu, NUM, VAL, TMP );
 		break;
 	case '*':
 		sprintf( pfx, "0x%016zX * 0x%016zX", _num, _val );
 		expect *= _val;
-		ret = alu_reg_mul( alu, num, val );
+		ret = alu_reg_mul( alu, NUM, VAL );
 		break;
 	case '/':
 		sprintf( pfx, "0x%016zX / 0x%016zX", _num, _val );
@@ -169,13 +170,13 @@ int modify(
 			expect /= _val;
 		else
 			expect = 0;
-		ret = alu_reg_div( alu, num, val );
+		ret = alu_reg_div( alu, NUM, VAL );
 		break;
 	case '%':
 		sprintf( pfx, "0x%016zX %% 0x%016zX", _num, _val );
 		if ( _val )
 			expect %= _val;
-		ret = alu_reg_rem( alu, num, val );
+		ret = alu_reg_rem( alu, NUM, VAL );
 		break;
 	default: ret = ENOSYS;
 	}
@@ -189,7 +190,7 @@ int modify(
 		goto fail;
 	}
 	
-	ret = alu_int_get_raw( alu, num.node, &_num );
+	ret = alu_int_get_raw( alu, NUM.node, &_num );
 
 	if ( expect != _num || print_anyways )
 	{
@@ -197,8 +198,8 @@ int modify(
 			"%s, Expected 0x%016jX, Got 0x%016jX, op = '%c'\n",
 			pfx, expect, _num, op
 		);
-		alu_print_reg( "num", alu, num, 0, 1 );
-		alu_print_reg( "val", alu, val, 0, 1 );
+		alu_print_reg( "num", alu, NUM, 0, 1, 0 );
+		alu_print_reg( "val", alu, VAL, 0, 1, 0 );
 	}
 	
 	fail:

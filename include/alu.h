@@ -216,13 +216,13 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
 #define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_size_perN(alu)))
 #define alu_get_active( alu, reg ) \
-	(alu_valid(alu)[(reg) / CHAR_BIT] & 1u << ((reg) % CHAR_BIT))
+	(alu_valid(alu)[(reg) / CHAR_BIT] & (1u << ((reg) % CHAR_BIT)))
 
 #define alu_clr_active( alu, reg ) \
-	alu_valid(alu)[(reg) / CHAR_BIT] &= ~(1u << ((reg) % CHAR_BIT))
+	alu_valid(alu)[(reg) / CHAR_BIT] &= ~(1uLL << ((reg) % CHAR_BIT))
 
 #define alu_set_active( alu, reg ) \
-	alu_valid(alu)[(reg) / CHAR_BIT] |= 1u << ((reg) % CHAR_BIT)
+	alu_valid(alu)[(reg) / CHAR_BIT] |= (1uLL << ((reg) % CHAR_BIT))
 
 #define alu_reg_data( alu, alu_reg ) alu_data( alu, (alu_reg).node )
 #define alu_reg_get_active( alu, alu_reg ) alu_get_active( alu, (alu_reg).node )
@@ -309,7 +309,7 @@ int_t alu_rem_flag( alu_t *alu, alu_reg_t *reg, uint_t info );
 	} \
 	while ( 0 )
 int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN );
-void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool print_value );
+void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool print_value, bool print_flags );
 void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t flags );
 size_t alu_set_bounds( alu_t *alu, alu_reg_t *REG, size_t from, size_t upto );
 void alu_set_constants( alu_t *alu );
@@ -489,6 +489,7 @@ typedef int_t (*func_alu_reg_shift_t)
 	alu_t* alu
 	, alu_reg_t num
 	, alu_reg_t val
+	, alu_reg_t tmp
 	, func_alu_reg__shift_t _shift
 );
 
@@ -497,6 +498,7 @@ int_t alu_reg__shift
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
+	, alu_reg_t tmp
 	, func_alu_reg__shift_t _shift
 );
 int_t alu_reg__rotate
@@ -504,6 +506,7 @@ int_t alu_reg__rotate
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
+	, alu_reg_t tmp
 	, func_alu_reg__shift_t _shift
 );
 
@@ -512,14 +515,14 @@ int_t alu_reg_and( alu_t *alu, alu_reg_t num, alu_reg_t val );
 int_t alu_reg__or( alu_t *alu, alu_reg_t num, alu_reg_t val );
 int_t alu_reg_xor( alu_t *alu, alu_reg_t num, alu_reg_t val );
 
-# define alu_reg_shl( ALU, NUM, VAL ) \
-	alu_reg__shift( ALU, NUM, VAL, alu_reg__shl )
-# define alu_reg_shr( ALU, NUM, VAL ) \
-	alu_reg__shift( ALU, NUM, VAL, alu_reg__shr )
-# define alu_reg_rol( ALU, NUM, VAL ) \
-	alu_reg__rotate( ALU, NUM, VAL, alu_reg__rol )
-# define alu_reg_ror( ALU, NUM, VAL ) \
-	alu_reg__rotate( ALU, NUM, VAL, alu_reg__ror )
+# define alu_reg_shl( ALU, NUM, VAL, TMP ) \
+	alu_reg__shift( ALU, NUM, VAL, TMP, alu_reg__shl )
+# define alu_reg_shr( ALU, NUM, VAL, TMP ) \
+	alu_reg__shift( ALU, NUM, VAL, TMP, alu_reg__shr )
+# define alu_reg_rol( ALU, NUM, VAL, TMP ) \
+	alu_reg__rotate( ALU, NUM, VAL, TMP, alu_reg__rol )
+# define alu_reg_ror( ALU, NUM, VAL, TMP ) \
+	alu_reg__rotate( ALU, NUM, VAL, TMP, alu_reg__ror )
 	
 int_t alu_reg_neg( alu_t *alu, alu_reg_t num );
 int_t alu_reg_inc( alu_t *alu, alu_reg_t num );
@@ -563,6 +566,7 @@ int_t alu__shift
 	alu_t *alu
 	, uint_t num
 	, uint_t val
+	, uint_t tmp
 	, func_alu_reg__shift_t _shift
 	, func_alu_reg_shift_t shift
 );
@@ -571,6 +575,7 @@ int_t alu___shift
 (
 	alu_t *alu
 	, uint_t num
+	, uint_t tmp
 	, size_t bits
 	, func_alu_reg__shift_t _shift
 );
@@ -623,8 +628,8 @@ int_t alu___shift
 #define alu_divide( alu, num, val, reg ) \
 	alu__op3( alu, num, val, reg, alu_reg_divide )
 
-int_t alu_uint_set_raw( alu_t *alu, alu_uint_t num, uintmax_t val );
-int_t alu_uint_get_raw( alu_t *alu, alu_uint_t num, uintmax_t *val );
+#define alu_uint_set_raw( alu, num, raw ) alu_set_raw( alu, num, raw, 0  )
+#define alu_uint_get_raw( alu, num, raw ) alu_get_raw( alu, num, raw  )
 
 #define alu__uint_op1( alu, num, op1 ) \
 	alu__op1( alu, num, 0, op1 )
@@ -634,23 +639,9 @@ int_t alu_uint_get_raw( alu_t *alu, alu_uint_t num, uintmax_t *val );
 
 #define alu__uint_op4( alu, num, val, reg, tmp, op4 ) \
 	alu__op4( alu, num, val, reg, tmp, 0, op4 )
-
-int_t alu__uint_shift
-(
-	alu_t *alu
-	, alu_uint_t num
-	, alu_uint_t val
-	, func_alu_reg__shift_t _shift
-	, func_alu_reg_shift_t shift
-);
-
-int_t alu__uint__shift
-(
-	alu_t *alu
-	, alu_uint_t num
-	, size_t bits
-	, func_alu_reg__shift_t _shift
-);
+	
+#define alu__uint__shift alu___shift
+#define alu__uint_shift alu__shift
 
 #define alu_uint_cmp( alu, num, val ) \
 	alu__uint_op2( alu, num, val, alu_reg_cmp )
@@ -707,19 +698,21 @@ int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val );
 #define alu__int_op4( alu, num, val, reg, tmp, op4 ) \
 	alu__op4( alu, num, val, reg, tmp, 0, op4 )
 
-int_t alu__int_shift
+int_t alu_int__shift
 (
 	alu_t *alu
 	, alu_int_t num
 	, alu_int_t val
+	, alu_int_t tmp
 	, func_alu_reg__shift_t _shift
 	, func_alu_reg_shift_t shift
 );
 
-int_t alu___shift
+int_t alu_int___shift
 (
 	alu_t *alu
 	, alu_int_t num
+	, alu_int_t tmp
 	, size_t bits
 	, func_alu_reg__shift_t _shift
 );
