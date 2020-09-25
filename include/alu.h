@@ -434,12 +434,11 @@ int_t alu_reg_get_raw
 	, alu_reg_t num
 	, void *raw
 	, size_t size
-	, uint_t info
 );
 
 
-int_t alu_set_raw( alu_t *alu, uint_t num, size_t raw, uint_t info );
-int_t alu_get_raw( alu_t *alu, uint_t num, size_t *raw );
+int_t alu_set_raw( alu_t *alu, uint_t num, uintmax_t raw, uint_t info );
+int_t alu_get_raw( alu_t *alu, uint_t num, uintmax_t *raw );
 
 int_t alu_reg__shl( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by );
 int_t alu_reg__shr( alu_t *alu, alu_reg_t num, alu_reg_t tmp, size_t by );

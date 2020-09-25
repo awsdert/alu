@@ -120,8 +120,8 @@ int test__alu_uint_op1
 	return ret;
 }
 
-#define test_alu_uint_op1( alu, num, val, op, expect, op1 ) \
-	test__alu_uint_op1( __LINE__, alu, num, val, op, (expect), op1 )
+#define test_alu_uint_op1( alu, num, op, expect, op1 ) \
+	test__alu_uint_op1( __LINE__, alu, num, op, (expect), op1 )
 
 int test__alu_uint_op2
 (
@@ -259,7 +259,8 @@ START_TEST( test_alu_create )
 	alu_base_t base = {0};
 	char stdstr[bitsof(uint_t) * 2] = {0}, *alustr;
 	uchar_t *data;
-	uint_t i, want = bitsof(uintmax_t), nodes[REG_COUNT] = {0};
+	uintmax_t i, want = bitsof(uintmax_t);
+	uint_t nodes[REG_COUNT] = {0};
 	
 	puts( "Initialising ALU\n" );
 	ret = alu_setup_reg( alu, want, 0, 0 );
@@ -269,7 +270,7 @@ START_TEST( test_alu_create )
 	ck_assert_msg
 	(
 		alu_upto( alu ) >= want
-		, "Expected at least %u, Got %u"
+		, "Expected at least %ju, Got %u"
 		, want
 		, alu_upto(alu)
 	);
@@ -340,7 +341,7 @@ START_TEST( test_alu_create )
 	ck_assert_msg
 	(
 		cmp == expect_cmp
-		, "%u vs %u == %i, Got %i"
+		, "%ju vs %ju == %i, Got %i"
 		, want
 		, i
 		, expect_cmp
@@ -351,7 +352,22 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u >> %u", want, i );
+		sprintf( stdstr, "~%ju", i );
+		
+		test_alu_uint_set_raw( __LINE__, alu, num, i );
+		test_alu_uint_op1
+		(
+			alu
+			, num
+			, stdstr
+			, ~i
+			, alu_reg_not
+		);
+	}
+	
+	for ( i = 0; i < bitsof(uintmax_t); ++i )
+	{
+		sprintf( stdstr, "%ju >> %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 		
@@ -370,7 +386,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u << %u", want, i );
+		sprintf( stdstr, "%ju << %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 			
@@ -389,7 +405,7 @@ START_TEST( test_alu_create )
 		
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u ^ %u", want, i );
+		sprintf( stdstr, "%ju ^ %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 		
@@ -399,7 +415,7 @@ START_TEST( test_alu_create )
 		
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u | %u", want, i );
+		sprintf( stdstr, "%ju | %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 		
@@ -409,7 +425,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u & %u", want, i );
+		sprintf( stdstr, "%ju & %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 		
@@ -419,7 +435,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u + %u", want, i );
+		sprintf( stdstr, "%ju + %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 			
@@ -429,7 +445,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u - %u", want, i );
+		sprintf( stdstr, "%ju - %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 			
@@ -439,7 +455,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u * %u", want, i );
+		sprintf( stdstr, "%ju * %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 			
@@ -449,7 +465,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u / %u", want, i );
+		sprintf( stdstr, "%ju / %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 			
@@ -467,7 +483,7 @@ START_TEST( test_alu_create )
 	
 	for ( i = 0; i < bitsof(uintmax_t); ++i )
 	{
-		sprintf( stdstr, "%u %% %u", want, i );
+		sprintf( stdstr, "%ju %% %ju", want, i );
 		
 		test_alu_uint_set_raw( __LINE__, alu, val, i );
 		
@@ -490,7 +506,7 @@ START_TEST( test_alu_create )
 	alu_dst.flip = flip;
 	
 	base.base = 10;
-	sprintf( stdstr, "%u", want );
+	sprintf( stdstr, "%ju", want );
 	test_alu_uint_set_raw( __LINE__, alu, num, want );
 	ret = alu_uint2str( alu, alu_dst, num, base );
 	
