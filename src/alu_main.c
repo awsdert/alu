@@ -960,7 +960,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 {
 	alu_reg_t NUM, VAL, REM, TMP;
 	int ret;
-	size_t digit = 0, _num, _val, failsafe = 0;
+	size_t digit = 0, b;
 	uint_t nodes[ALU_BASE_COUNT] = {0};
 	bool neg;
 	char *base_str =
@@ -1006,7 +1006,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	if ( neg )
 		(void)alu_reg_neg( alu, NUM );
 
-	for ( failsafe = NUM.from; failsafe < NUM.upto; ++failsafe )
+	while ( alu_reg_cmp( alu, NUM, VAL ) >= 0 )
 	{
 		ret = alu_reg_divide( alu, NUM, VAL, REM, TMP );
 		
@@ -1028,23 +1028,26 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 			digit = 0;
 		}
 		
-		alu_get_raw( alu, TMP.node, &_val );
-		ret = dst.next( base_str[_val], dst.dst );
+		alu_reg_get_raw( alu, TMP, &b, sizeof(size_t) );
+		ret = dst.next( base_str[b], dst.dst );
 		
 		if ( ret != 0 )
+		{
+			alu_error(ret);
 			goto fail;
+		}
 		
 		++digit;
-		
-		if ( alu_reg_cmp( alu, NUM, VAL ) < 0 )
-			break;
 	}
 	
-	alu_get_raw( alu, NUM.node, &_num );
-	ret = dst.next( base_str[_num], dst.dst );
+	alu_reg_get_raw( alu, NUM, &b, sizeof(size_t) );
+	ret = dst.next( base_str[b], dst.dst );
 	
 	if ( ret != 0 )
+	{
+		alu_error(ret);
 		goto fail;
+	}
 	
 	dst.flip( dst.dst );
 	

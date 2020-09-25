@@ -9,7 +9,7 @@ int wrChar( char32_t c, void *dst )
 	int ret = alu_block_expand( dst, ++(ALUSTR->taken) );
 	char *alustr;
 	
-	printf( "wrChar('%c',%p)", (char)c, dst );
+	alu_printf( "wrChar('%c',%p)", (char)c, dst );
 	
 	if ( ret != 0 )
 	{
@@ -26,6 +26,8 @@ void flip( void *dst )
 	alu_block_t *ALUSTR = dst;
 	uint_t i, j;
 	char c, *alustr = ALUSTR->block;
+	
+	alu_printf("alustr = '%s', taken = %zu", alustr, ALUSTR->taken );
 	
 	for ( i = 0, j = ALUSTR->taken - 1; i < j; ++i, --j )
 	{
@@ -518,6 +520,7 @@ START_TEST( test_alu_create )
 	alu_dst.flip = flip;
 	
 	base.base = 10;
+	base.digsep = '\'';
 	sprintf( stdstr, "%ju", want );
 	test_alu_uint_set_raw( __LINE__, alu, num, want );
 	ret = alu_uint2str( alu, alu_dst, num, base );
