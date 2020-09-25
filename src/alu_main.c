@@ -32,7 +32,18 @@ void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t info )
 	}
 }
 
-void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool print_value, bool print_flags )
+void alu__print_reg
+(
+	char *file
+	, uint_t line
+	, const char *func
+	, char *pfx
+	, alu_t *alu
+	, alu_reg_t reg
+	, bool print_info
+	, bool print_value
+	, bool print_flags
+)
 {
 	void *part;
 	alu_bit_t n;
@@ -42,14 +53,18 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 
 	if ( print_info )
 	{
-		alu_printf
+		alu__printf
 		(
-			"%s: node = %u, part = %p, from = %zu, upto = %zu"
+			"%s: node = %u, part = %p, from = %zu, upto = %zu, active = %c"
+			, file
+			, line
+			, func
 			, pfx
 			, reg.node
 			, part
 			, reg.from
 			, reg.upto
+			, '0' + alu_reg_get_active( alu, reg )
 		);
 	}
 	
@@ -62,7 +77,7 @@ void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool 
 	{
 		n = alu_bit_set_bit( part, reg.upto );
 		
-		fprintf( stderr, "%s = ", pfx );
+		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
 		if ( n.bit == reg.from )
 		{
 			fputc( '0', stderr );
@@ -293,21 +308,19 @@ int_t alu_str2reg
 (
 	alu_t *alu
 	, alu_src_t src
-	, alu_reg_t dst
+	, alu_reg_t DST
 	, alu_base_t base
 )
 {
-	size_t b, perN;
+	size_t b;
 	uint_t nodes[ALU_BASE_COUNT] = {0};
-	alu_reg_t num, val;
-	alu_bit_t n;
+	alu_reg_t NUM, VAL;
 	int ret = 0;
 	char32_t c = -1;
 	char
 		*base_upper = ALU_BASE_STR_0toZtoz "+-",
 		*base_lower = ALU_BASE_STR_0toztoZ "+-",
 		*base_str = base.lowercase ? base_lower : base_upper;
-	void *part;
 	
 	if ( !(src.nextpos) )
 		return EDESTADDRREQ;
@@ -338,19 +351,16 @@ int_t alu_str2reg
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, nodes[ALU_BASE_NUM], 0 );
-	alu_reg_init( alu, val, nodes[ALU_BASE_VAL], 0 );
+	alu_reg_init( alu, NUM, nodes[ALU_BASE_NUM], 0 );
+	alu_reg_init( alu, VAL, nodes[ALU_BASE_VAL], 0 );
 
-	/* Clear all registers in direct use */
-	perN = alu_size_perN( alu );
+	ret = alu_reg_set_raw( alu, VAL, &(base.base), sizeof(size_t), 0 );
 	
-	alu_uint_set_raw( alu, val.node, base.base );
-	
-	part = alu_reg_data( alu, num );
-	n = alu_bit_set_bit( part, num.upto - 1 );
-	
-	alu_set_bounds( alu, &num, 0, -1 );
-	alu_reg_clr( alu, num );
+	if ( ret != 0 )
+	{
+		alu_error(ret);
+		goto fail;
+	}
 
 	do
 	{	
@@ -358,8 +368,13 @@ int_t alu_str2reg
 		c = -1;
 		ret = src.next( &c, src.src, src.nextpos );
 		
-		if ( ret != 0 && ret != EOF )
-			goto fail;
+		ret = SET1IF( ret != EOF, ret );
+		
+		if ( ret != 0 )
+		{
+			alu_error(ret);
+			break;
+		}
 		
 		if ( base.base > 36 )
 		{
@@ -396,32 +411,26 @@ int_t alu_str2reg
 		
 		++(*(src.nextpos));
 		
-		if ( *(n.ptr) & n.mask )
+		alu_reg_set_raw( alu, NUM, &b, sizeof(size_t), 0 );
+		
+		ret = alu_reg_mul( alu, DST, VAL );
+		
+		if ( ret == EOVERFLOW )
 		{
-			ret = alu_setup_reg
-			(
-				alu
-				, alu_upto( alu )
-				, alu_used( alu )
-				, perN + sizeof(size_t)
-			);
-			
-			if ( ret != 0 )
-				goto fail;
-			
-			alu_set_bounds( alu, &num, 0, -1 );
-			
-			perN = alu_size_perN( alu );
-			part = alu_reg_data( alu, num );
-			n = alu_bit_set_bit( part, num.upto - 1 );
+			goto maxout;
 		}
 		
-		alu_uint_set_raw( alu, num.node, b );
+		ret = alu_reg_add( alu, DST, NUM );
 		
-		(void)alu_reg_mul( alu, dst, val );
-		(void)alu_reg_add( alu, dst, num );
+		ret = SET1IF( ret != ENODATA, ret );
 	}
 	while ( ret == 0 );
+	
+	if ( ret == EOVERFLOW )
+	{
+		maxout:
+		alu_reg_set_max( alu, DST );
+	}
 	
 	fail:
 	alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
@@ -942,8 +951,8 @@ int_t alu_lit2reg
 	}
 	
 	fail:
-	
 	alu_rem_reg_nodes( alu, nodes, ALU_LIT_COUNT );
+	
 	return 0;
 }
 
@@ -1040,7 +1049,6 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	dst.flip( dst.dst );
 	
 	fail:
-	
 	alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
 	
 	return ret;

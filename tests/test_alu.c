@@ -17,11 +17,9 @@ int reg_compare(
 	bool print_anyways
 )
 {
-	int ret = 0;
-	intmax_t cmp = 0, expect = 0;
+	int ret = 0, cmp = 0, expect = 0;
 	uint_t nodes[2] = {0};
-	alu_reg_t num = {0}, val = {0};
-	size_t bit = 0;
+	alu_reg_t NUM, VAL;
 	
 	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	
@@ -31,27 +29,27 @@ int reg_compare(
 		return ret;
 	}
 	
-	alu_reg_init( alu, num, nodes[0], info );
-	alu_reg_init( alu, val, nodes[1], info );
+	alu_reg_init( alu, NUM, nodes[0], info );
+	alu_reg_init( alu, VAL, nodes[1], info );
 	
-	num.upto = val.upto = bitsof(size_t);
+	NUM.upto = VAL.upto = bitsof(intmax_t);
 	
-	alu_int_set_raw( alu, num.node, _num );
-	alu_int_set_raw( alu, val.node, _val );
+	alu_int_set_raw( alu, NUM.node, _num );
+	alu_int_set_raw( alu, VAL.node, _val );
 	
 	expect = SET2IF( _num > _val, 1, expect );
 	expect = SET2IF( _num < _val, -1, expect );
 
-	cmp = alu_reg_cmp( alu, num, val );
+	cmp = alu_reg_cmp( alu, NUM, VAL );
 	
 	if ( expect != cmp || print_anyways )
 	{
 		alu_printf(
-			"0x%016zX vs 0x%016zX Expected %zi, Got %zi, Bit = %zu\n",
-			_num, _val, expect, cmp, bit
+			"0x%016zX vs 0x%016zX Expected %i, Got %i\n",
+			_num, _val, expect, cmp
 		);
-		alu_print_reg( "num", alu, num, false, true, false );
-		alu_print_reg( "val", alu, val, false, true, false );
+		alu_print_reg( "num", alu, NUM, false, true, false );
+		alu_print_reg( "val", alu, VAL, false, true, false );
 	}
 	
 	alu_rem_reg_nodes( alu, nodes, 2 );
@@ -74,7 +72,7 @@ int modify(
 	intmax_t expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
+	ret = alu_get_reg_nodes( alu, nodes, 3, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -97,27 +95,27 @@ int modify(
 	case 'n':
 		sprintf( pfx, "-0x%016zX", _num );
 		expect = -expect;
-		alu_reg_neg( alu, NUM );
+		ret = alu_reg_neg( alu, NUM );
 		break;
 	case '~':
 		sprintf( pfx, "~0x%016zX", _num );
 		expect = ~expect;
-		alu_reg_not( alu, NUM );
+		ret = alu_reg_not( alu, NUM );
 		break;
 	case '&':
 		sprintf( pfx, "0x%016zX & 0x%016zX", _num, _val );
 		expect &= _val;
-		alu_reg_and( alu, NUM, VAL );
+		ret = alu_reg_and( alu, NUM, VAL );
 		break;
 	case '|':
 		sprintf( pfx, "0x%016zX | 0x%016zX", _num, _val );
 		expect |= _val;
-		alu_reg__or( alu, NUM, VAL );
+		ret = alu_reg__or( alu, NUM, VAL );
 		break;
 	case '^':
 		sprintf( pfx, "0x%016zX ^ 0x%016zX", _num, _val );
 		expect ^= _val;
-		alu_reg_xor( alu, NUM, VAL );
+		ret = alu_reg_xor( alu, NUM, VAL );
 		break;
 	case 'i':
 		sprintf( pfx, "0x%016zX++", _num );
@@ -142,22 +140,22 @@ int modify(
 	case 'l':
 		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
 		expect = rol( expect, _val );
-		alu_reg_rol( alu, NUM, VAL, TMP );
+		ret = alu_reg_rol( alu, NUM, VAL, TMP );
 		break;
 	case '<':
 		sprintf( pfx, "0x%016zX << 0x%016zX", _num, _val );
 		expect <<= _val;
-		alu_reg_shl( alu, NUM, VAL, TMP );
+		ret = alu_reg_shl( alu, NUM, VAL, TMP );
 		break;
 	case 'r':
 		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
 		expect = ror( expect, _val );
-		alu_reg_ror( alu, NUM, VAL, TMP );
+		ret = alu_reg_ror( alu, NUM, VAL, TMP );
 		break;
 	case '>':
 		sprintf( pfx, "0x%016zX >> 0x%016zX", _num, _val );
 		expect >>= _val;
-		alu_reg_shr( alu, NUM, VAL, TMP );
+		ret = alu_reg_shr( alu, NUM, VAL, TMP );
 		break;
 	case '*':
 		sprintf( pfx, "0x%016zX * 0x%016zX", _num, _val );
@@ -204,7 +202,7 @@ int modify(
 	
 	fail:
 	
-	alu_rem_reg_nodes( alu, nodes, 2 );
+	alu_rem_reg_nodes( alu, nodes, 3 );
 	
 	return ret;
 }
@@ -666,7 +664,7 @@ int int_print_value
 	, bool print_anyways
 )
 {
-	alu_int_t tmp = -1;
+	alu_int_t tmp = 0;
 	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;

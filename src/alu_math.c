@@ -145,7 +145,7 @@ int_t alu_reg_get_raw
 )
 {
 	int ret;
-	uint_t tmp;
+	uint_t tmp = 0;
 	alu_reg_t TMP;
 	
 	if ( raw )
@@ -159,7 +159,6 @@ int_t alu_reg_get_raw
 			alu_reg_init( alu, TMP, tmp, 0 );
 			TMP.upto = size * UNIC_CHAR_BIT;
 			
-			alu_print_reg( "TMP", alu, TMP, 1, 0, 0 );
 			alu_reg_mov( alu, TMP, NUM );
 		
 			(void)memcpy( raw, alu_data( alu, tmp ), size );
@@ -192,7 +191,7 @@ int_t alu_reg_set_raw
 )
 {
 	int ret;
-	uint_t tmp;
+	uint_t tmp = 0;
 	alu_reg_t TMP;
 	
 	size = HIGHEST( size, 1 );
@@ -200,7 +199,7 @@ int_t alu_reg_set_raw
 	ret = alu_get_reg_node( alu, &tmp, size );
 	
 	if ( ret == 0 )
-	{	
+	{
 		alu_reg_init( alu, TMP, tmp, info );
 		TMP.upto = size * UNIC_CHAR_BIT;
 
@@ -209,6 +208,7 @@ int_t alu_reg_set_raw
 		ret = alu_reg_mov( alu, NUM, TMP );
 		
 		alu_rem_reg_node( alu, &tmp );
+		
 		return ret;
 	}
 	
@@ -402,79 +402,96 @@ int_t alu_reg_cmp(
 	, alu_reg_t VAL
 )
 {
-	int a, b, c = 0;
+	int ret = 0, a, b;
 	alu_bit_t n = {0}, v = {0};
 	size_t ndiff = 0, vdiff = 0;
 	bool nNeg, vNeg;
 	
-	n = alu_reg_end_bit( alu, NUM );
-	v = alu_reg_end_bit( alu, VAL );
-	
-	nNeg = alu_reg_signed( NUM ) & (n.bit == NUM.upto - 1);
-	vNeg = alu_reg_signed( VAL ) & (v.bit == VAL.upto - 1);
-	
-	if ( nNeg != vNeg )
+	if ( alu )
 	{
-		c = -1 + vNeg + vNeg;
-		return c;
-	}
-	
-	ndiff = n.bit - NUM.from;
-	vdiff = v.bit - VAL.from;
-	
-	a = nNeg;
-	b = vNeg;
-	
-	/* Deal with different sized integers */
-
-	while ( ndiff < vdiff )
-	{
-		b = (*(v.ptr) & v.mask) ? 1 : 0;
+		NUM.node %= alu_used(alu);
+		VAL.node %= alu_used(alu);
 		
-		c = a - b;
-		if ( c != 0 )
-			return c;
-		
-		vdiff--;
-		alu_bit_dec(&v);
-	}
-	
-	while ( ndiff > vdiff )
-	{
-		a = (*(n.ptr) & n.mask) ? 1 : 0;
-		
-		c = a - b;
-		if ( c != 0 )
-			return c;
-		
-		ndiff--;
-		alu_bit_dec(&n);
-	}
-	
-	/* Finally compare what matches bit alignment */
-	do
-	{
-		a = (*(n.ptr) & n.mask) ? 1 : 0;
-		b = (*(v.ptr) & v.mask) ? 1 : 0;
-		
-		c = a - b;
-		if ( c != 0 )
-			return c;
+		ret = SET1IF( !NUM.node | !VAL.node, EINVAL );
 			
-		if ( !ndiff )
-			break;
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
 		
-		ndiff--;
-		alu_bit_dec(&n);
-		alu_bit_dec(&v);
+		n = alu_reg_end_bit( alu, NUM );
+		v = alu_reg_end_bit( alu, VAL );
+		
+		nNeg = alu_reg_signed( NUM ) & (n.bit == NUM.upto - 1);
+		vNeg = alu_reg_signed( VAL ) & (v.bit == VAL.upto - 1);
+		
+		if ( nNeg != vNeg )
+		{
+			ret = -1 + vNeg + vNeg;
+			return ret;
+		}
+		
+		ndiff = n.bit - NUM.from;
+		vdiff = v.bit - VAL.from;
+		
+		a = nNeg;
+		b = vNeg;
+		
+		/* Deal with different sized integers */
+
+		while ( ndiff < vdiff )
+		{
+			b = (*(v.ptr) & v.mask) ? 1 : 0;
+			
+			ret = a - b;
+			if ( ret )
+				return ret;
+			
+			vdiff--;
+			alu_bit_dec(&v);
+		}
+		
+		while ( ndiff > vdiff )
+		{
+			a = (*(n.ptr) & n.mask) ? 1 : 0;
+			
+			ret = a - b;
+			if ( ret )
+				return ret;
+			
+			ndiff--;
+			alu_bit_dec(&n);
+		}
+		
+		/* Finally compare what matches bit alignment */
+		do
+		{
+			a = (*(n.ptr) & n.mask) ? 1 : 0;
+			b = (*(v.ptr) & v.mask) ? 1 : 0;
+			
+			ret = a - b;
+			if ( ret != 0 )
+				return ret;
+				
+			if ( !ndiff )
+				break;
+			
+			ndiff--;
+			alu_bit_dec(&n);
+			alu_bit_dec(&v);
+		}
+		while ( 1 );
+		
+		return ret;
 	}
-	while ( 1 );
 	
-	return c;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg_not( alu_t *alu, alu_reg_t NUM )
 {
+	int ret;
 	alu_bit_t n, e;
 	void *part;
 	size_t i, stop, mask, mask_init, mask_last;
@@ -482,6 +499,14 @@ int_t alu_reg_not( alu_t *alu, alu_reg_t NUM )
 	if ( alu )
 	{
 		NUM.node %= alu_used( alu );
+		
+		if ( !NUM.node )
+		{
+			ret = EINVAL;
+			alu_error(ret);
+			return ret;
+		}
+		
 		part = alu_reg_data( alu, NUM );
 		
 		n = alu_bit_set_bit( part, NUM.from );
@@ -555,72 +580,86 @@ int_t alu_reg_dec( alu_t *alu, alu_reg_t NUM )
 
 int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 {
+	int ret;
 	bool carry = false, changed = false;
 	alu_bit_t n, v = {0};
 	size_t pos = 0;
 	void *part;
 	
-	NUM.node %= alu_used( alu );
-	VAL.node %= alu_used( alu );
-	
-	pos = alu_lowest_upto( NUM, VAL );
-	
-	part = alu_reg_data( alu, NUM );
-	n = alu_bit_set_bit( part, NUM.from );
-	
-	part = alu_reg_data( alu, VAL );
-	v = alu_bit_set_bit( part, VAL.from );
-	
-	for
-	(
-		; n.bit < pos
-		; alu_bit_inc(&n), alu_bit_inc(&v)
-	)
+	if ( alu )
 	{
-		if ( carry )
+		NUM.node %= alu_used( alu );
+		VAL.node %= alu_used( alu );
+		
+		ret = SET1IF( !NUM.node | !VAL.node, EINVAL );
+			
+		if ( ret )
 		{
-			if ( (*(n.ptr) & n.mask) )
-				*(n.ptr) ^= n.mask;
-			else
+			alu_error(ret);
+			return ret;
+		}
+		
+		pos = alu_lowest_upto( NUM, VAL );
+		
+		part = alu_reg_data( alu, NUM );
+		n = alu_bit_set_bit( part, NUM.from );
+		
+		part = alu_reg_data( alu, VAL );
+		v = alu_bit_set_bit( part, VAL.from );
+		
+		for
+		(
+			; n.bit < pos
+			; alu_bit_inc(&n), alu_bit_inc(&v)
+		)
+		{
+			if ( carry )
 			{
-				*(n.ptr) |= n.mask;
-				carry = false;
+				if ( (*(n.ptr) & n.mask) )
+					*(n.ptr) ^= n.mask;
+				else
+				{
+					*(n.ptr) |= n.mask;
+					carry = false;
+				}
+			}
+			
+			if ( *(v.ptr) & v.mask )
+			{
+				changed = true;
+				if ( *(n.ptr) & n.mask )
+				{
+					*(n.ptr) ^= n.mask;
+					carry = true;
+				}
+				else
+					*(n.ptr) |= n.mask;
 			}
 		}
 		
-		if ( *(v.ptr) & v.mask )
+		if ( carry )
 		{
-			changed = true;
-			if ( *(n.ptr) & n.mask )
+			for
+			(
+				; n.bit < NUM.upto
+				; alu_bit_inc(&n)
+			)
 			{
-				*(n.ptr) ^= n.mask;
-				carry = true;
-			}
-			else
-				*(n.ptr) |= n.mask;
-		}
-	}
-	
-	if ( carry )
-	{
-		for
-		(
-			; n.bit < NUM.upto
-			; alu_bit_inc(&n)
-		)
-		{
-			if ( (*(n.ptr) & n.mask) )
-				*(n.ptr) ^= n.mask;
-			else
-			{
-				*(n.ptr) |= n.mask;
-				carry = false;
-				break;
+				if ( (*(n.ptr) & n.mask) )
+					*(n.ptr) ^= n.mask;
+				else
+				{
+					*(n.ptr) |= n.mask;
+					carry = false;
+					break;
+				}
 			}
 		}
+		
+		return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
 	}
 	
-	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg_add_raw( alu_t *alu, alu_reg_t NUM, void *raw, size_t size )
@@ -762,6 +801,7 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 
 int_t alu_reg__shl( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 {
+	int ret;
 	alu_bit_t n = {0}, v;
 	size_t diff;
 	
@@ -787,8 +827,16 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		NUM.node %= alu_used( alu );
 		TMP.node %= alu_used( alu );
 		
+		ret = SET1IF( !NUM.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
 		/* We have the register so might as well */
-		alu_reg_mov( alu, TMP, NUM );
+		ret = alu_reg_mov( alu, TMP, NUM );
 		
 		n = alu_bit_set_bit( (void*)alu_reg_data( alu, NUM ), NUM.from );
 		v = alu_bit_set_bit( (void*)alu_reg_data( alu, TMP ), TMP.from );
@@ -815,6 +863,7 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 
 int_t alu_reg__shr( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 {
+	int ret;
 	alu_bit_t n, v;
 	void *part;
 	bool neg;
@@ -843,11 +892,23 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		
 		NUM.node %= alu_used( alu );
 		TMP.node %= alu_used( alu );
-		TMP.from = NUM.from;
-		TMP.upto = NUM.upto;
+		
+		ret = SET1IF( !NUM.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
 		
 		/* We have the register so might as well */
-		alu_reg_mov( alu, TMP, NUM );
+		ret = alu_reg_mov( alu, TMP, NUM );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
 		
 		part = alu_reg_data( alu, NUM );
 		n = alu_bit_set_bit( part, NUM.upto );
@@ -891,19 +952,26 @@ int_t alu_reg__shift
 	
 	if ( alu )
 	{
-		by = NUM.upto - NUM.from;
-		
 		NUM.node %= alu_used( alu );
 		VAL.node %= alu_used( alu );
 		TMP.node %= alu_used( alu );
 		
-		alu_uint_set_raw( alu, TMP.node, by );
+		ret = SET1IF( !NUM.node | !VAL.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		by = NUM.upto - NUM.from;
+		
+		alu_reg_set_raw( alu, TMP, &by, sizeof(size_t), 0 );
 		
 		cmp = alu_reg_cmp( alu, VAL, TMP );
 		
 		if ( cmp < 0 )
 		{
-			alu_print_reg( "NUM", alu, NUM, 1, 0, 0 );
 			alu_reg_get_raw( alu, VAL, &by, sizeof(size_t) );
 			ret = _shift( alu, NUM, TMP, by );
 		}
@@ -940,6 +1008,14 @@ int_t alu_reg_multiply
 		VAL.node %= alu_used( alu );
 		CPY.node %= alu_used( alu );
 		TMP.node %= alu_used( alu );
+		
+		ret = SET1IF( !NUM.node | !VAL.node | !CPY.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
 		
 		alu_reg_clr( alu, NUM );
 		
@@ -979,14 +1055,16 @@ int_t alu_reg_mul
 	, alu_reg_t VAL
 )
 {
-	int ret = 0;
-	uint_t nodes[2] = {0};
+	int ret;
+	uint_t nodes[2];
 	alu_reg_t CPY, TMP;
+	
+	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	
 	if ( ret == 0 )
 	{
 		alu_reg_init( alu, CPY, nodes[0], 0 );
-		alu_reg_init( alu, TMP, nodes[2], 0 );
+		alu_reg_init( alu, TMP, nodes[1], 0 );
 		
 		ret = alu_reg_multiply( alu, NUM, VAL, CPY, TMP );
 		
@@ -1033,6 +1111,14 @@ int_t alu_reg_divide
 		REM.node %= alu_used( alu );
 		TMP.node %= alu_used( alu );
 		
+		ret = SET1IF( !NUM.node | !VAL.node | !REM.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
 		nNeg = alu_reg_below0( alu, NUM );
 		vNeg = alu_reg_below0( alu, VAL );
 		
@@ -1070,7 +1156,7 @@ int_t alu_reg_divide
 		}
 		
 		if ( bits )
-			alu_reg__shl( alu, NUM, TMP, bits );
+			alu_reg__shl( alu, NUM, TMP, bits + 1 );
 		
 		if ( ret != ENODATA && nNeg != vNeg )
 			alu_reg_neg( alu, NUM );
@@ -1142,66 +1228,83 @@ int_t alu_reg_rem
 
 int_t alu_reg__rol( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 {
+	int ret;
 	alu_bit_t n = {0}, v;
 	void *num_part, *tmp_part;
 	
-	if ( !by )
+	if ( alu )
+	{
+		if ( !by )
+			return 0;
+			
+		NUM.node %= alu_used( alu );
+		TMP.node %= alu_used( alu );
+		
+		ret = SET1IF( !NUM.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		by %= (NUM.upto - NUM.from);
+		
+		num_part = alu_reg_data( alu, NUM );
+		tmp_part = alu_reg_data( alu, TMP );
+		
+		alu_reg_mov( alu, TMP, NUM );
+		
+		n = alu_bit_set_bit( num_part, NUM.upto );
+		v = alu_bit_set_bit( tmp_part, TMP.upto - by );
+		
+		while ( v.bit > TMP.from )
+		{
+			alu_bit_dec(&v);
+			alu_bit_dec(&n);
+			
+			*(n.ptr) &= ~(n.mask);
+			*(n.ptr) |= (n.mask * !!(*(v.ptr) & v.mask));
+		}
+		
+		v = alu_bit_set_bit( tmp_part, TMP.upto );
+		while ( n.bit > NUM.from )
+		{
+			alu_bit_dec(&v);
+			alu_bit_dec(&n);
+			
+			*(n.ptr) &= ~(n.mask);
+			*(n.ptr) |= (n.mask * !!(*(v.ptr) & v.mask));
+		}
+		
 		return 0;
-	
-	by %= (NUM.upto - NUM.from);
-		
-	NUM.node %= alu_used( alu );
-	TMP.node %= alu_used( alu );
-	
-	TMP.info = NUM.info;
-	TMP.from = NUM.from;
-	TMP.upto = NUM.upto;
-	
-	num_part = alu_reg_data( alu, NUM );
-	tmp_part = alu_reg_data( alu, TMP );
-	
-	alu_reg_mov( alu, TMP, NUM );
-	
-	n = alu_bit_set_bit( num_part, NUM.upto );
-	v = alu_bit_set_bit( tmp_part, TMP.upto - by );
-	
-	while ( v.bit > TMP.from )
-	{
-		alu_bit_dec(&v);
-		alu_bit_dec(&n);
-		
-		*(n.ptr) &= ~(n.mask);
-		*(n.ptr) |= (n.mask * !!(*(v.ptr) & v.mask));
 	}
 	
-	v = alu_bit_set_bit( tmp_part, TMP.upto );
-	while ( n.bit > NUM.from )
-	{
-		alu_bit_dec(&v);
-		alu_bit_dec(&n);
-		
-		*(n.ptr) &= ~(n.mask);
-		*(n.ptr) |= (n.mask * !!(*(v.ptr) & v.mask));
-	}
-	
-	return 0;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg__ror( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 {
+	int ret;
 	alu_bit_t n, v;
 	void *num_part, *tmp_part;
 	
 	if ( by )
 	{	
-		by %= (NUM.upto - NUM.from);
+		
 		
 		NUM.node %= alu_used( alu );
 		TMP.node %= alu_used( alu );
 		
-		TMP.info = NUM.info;
-		TMP.from = NUM.from;
-		TMP.upto = NUM.upto;
+		ret = SET1IF( !NUM.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		by %= (NUM.upto - NUM.from);
 		
 		num_part = alu_reg_data( alu, NUM );
 		tmp_part = alu_reg_data( alu, TMP );
@@ -1244,11 +1347,26 @@ int_t alu_reg__rotate
 )
 {
 	int ret, cmp;
-	uintmax_t by = 0, ndiff = NUM.upto - NUM.from;
+	size_t by;
 	
 	if ( alu )
 	{
-		alu_uint_set_raw( alu, TMP.node, ndiff );
+		NUM.node %= alu_used( alu );
+		VAL.node %= alu_used( alu );
+		TMP.node %= alu_used( alu );
+		
+		ret = SET1IF( !NUM.node | !VAL.node | !TMP.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		by = NUM.upto - NUM.from;
+		
+		alu_reg_set_raw( alu, TMP, &by, sizeof(size_t), 0 );
+		
 		cmp = alu_reg_cmp( alu, VAL, TMP );
 		
 		if ( cmp < 0 )
@@ -1279,94 +1397,137 @@ size_t alu_lowest_upto( alu_reg_t NUM, alu_reg_t VAL )
 
 int_t alu_reg_and( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 {
+	int ret;
 	alu_bit_t n, v;
 	size_t pos = 0;
 	void *part;
 	
-	NUM.node %= alu_used( alu );
-	VAL.node %= alu_used( alu );
-	
-	pos = alu_lowest_upto( NUM, VAL );
-	
-	part = alu_reg_data( alu, NUM );
-	n = alu_bit_set_bit( part, NUM.from );
-	
-	part = alu_reg_data( alu, VAL );
-	v = alu_bit_set_bit( part, VAL.from );
-	
-	for
-	(
-		; n.bit < pos
-		; alu_bit_inc(&n), alu_bit_inc(&v)
-	)
+	if ( alu )
 	{
-		/* TODO: Do branchless version of this */
-		if ( !(*(v.ptr) & v.mask) )
+	
+		NUM.node %= alu_used( alu );
+		VAL.node %= alu_used( alu );
+		
+		ret = SET1IF( !NUM.node | !VAL.node, EINVAL );
+			
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		pos = alu_lowest_upto( NUM, VAL );
+		
+		part = alu_reg_data( alu, NUM );
+		n = alu_bit_set_bit( part, NUM.from );
+		
+		part = alu_reg_data( alu, VAL );
+		v = alu_bit_set_bit( part, VAL.from );
+		
+		for
+		(
+			; n.bit < pos
+			; alu_bit_inc(&n), alu_bit_inc(&v)
+		)
+		{
+			/* TODO: Do branchless version of this */
+			if ( !(*(v.ptr) & v.mask) )
+				*(n.ptr) &= ~(n.mask);
+		}
+		
+		while ( n.bit < NUM.upto )
+		{
 			*(n.ptr) &= ~(n.mask);
+			alu_bit_inc(&n);
+		}
+		
+		return 0;
 	}
 	
-	while ( n.bit < NUM.upto )
-	{
-		*(n.ptr) &= ~(n.mask);
-		alu_bit_inc(&n);
-	}
-	
-	return 0;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg__or( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 {
+	int ret;
 	alu_bit_t n, v;
 	size_t pos = 0;
 	void *part;
 	
-	NUM.node %= alu_used( alu );
-	VAL.node %= alu_used( alu );
-	
-	pos = alu_lowest_upto( NUM, VAL );
-	
-	part = alu_reg_data( alu, NUM );
-	n = alu_bit_set_bit( part, NUM.from );
-	
-	part = alu_reg_data( alu, VAL );
-	v = alu_bit_set_bit( part, VAL.from );
-	
-	for
-	(
-		; n.bit < pos
-		; alu_bit_inc(&n), alu_bit_inc(&v)
-	)
+	if ( alu )
 	{
-		*(n.ptr) |= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
+		NUM.node %= alu_used( alu );
+		VAL.node %= alu_used( alu );
+	
+		ret = SET1IF( !NUM.node | !VAL.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+	
+		pos = alu_lowest_upto( NUM, VAL );
+		
+		part = alu_reg_data( alu, NUM );
+		n = alu_bit_set_bit( part, NUM.from );
+		
+		part = alu_reg_data( alu, VAL );
+		v = alu_bit_set_bit( part, VAL.from );
+		
+		for
+		(
+			; n.bit < pos
+			; alu_bit_inc(&n), alu_bit_inc(&v)
+		)
+		{
+			*(n.ptr) |= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
+		}
+		
+		return 0;
 	}
 	
-	return 0;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg_xor( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 {
+	int ret;
 	alu_bit_t n, v;
 	size_t pos = 0;
 	void *part;
 	
-	NUM.node %= alu_used( alu );
-	VAL.node %= alu_used( alu );
-	
-	pos = alu_lowest_upto( NUM, VAL );
-	
-	part = alu_reg_data( alu, NUM );
-	n = alu_bit_set_bit( part, NUM.from );
-	part = alu_reg_data( alu, VAL );
-	v = alu_bit_set_bit( part, VAL.from );
-	
-	for
-	(
-		; n.bit < pos
-		; alu_bit_inc(&n), alu_bit_inc(&v)
-	)
+	if ( alu )
 	{
-		*(n.ptr) ^= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
+		NUM.node %= alu_used( alu );
+		VAL.node %= alu_used( alu );
+		
+		ret = SET1IF( !NUM.node | !VAL.node, EINVAL );
+		
+		if ( ret )
+		{
+			alu_error(ret);
+			return ret;
+		}
+	
+		pos = alu_lowest_upto( NUM, VAL );
+		
+		part = alu_reg_data( alu, NUM );
+		n = alu_bit_set_bit( part, NUM.from );
+		part = alu_reg_data( alu, VAL );
+		v = alu_bit_set_bit( part, VAL.from );
+		
+		for
+		(
+			; n.bit < pos
+			; alu_bit_inc(&n), alu_bit_inc(&v)
+		)
+		{
+			*(n.ptr) ^= (*(v.ptr) & v.mask) ? n.mask : UNIC_SIZE_C(0);
+		}
+		
+		return 0;
 	}
 	
-	return 0;
+	return alu_err_null_ptr("alu");
 }

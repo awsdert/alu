@@ -216,7 +216,7 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
 #define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_size_perN(alu)))
 #define alu_get_active( alu, reg ) \
-	(alu_valid(alu)[(reg) / CHAR_BIT] & (1u << ((reg) % CHAR_BIT)))
+	!!(alu_valid(alu)[(reg) / CHAR_BIT] & (1u << ((reg) % CHAR_BIT)))
 
 #define alu_clr_active( alu, reg ) \
 	alu_valid(alu)[(reg) / CHAR_BIT] &= ~(1uLL << ((reg) % CHAR_BIT))
@@ -309,7 +309,32 @@ int_t alu_rem_flag( alu_t *alu, alu_reg_t *reg, uint_t info );
 	} \
 	while ( 0 )
 int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN );
-void alu_print_reg( char *pfx, alu_t *alu, alu_reg_t reg, bool print_info, bool print_value, bool print_flags );
+void alu__print_reg
+(
+	char *file
+	, uint_t line
+	, const char *func
+	, char *pfx
+	, alu_t *alu
+	, alu_reg_t reg
+	, bool print_info
+	, bool print_value
+	, bool print_flags
+);
+
+#define alu_print_reg( pfx, alu, reg, print_info, print_value, print_flags ) \
+	alu__print_reg \
+	( \
+		__FILE__ \
+		, __LINE__ \
+		, __func__ \
+		, pfx \
+		, alu \
+		, reg \
+		, print_info \
+		, print_value \
+		, print_flags \
+	)
 void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t flags );
 size_t alu_set_bounds( alu_t *alu, alu_reg_t *REG, size_t from, size_t upto );
 void alu_set_constants( alu_t *alu );
