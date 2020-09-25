@@ -1025,17 +1025,15 @@ int_t alu_reg_divide
 	, alu_reg_t tmp
 )
 {
-	int ret = alu_reg_mov( alu, rem, num );
+	int ret;
 	alu_reg_t seg;
 	alu_bit_t n;
 	size_t bits = 0;
 	bool nNeg, vNeg;
 	void *N;
 	
-	if ( ret == 0 )
-	{
-		(void)alu_reg_clr( alu, num );
-		
+	if ( alu )
+	{	
 		num.node %= alu_used( alu );
 		val.node %= alu_used( alu );
 		rem.node %= alu_used( alu );
@@ -1044,16 +1042,19 @@ int_t alu_reg_divide
 		nNeg = alu_reg_below0( alu, num );
 		vNeg = alu_reg_below0( alu, val );
 		
-		N = alu_reg_data( alu, num );
-		
-		seg = rem;
-		
 		if ( nNeg )
 			alu_reg_neg( alu, num );
 		
 		if ( vNeg )
 			alu_reg_neg( alu, val );
-
+		
+		(void)alu_reg_mov( alu, rem, num );
+		(void)alu_reg_clr( alu, num );
+		
+		N = alu_reg_data( alu, num );
+		
+		seg = rem;
+		
 		n = alu_reg_end_bit( alu, rem );
 		seg.upto = seg.from = n.bit + 1;
 		n = alu_bit_set_bit( N, num.from );
@@ -1089,8 +1090,7 @@ int_t alu_reg_divide
 		return ret;
 	}
 	
-	alu_error( ret );
-	return ret;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg_div
