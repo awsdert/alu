@@ -1028,7 +1028,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 			digit = 0;
 		}
 		
-		alu_reg_get_raw( alu, TMP, &b, sizeof(size_t) );
+		alu_reg_get_raw( alu, REM, &b, sizeof(size_t) );
 		ret = dst.next( base_str[b], dst.dst );
 		
 		if ( ret != 0 )
