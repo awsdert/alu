@@ -5,20 +5,18 @@
 int wrChar( char32_t c, void *dst )
 {
 	alu_block_t *ALUSTR = dst;
-	uint_t i = ALUSTR->taken;
-	int ret = alu_block_expand( dst, ++(ALUSTR->taken) );
+	int ret = alu_block_expand( dst, ALUSTR->taken + 1 );
 	char *alustr;
-	
-	alu_printf( "wrChar('%c',%p)", (char)c, dst );
 	
 	if ( ret != 0 )
 	{
-		--(ALUSTR->taken);
+		alu_error(ret);
 		return ret;
 	}
 	
 	alustr = ALUSTR->block;
-	alustr[i] = (char)c;
+	alustr[ALUSTR->taken] = (char)c;
+	ALUSTR->taken++;
 	return 0;
 }
 void flip( void *dst )
@@ -26,8 +24,6 @@ void flip( void *dst )
 	alu_block_t *ALUSTR = dst;
 	uint_t i, j;
 	char c, *alustr = ALUSTR->block;
-	
-	alu_printf("alustr = '%s', taken = %zu", alustr, ALUSTR->taken );
 	
 	for ( i = 0, j = ALUSTR->taken - 1; i < j; ++i, --j )
 	{
