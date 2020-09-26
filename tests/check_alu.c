@@ -44,7 +44,6 @@ int test_alu_uint_set_raw( size_t line, alu_t* alu, uint_t num, uintmax_t val )
 	ck_assert( NUM.node == num );
 	ck_assert( NUM.upto == alu_bits_perN(alu) );
 	ck_assert( NUM.from == 0 );
-	ck_assert( NUM.mant == 0 );
 	ck_assert( NUM.info == 0 );
 	
 	NUM.upto = bitsof(uintmax_t);
@@ -90,7 +89,6 @@ int test__alu_uint_op1
 	ck_assert( NUM.node == num );
 	ck_assert( NUM.upto == alu_bits_perN(alu) );
 	ck_assert( NUM.from == 0 );
-	ck_assert( NUM.mant == 0 );
 	ck_assert( NUM.info == 0 );
 	
 	NUM.upto = bitsof(uintmax_t);
@@ -141,7 +139,6 @@ int test__alu_uint_op2
 	ck_assert( NUM.node == num );
 	ck_assert( NUM.upto == alu_bits_perN(alu) );
 	ck_assert( NUM.from == 0 );
-	ck_assert( NUM.mant == 0 );
 	ck_assert( NUM.info == 0 );
 	
 	alu_reg_init( alu, VAL, val, 0 );
@@ -149,7 +146,6 @@ int test__alu_uint_op2
 	ck_assert( VAL.node == val );
 	ck_assert( VAL.upto == alu_bits_perN(alu) );
 	ck_assert( VAL.from == 0 );
-	ck_assert( VAL.mant == 0 );
 	ck_assert( VAL.info == 0 );
 	
 	NUM.upto = bitsof(uintmax_t);
@@ -203,7 +199,6 @@ int test__alu_uint_shift
 	ck_assert( NUM.node == num );
 	ck_assert( NUM.upto == alu_bits_perN(alu) );
 	ck_assert( NUM.from == 0 );
-	ck_assert( NUM.mant == 0 );
 	ck_assert( NUM.info == 0 );
 	
 	alu_reg_init( alu, VAL, val, 0 );
@@ -211,7 +206,6 @@ int test__alu_uint_shift
 	ck_assert( VAL.node == val );
 	ck_assert( VAL.upto == alu_bits_perN(alu) );
 	ck_assert( VAL.from == 0 );
-	ck_assert( VAL.mant == 0 );
 	ck_assert( VAL.info == 0 );
 	
 	alu_reg_init( alu, TMP, tmp, 0 );
@@ -219,7 +213,6 @@ int test__alu_uint_shift
 	ck_assert( TMP.node == tmp );
 	ck_assert( TMP.upto == alu_bits_perN(alu) );
 	ck_assert( TMP.from == 0 );
-	ck_assert( TMP.mant == 0 );
 	ck_assert( TMP.info == 0 );
 	
 	NUM.upto = bitsof(uintmax_t);
@@ -310,7 +303,6 @@ START_TEST( test_alu_create )
 	ck_assert( TMP.node == tmp );
 	ck_assert( TMP.upto == alu_bits_perN(alu) );
 	ck_assert( TMP.from == 0 );
-	ck_assert( TMP.mant == 0 );
 	ck_assert( TMP.info == 0 );
 	
 	TMP.upto = bitsof(uint_t);

@@ -234,7 +234,7 @@ int alu_reg_mov
 	void *D, *S;
 	uint_t tmp = 0;
 	alu_bit_t d, s;
-	size_t ndiff, vdiff, upto, exp, bias;
+	size_t ndiff, vdiff, nman_dig, vman_dig, upto, exp, bias;
 	bool neg, Inf = false;
 	alu_reg_t DEXP, DMAN, SEXP, SMAN, TMP;
 	
@@ -245,6 +245,9 @@ int alu_reg_mov
 		DST.node %= alu_used( alu );
 		SRC.node %= alu_used( alu );
 		
+		ndiff = DST.upto - DST.from;
+		vdiff = SRC.upto - SRC.from;
+		
 		/* Check for +/- */
 		neg = alu_reg_below0( alu, SRC );
 		
@@ -253,9 +256,10 @@ int alu_reg_mov
 			alu_reg_init( alu, SEXP, SRC.node, 0 );
 			alu_reg_init( alu, SMAN, SRC.node, 0 );
 			
+			vman_dig = alu_man_dig(vdiff);
+			
 			SEXP.upto = SRC.upto - 1;
-			SEXP.from = SRC.from + SRC.mant;
-			SMAN.upto = SRC.from + SRC.mant;
+			SMAN.upto = SEXP.from = SRC.from + vman_dig;
 			SMAN.from = SRC.from;
 			
 			bias = -1;
@@ -275,10 +279,12 @@ int alu_reg_mov
 			if ( alu_reg_floating( DST ) )
 			{
 				alu_reg_init( alu, DEXP, DST.node, 0 );
+				alu_reg_init( alu, DMAN, DST.node, 0 );
+				
+				nman_dig = alu_man_dig( ndiff );
 				
 				DEXP.upto = DST.upto - 1;
-				DEXP.from = DST.from + DST.mant;
-				DMAN.upto = DST.from + DST.mant;
+				DMAN.upto = DEXP.from = DST.from + nman_dig;
 				DMAN.from = DST.from;
 				
 				D = alu_reg_data( alu, DST );
@@ -304,7 +310,8 @@ int alu_reg_mov
 					? alu_reg_clr( alu, DMAN )
 					: alu_reg_mov( alu, DMAN, SMAN );
 			}
-			else if ( Inf )
+			
+			if ( Inf )
 			{
 				s = alu_reg_end_bit( alu, SMAN );
 				
@@ -326,10 +333,9 @@ int alu_reg_mov
 				return alu_reg_clr( alu, DST );
 			
 			exp -= bias;
-			ndiff = DST.upto - DST.from;
 			
 			/* Check if number is to big to fit in the integer */
-			if ( (exp + SMAN.mant + 1) > ndiff )
+			if ( (exp + vman_dig + 1) > ndiff )
 			{
 				(void)alu_reg_set_max( alu, DST );
 				return neg ? alu_reg_not( alu, DST ) : 0;
@@ -341,24 +347,59 @@ int alu_reg_mov
 			
 			/* Mantissas have an assumed bit,
 			 * in this case it's value can only be 1 */
-			vdiff = 1;
-			(void)alu_reg_set_raw( alu, DST, &vdiff, 1, 0 );
+			ndiff = 1;
+			(void)alu_reg_set_raw( alu, DST, &ndiff, 1, 0 );
 			
 			(void)alu_get_reg_node( alu, &tmp, 0 );
 			alu_reg_init( alu, TMP, tmp, 0 );
 			
 			/* These cannot possibly fail at this point */
-			(void)alu_reg__shl( alu, DST, TMP, SRC.mant );
+			(void)alu_reg__shl( alu, DST, TMP, vman_dig );
 			(void)alu_reg__or( alu, DST, SMAN );
-			(void)alu_reg__shl( alu, DST, TMP, exp - bias );
+			(void)alu_reg__shl( alu, DST, TMP, exp );
 			
 			alu_rem_reg_node( alu, &tmp );
 			
 			return 0;
 		}
 		
-		ndiff = DST.upto - DST.from;
-		vdiff = SRC.upto - SRC.from;
+		if ( alu_reg_floating( DST ) )
+		{
+			alu_reg_init( alu, DEXP, DST.node, 0 );
+			alu_reg_init( alu, DMAN, DST.node, 0 );
+			
+			nman_dig = alu_man_dig(ndiff);
+			
+			DEXP.upto = DST.upto - 1;
+			DMAN.upto = DEXP.from = DST.from + nman_dig;
+			DMAN.from = DST.from;
+			
+			bias = -1;
+			bias <<= (DEXP.upto - DEXP.from);
+			bias = ~bias;
+			bias >>= 1;
+			
+			s = alu_reg_end_bit( alu, SRC );
+			
+			if ( s.bit >= bias )
+			{
+				D = alu_reg_data( alu, DST );
+				d = alu_bit_set_bit( D, DEXP.upto );
+				/* Set +/- */
+				*(d.ptr) &= ~(d.mask);
+				*(d.ptr) |= SET1IF( neg, d.mask );
+				/* Set Infinity */
+				alu_reg_set_max( alu, DEXP );
+				/* Clear mantissa so not treated as NaN */
+				return alu_reg_clr( alu, DMAN );
+			}
+			
+			/* FIXME: I think there is a bug here */
+			exp = bias + s.bit;
+			ret = alu_reg_set_raw( alu, DEXP, &exp, sizeof(size_t), 0 );
+			
+			return alu_reg_mov( alu, DMAN, SRC );
+		}
 		
 		D = alu_reg_data( alu, DST );
 		S = alu_reg_data( alu, SRC );
@@ -840,8 +881,7 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		if ( alu_reg_floating( NUM ) )
 		{
 			NUM.upto--;
-			NUM.from += NUM.mant;
-			NUM.mant = 0;
+			NUM.from += alu_man_dig( diff );
 			NUM.info = 0;
 			
 			alu_set_raw( alu, TMP.node, by, 0 );
@@ -904,8 +944,7 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		if ( alu_reg_floating( NUM ) )
 		{
 			NUM.upto--;
-			NUM.from += NUM.mant;
-			NUM.mant = 0;
+			NUM.from += alu_man_dig( diff );
 			NUM.info = 0;
 			
 			alu_set_raw( alu, TMP.node, by, 0 );
@@ -1143,6 +1182,19 @@ int_t alu_reg_divide
 		if ( ret )
 		{
 			alu_error(ret);
+			
+			if ( !NUM.node )
+				alu_puts("NUM.node was 0");
+				
+			if ( !VAL.node )
+				alu_puts("VAL.node was 0");
+				
+			if ( !REM.node )
+				alu_puts("REM.node was 0");
+				
+			if ( !TMP.node )
+				alu_puts("TMP.node was 0");
+			
 			return ret;
 		}
 		

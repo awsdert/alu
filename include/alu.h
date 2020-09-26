@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+
 # define alu__printf( FORMAT, THEFILE, THELINE, THEFUNC, ... ) \
 	fprintf \
 	( \
@@ -158,7 +159,7 @@ typedef struct alu_reg
 {
 	uint_t node;
 	uint_t info;
-	size_t from, upto, mant;
+	size_t from, upto;
 } alu_reg_t;
 
 /** @brief Block of RAM based registers for optimal calculations
@@ -168,25 +169,29 @@ typedef struct alu_reg
  * time. **/
 typedef alu_vec_t alu_t;
 
-#define alu_reg_init( alu, alu_reg, reg, inf ) \
-	do \
-	{ \
-		(alu_reg).node = reg; \
-		(alu_reg).info = inf; \
-		(alu_reg).mant = 0; \
-		(alu_reg).from = 0; \
-		(alu_reg).upto = alu_bits_perN( alu ); \
-	} \
-	while (0)
-
-size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
-
 #define SET1IF( CMP, VAL ) ( (VAL) * !!(CMP) )
 
 #define SET2IF( CMP, ONTRUE, ONFALSE ) \
 	( SET1IF( CMP, ONTRUE ) | SET1IF( !(CMP), ONFALSE ) )
 
 #define TRUEIF( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
+
+#define alu_reg_init( alu, alu_reg, reg, inf ) \
+	do \
+	{ \
+		(alu_reg).node = reg; \
+		(alu_reg).info = SET2IF \
+		( \
+			inf & ALU_INFO_FLOAT \
+			, ALU_INFO_FLOAT | ALU_INFO__SIGN \
+			, inf \
+		); \
+		(alu_reg).from = 0; \
+		(alu_reg).upto = alu_bits_perN( alu ); \
+	} \
+	while (0)
+
+size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
 #define alu_man_dig( bits ) \
 	SET2IF \
@@ -195,13 +200,21 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 		, 3, SET2IF \
 		( \
 			(bits) < bitsof(float) \
-			, (bits) / 2, SET2IF \
+			, (bits) / 2 \
+			, SET2IF \
 			( \
 				(bits) < bitsof(double) \
-				, FLT_MANT_DIG, SET2IF \
+				, FLT_MANT_DIG \
+				, SET2IF \
 				( \
 					(bits) < bitsof(long double) \
-					, DBL_MANT_DIG, LDBL_MANT_DIG \
+					, DBL_MANT_DIG \
+					, SET2IF \
+					( \
+						(bits) == (bitsof(long double)) \
+						, LDBL_MANT_DIG \
+						, (bits) - (bitsof(long double) - LDBL_MANT_DIG) \
+					) \
 				) \
 			) \
 		) \
