@@ -232,10 +232,11 @@ int alu_reg_mov
 {
 	int ret;
 	void *D, *S;
+	uint_t tmp = 0;
 	alu_bit_t d, s;
-	size_t ndiff, vdiff, upto;
+	size_t ndiff, vdiff, upto, exp, bias;
 	bool neg, Inf = false;
-	alu_reg_t DEXP, DMAN, SEXP, SMAN;
+	alu_reg_t DEXP, DMAN, SEXP, SMAN, TMP;
 	
 	ret = alu_reg_clr( alu, DST );
 	
@@ -243,9 +244,6 @@ int alu_reg_mov
 	{
 		DST.node %= alu_used( alu );
 		SRC.node %= alu_used( alu );
-		
-		D = alu_reg_data( alu, DST );
-		S = alu_reg_data( alu, SRC );
 		
 		/* Check for +/- */
 		neg = alu_reg_below0( alu, SRC );
@@ -260,11 +258,19 @@ int alu_reg_mov
 			SMAN.upto = SRC.from + SRC.mant;
 			SMAN.from = SRC.from;
 			
-			/* Check if should set NaN or Infinity */
-			DEXP.upto = SEXP.upto;
-			DEXP.from = SEXP.from;
-			alu_reg_set_max( alu, DEXP );
-			Inf = (alu_reg_cmp( alu, SEXP, DEXP ) == 0);
+			bias = -1;
+			bias <<= (SEXP.upto - SEXP.from);
+			bias = ~bias;
+			
+			ret = alu_reg_get_raw( alu, SEXP, &exp, sizeof(size_t) );
+			
+			if ( ret != 0 )
+			{
+				alu_error(ret);
+				return ret;
+			}
+			
+			Inf = (exp == bias);
 			
 			if ( alu_reg_floating( DST ) )
 			{
@@ -275,6 +281,7 @@ int alu_reg_mov
 				DMAN.upto = DST.from + DST.mant;
 				DMAN.from = DST.from;
 				
+				D = alu_reg_data( alu, DST );
 				/* Set +/- */
 				d = alu_bit_set_bit( D, DEXP.upto );
 				*(d.ptr) &= ~(d.mask);
@@ -299,42 +306,62 @@ int alu_reg_mov
 			}
 			else if ( Inf )
 			{
-				/* Infinity is not something an integer can hold, default to
-				 * max of the integer, if -Infinity the not operation will flip
-				 * to min of the integer */
+				s = alu_reg_end_bit( alu, SMAN );
+				
+				/* NaN cannot be recorded by an integer, use 0 instead */
+				if ( *(s.ptr) & s.mask )
+					return alu_reg_clr( alu, DST );
+				
+				/* Infinity cannot be recorded by an integer,
+				 * use min/max instead */
 				(void)alu_reg_set_max( alu, DST );
 				return neg ? alu_reg_not( alu, DST ) : 0;
 			}
 			
-			/* Mantissa is always bigger than exponent so it is safe to use
-			 * as the temporary copy of number to shift */
-			alu_reg__shr( alu, DEXP, DMAN, 1 );
-			
 			/* Check if exponent is negative - meaning the number is between
 			 * 0 & 1, if it is then just set the integer to 0 */
-			ret = alu_reg_cmp( alu, SEXP, DEXP );
+			bias >>= 1;
 			
-			if ( ret < 0 )
+			if ( exp < bias )
 				return alu_reg_clr( alu, DST );
 			
-			DEXP.from = DST.from;
-			DEXP.upto = DST.upto;
+			exp -= bias;
 			ndiff = DST.upto - DST.from;
-			alu_reg_set_raw( alu, DEXP, &(ndiff), sizeof(size_t), 0 );
 			
-			ret = alu_reg_cmp( alu, DEXP, SEXP );
+			/* Check if number is to big to fit in the integer */
+			if ( (exp + SMAN.mant + 1) > ndiff )
+			{
+				(void)alu_reg_set_max( alu, DST );
+				return neg ? alu_reg_not( alu, DST ) : 0;
+			}
 			
-			/* Check if number is to big to fit in integer */
-			if ( ret >= 0 )
-				return alu_reg_set_max( alu, DST );
+			/* alu_reg_get_raw() will have retrieved and released a register,
+			 * since that succeeded will end up with that register here as the
+			 * register was not released from memory, only usage */
 			
-			// FIXME: Finish implementing moving alu_fpn_t to alu_int_t/alu_uint_t
-			// if ( alu_reg_cmp( alu, EXP, BIAS ) >= 0 )
-			return ENOSYS;
+			/* Mantissas have an assumed bit,
+			 * in this case it's value can only be 1 */
+			vdiff = 1;
+			(void)alu_reg_set_raw( alu, DST, &vdiff, 1, 0 );
+			
+			(void)alu_get_reg_node( alu, &tmp, 0 );
+			alu_reg_init( alu, TMP, tmp, 0 );
+			
+			/* These cannot possibly fail at this point */
+			(void)alu_reg__shl( alu, DST, TMP, SRC.mant );
+			(void)alu_reg__or( alu, DST, SMAN );
+			(void)alu_reg__shl( alu, DST, TMP, exp - bias );
+			
+			alu_rem_reg_node( alu, &tmp );
+			
+			return 0;
 		}
 		
 		ndiff = DST.upto - DST.from;
 		vdiff = SRC.upto - SRC.from;
+		
+		D = alu_reg_data( alu, DST );
+		S = alu_reg_data( alu, SRC );
 		
 		d = alu_bit_set_bit( D, DST.from );
 		s = alu_bit_set_bit( S, SRC.from );
