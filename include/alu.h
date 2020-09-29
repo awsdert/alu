@@ -35,10 +35,6 @@
 #define LOWEST( A, B )  ( ((A) * ((A) <= (B))) | ((B) * ((B) <= (A))) )
 #define HIGHEST( A, B ) ( ((A) * ((A) >= (B))) | ((B) * ((B) >= (A))) )
 
-typedef struct alu_count {
-	uint_t upto, used, last;
-} alu_count_t;
-
 typedef struct alu_block {
 	int fault;
 	void *block;
@@ -106,15 +102,15 @@ void alu_bit_dec( alu_bit_t *pos );
 
 typedef struct alu_vec
 {
-	size_t perN;
-	alu_count_t qty;
-	alu_block_t mem;
+	size_t Nsize;
+	uint_t taken, given;
+	alu_block_t block;
 	void **ref;
 } alu_vec_t;
 
 typedef uint_t alu_int_t, alu_uint_t, alu_fpn_t;
 
-int_t alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir );
+int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir );
 # define alu_vec_expand( VEC, WANT, PERN ) alu_vec( VEC, WANT, PERN, 1 )
 # define alu_vec_shrink( VEC, WANT, PERN ) alu_vec( VEC, WANT, PERN, -1 )
 # define alu_vec_release( VEC, PERN ) (void)alu_vec( VEC, 0, PERN, -1 )
@@ -187,7 +183,7 @@ typedef alu_vec_t alu_t;
 			, inf \
 		); \
 		(alu_reg).from = 0; \
-		(alu_reg).upto = alu_bits_perN( alu ); \
+		(alu_reg).upto = alu_Nbits( alu ); \
 	} \
 	while (0)
 
@@ -220,14 +216,14 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 		) \
 	)
 
-#define alu_size_perN( alu ) ((alu)->perN)
-#define alu_bits_perN( alu ) (alu_size_perN(alu) * CHAR_BIT)
-#define alu_nodes( alu ) ((uchar_t*)((alu)->mem.block))
-#define alu_valid( alu ) ((uchar_t*)((alu)->mem.block))
-#define alu_upto( alu ) ((alu)->qty.upto)
-#define alu_used( alu ) ((alu)->qty.used)
+#define alu_Nsize( alu ) ((alu)->Nsize)
+#define alu_Nbits( alu ) (alu_Nsize(alu) * CHAR_BIT)
+#define alu_nodes( alu ) ((uchar_t*)((alu)->block.block))
+#define alu_valid( alu ) ((uchar_t*)((alu)->block.block))
+#define alu_upto( alu ) ((alu)->given)
+#define alu_used( alu ) ((alu)->taken)
 
-#define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_size_perN(alu)))
+#define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_Nsize(alu)))
 #define alu_get_active( alu, reg ) \
 	!!(alu_valid(alu)[(reg) / CHAR_BIT] & (1u << ((reg) % CHAR_BIT)))
 
@@ -318,10 +314,10 @@ int_t alu_rem_flag( alu_t *alu, alu_reg_t *reg, uint_t info );
 	do \
 	{ \
 		alu_used(alu) = count; \
-		(alu)->mem.taken = count * alu_size_perN(alu); \
+		(alu)->block.taken = count * alu_Nsize(alu); \
 	} \
 	while ( 0 )
-int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t perN );
+int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t Nsize );
 void alu__print_reg
 (
 	char *file

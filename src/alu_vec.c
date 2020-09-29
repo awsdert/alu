@@ -1,71 +1,81 @@
 #include "alu.h"
 #include <string.h>
 
-int_t alu_vec( alu_vec_t *vec, uint_t want, size_t perN, int dir )
+int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 {
-	int ret = 0, used;
+	int ret = 0;
 	uchar_t *dst, *src, *block;
-	size_t diff = 0;
+	size_t diff, desire;
+	uint_t used;
 	
 	if ( vec )
 	{
-		used = vec->qty.used;
+		desire = Nsize * want;
 		
-		if ( perN >= vec->perN )
+		if ( desire )
 		{
-			ret = alu_block( &(vec->mem), want * perN, dir );
+			used = vec->taken;
 			
-			if ( ret == 0 )
+			if ( Nsize >= vec->Nsize )
 			{
-				diff = perN - (vec->perN);
+				ret = alu_block( &(vec->block), desire, dir );
 				
-				if ( !diff )
-					goto done;
+				if ( ret == 0 )
+				{
+					diff = Nsize - (vec->Nsize);
 					
-				/* Align nodes and initialise extra bytes */
-				block = vec->mem.block;
+					if ( !diff )
+						goto done;
+						
+					/* Align nodes and initialise extra bytes */
+					block = vec->block.block;
+					while ( used )
+					{
+						--used;
+						dst = block + (used * Nsize) + diff;
+						src = block + (used * vec->Nsize);
+						(void)memmove( dst, src, vec->Nsize );
+						(void)memset( dst - diff, 0, diff );
+					}
+					goto done;
+				}
+			}
+			else
+			{
+				diff = (vec->Nsize) - Nsize;
+				
+				/* Crop nodes */
+				block = vec->block.block;
 				while ( used )
 				{
 					--used;
-					dst = block + (used * perN) + diff;
-					src = block + (used * vec->perN);
-					(void)memmove( dst, src, vec->perN );
-					(void)memset( dst - diff, 0, diff );
+					dst = block + (used * Nsize);
+					src = block + (used * vec->Nsize);
+					(void)memset( src, 0, diff );
+					(void)memmove( dst, src + diff, Nsize );
 				}
-				goto done;
+				
+				ret = alu_block( &(vec->block), desire, dir );
 			}
-		}
-		else
-		{
-			diff = (vec->perN) - perN;
 			
-			/* Crop nodes */
-			block = vec->mem.block;
-			while ( used )
+			if ( ret == 0 )
 			{
-				--used;
-				dst = block + (used * perN);
-				src = block + (used * vec->perN);
-				(void)memset( src, 0, diff );
-				(void)memmove( dst, src + diff, perN );
+				done:
+				vec->Nsize = Nsize;
+				vec->given = want;
+				vec->taken = LOWEST( vec->taken, want );
+				vec->block.taken = vec->taken * vec->Nsize;
+				
+				return 0;
 			}
 			
-			ret = alu_block( &(vec->mem), want * perN, dir );
+			alu_error(ret);
+			return ret;
 		}
 		
-		if ( ret == 0 )
-		{
-			done:
-			vec->perN = perN;
-			vec->qty.upto = want;
-			vec->qty.last = !!want * (want - 1);
-			vec->qty.used = LOWEST( vec->qty.used, want );
-			
-			return 0;
-		}
-		
-		alu_error(ret);
-		return ret;
+		alu_block_release( &(vec->block) );
+		(void)memset( vec, 0, sizeof(alu_vec_t) );
+		return 0;
 	}
 	
 	return alu_err_null_ptr( "vec" );

@@ -4,11 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-# define rotate( NUM, BITS, OP1, OP2 ) \
-	(((NUM) OP1 (BITS))|((NUM) OP2 (bitsof(NUM) - (BITS))))
-# define rol( NUM, BITS ) rotate( NUM, BITS, <<, >> )
-# define ror( NUM, BITS ) rotate( NUM, BITS, >>, << )
-
 int reg_compare(
 	alu_t *alu,
 	intmax_t _num,

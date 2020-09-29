@@ -42,7 +42,7 @@ void alu_bit_inc( alu_bit_t *alu_bit )
 		i = alu_bit->bit / bitsof(uintmax_t);
 		alu_bit->ptr += (i - alu_bit->seg);
 		alu_bit->seg = i;
-		alu_bit->mask += !(alu_bit->mask);
+		alu_bit->mask |= !(alu_bit->mask);
 	}
 }
 
@@ -58,12 +58,7 @@ void alu_bit_dec( alu_bit_t *alu_bit )
 		i = alu_bit->bit / bitsof(uintmax_t);
 		alu_bit->ptr -= (alu_bit->seg - i);
 		alu_bit->seg = i;
-		alu_bit->mask = SET2IF
-		(
-			alu_bit->mask
-			, alu_bit->mask
-			, INTMAX_MIN
-		);
+		alu_bit->mask |= SET1IF( !(alu_bit->mask), INTMAX_MIN );
 	}
 }
 

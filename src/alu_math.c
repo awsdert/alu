@@ -379,15 +379,16 @@ int alu_reg_mov
 			bias = ~bias;
 			bias >>= 1;
 			
+			/* Set +/- */
+			D = alu_reg_data( alu, DST );
+			d = alu_bit_set_bit( D, DEXP.upto );
+			*(d.ptr) &= ~(d.mask);
+			*(d.ptr) |= SET1IF( neg, d.mask );
+			
 			s = alu_reg_end_bit( alu, SRC );
 			
 			if ( s.bit >= bias )
 			{
-				D = alu_reg_data( alu, DST );
-				d = alu_bit_set_bit( D, DEXP.upto );
-				/* Set +/- */
-				*(d.ptr) &= ~(d.mask);
-				*(d.ptr) |= SET1IF( neg, d.mask );
 				/* Set Infinity */
 				alu_reg_set_max( alu, DEXP );
 				/* Clear mantissa so not treated as NaN */
@@ -440,13 +441,13 @@ alu_bit_t alu_reg_end_bit( alu_t *alu, alu_reg_t NUM )
 {
 	alu_bit_t n;
 	size_t b;
-	void *part;
+	void *N;
 	
 	NUM.node %= alu_used( alu );
 	
-	part = alu_reg_data( alu, NUM );
-	n = alu_bit_set_bit( part, NUM.upto - 1 );
-	b = n.bit * !( *(n.ptr) & n.mask );
+	N = alu_reg_data( alu, NUM );
+	n = alu_bit_set_bit( N, NUM.upto );
+	b = n.bit;
 	
 	while ( b > NUM.from )
 	{
@@ -473,7 +474,6 @@ int_t alu_reg_cmp(
 	int ret = 0, a, b;
 	alu_bit_t n = {0}, v = {0};
 	size_t ndiff = 0, vdiff = 0;
-	bool nNeg, vNeg;
 	
 	if ( alu )
 	{
@@ -485,72 +485,78 @@ int_t alu_reg_cmp(
 		if ( ret )
 		{
 			alu_error(ret);
+			
+			if ( !NUM.node ) alu_puts( "NUM.node was 0" );
+			
+			if ( !VAL.node ) alu_puts( "VAL.node was 0" );
+			
 			return ret;
 		}
+		
+		/* Check sign is same */
+		
+		a = alu_reg_below0( alu, NUM );
+		b = alu_reg_below0( alu, VAL );
+		
+		ret = -(a - b);
+		
+		/* Get end bits */
 		
 		n = alu_reg_end_bit( alu, NUM );
 		v = alu_reg_end_bit( alu, VAL );
 		
-		nNeg = alu_reg_signed( NUM ) & (n.bit == NUM.upto - 1);
-		vNeg = alu_reg_signed( VAL ) & (v.bit == VAL.upto - 1);
+		alu_bit_inc(&n);
+		alu_bit_inc(&v);
 		
-		if ( nNeg != vNeg )
-		{
-			ret = -1 + vNeg + vNeg;
-			return ret;
-		}
+		ret = SET2IF( ret == 0, (n.bit > v.bit) - (n.bit < v.bit), ret );
 		
-		ndiff = n.bit - NUM.from;
-		vdiff = v.bit - VAL.from;
-		
-		a = nNeg;
-		b = vNeg;
+		ndiff = SET1IF( ret == 0, n.bit - NUM.from );
+		vdiff = SET1IF( ret == 0, v.bit - VAL.from );
 		
 		/* Deal with different sized integers */
+		
+		vdiff = SET1IF( ret == 0, vdiff );
 
 		while ( ndiff < vdiff )
 		{
-			b = (*(v.ptr) & v.mask) ? 1 : 0;
-			
-			ret = a - b;
-			if ( ret )
-				return ret;
-			
 			vdiff--;
 			alu_bit_dec(&v);
+			
+			b = !!( *(v.ptr) & v.mask );
+			
+			ret = a - b;
+			
+			vdiff = SET1IF( ret == 0, vdiff );
 		}
+		
+		ndiff = SET1IF( ret == 0, ndiff );
 		
 		while ( ndiff > vdiff )
 		{
-			a = (*(n.ptr) & n.mask) ? 1 : 0;
-			
-			ret = a - b;
-			if ( ret )
-				return ret;
-			
 			ndiff--;
 			alu_bit_dec(&n);
+			
+			a = !!( *(n.ptr) & n.mask );
+			
+			ret = a - b;
+			
+			ndiff = SET1IF( ret == 0, ndiff );
 		}
 		
 		/* Finally compare what matches bit alignment */
-		do
+		while ( ndiff )
 		{
-			a = (*(n.ptr) & n.mask) ? 1 : 0;
-			b = (*(v.ptr) & v.mask) ? 1 : 0;
-			
-			ret = a - b;
-			if ( ret != 0 )
-				return ret;
-				
-			if ( !ndiff )
-				break;
-			
 			ndiff--;
 			alu_bit_dec(&n);
 			alu_bit_dec(&v);
+			
+			a = !!( *(n.ptr) & n.mask );
+			b = !!( *(v.ptr) & v.mask );
+			
+			ret = a - b;
+			ndiff = SET1IF( ret == 0, ndiff );
 		}
-		while ( 1 );
-		
+
 		return ret;
 	}
 	

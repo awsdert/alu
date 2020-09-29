@@ -24,10 +24,11 @@ F_L:=$(COP)L
 F_l:=$(COP)l
 F_I:=$(COP)I
 F_D:=$(COP)D
+F_O:=$(COP)O
 
 GPROF:=$(call ifin,$(CC),vc,echo Failed to profile,gprof)
 
-DBG_FLAGS:=$(F_D) NDEBUG
+DBG_FLAGS:=$(F_D) NDEBUG $(F_O)3
 DBG_APP:=
 DBG_SFX:=
 PFL_FLAGS:=
@@ -41,7 +42,7 @@ PFL_SFX:=_p
 endif
 
 ifeq '$(filter debug,$(MAKECMDGOALS))' 'debug'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
@@ -51,7 +52,17 @@ PFL_SFX:=
 endif
 
 ifeq '$(filter gede,$(MAKECMDGOALS))' 'gede'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
+DBG_APP:=$(GDB) $(COP)ex run
+DBG_SFX:=_d
+# Debugging takes precedence over profiling
+PFL_FLAGS:=
+PFL_APP:=
+PFL_SFX:=
+endif
+
+ifeq '$(filter check,$(MAKECMDGOALS))' 'check'
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
