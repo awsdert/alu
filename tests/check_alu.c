@@ -2,28 +2,8 @@
 #include <stdlib.h>
 
 alu_t _alu = {0}, *alu = &_alu;
-alu_vec_t vec = {0};
 
 #define REG_COUNT 3
-
-enum
-{
-	ID_CMP_I
-	, ID_CMP_N
-	, ID_CMP_V
-	, ID_OP1_F
-	, ID_OP1_I
-	, ID_OP1_V
-	, ID_OP2_F
-	, ID_OP2_I
-	, ID_OP2_N
-	, ID_OP2_V
-	, ID_OP3_F
-	, ID_OP3_I
-	, ID_OP3_N
-	, ID_OP3_V
-	, ID_COUNT
-};
 
 int wrChar( char32_t c, void *dst )
 {
@@ -42,6 +22,7 @@ int wrChar( char32_t c, void *dst )
 	ALUSTR->taken++;
 	return 0;
 }
+
 void flip( void *dst )
 {
 	alu_block_t *ALUSTR = dst;
@@ -99,10 +80,6 @@ typedef uintmax_t (*func_op3_ret)( uintmax_t a, uintmax_t b );
 
 const uintmax_t ops_loop_until = bitsof(uintmax_t);
 
-size_t cmp_i = 0;
-
-uintmax_t cmp_n = ops_loop_until - 1, cmp_v = 0;
-
 func_op1_str op1_str = NULL, op1_str_array[] =
 {
 	op1_str_not
@@ -126,10 +103,6 @@ func_alu_reg_op1_t op1_reg = NULL, op1_reg_array[] =
 	, alu_reg_dec
 	, NULL
 };
-
-size_t op1_f = 0, op1_i = 0;
-
-uintmax_t op1_n = 0;
 
 func_op3_str op3_str = NULL, op3_str_array[] =
 {
@@ -166,10 +139,6 @@ func_alu_reg_shift_t op3_reg = NULL, op3_reg_array[] =
 	, alu_reg__rotate
 	, NULL
 };
-
-bool op3_stop = 0;
-size_t op3_f = 0, op3_i = 0;
-uintmax_t op3_n = 0xDEADC0DE, op3_v = 0;
 
 func_op2_str op2_str = NULL, op2_str_array[] =
 {
@@ -209,10 +178,6 @@ func_alu_reg_op2_t op2_reg = NULL, op2_reg_array[] =
 	, alu_reg_rem
 	, NULL
 };
-
-size_t op2_f = 0, op2_i = 0;
-
-uintmax_t op2_n = 0xDEADC0DE, op2_v = 0;
 
 #include <check.h>
 
@@ -318,7 +283,10 @@ START_TEST( test_alu_op1 )
 	int ret;
 	uint_t num;
 	alu_reg_t NUM;
-	uintmax_t expect, got, got_n;
+	uintmax_t expect
+		, op1_f = _i / ops_loop_until
+		, op1_n = _i % ops_loop_until
+		, got, got_n;
 	
 	ret = alu_get_reg_node( alu, &num, 0 );
 	
@@ -329,17 +297,9 @@ START_TEST( test_alu_op1 )
 	
 	NUM.upto = bitsof(uintmax_t);
 	
-	if ( op1_i == ops_loop_until )
-	{
-		op1_f++;
-		op1_i = 0;
-	}
-	
 	op1_str = op1_str_array[op1_f];
 	op1_ret = op1_ret_array[op1_f];
 	op1_reg = op1_reg_array[op1_f];
-	
-	op1_n = op1_i;
 	
 	if ( op1_str )
 	{	
@@ -349,8 +309,6 @@ START_TEST( test_alu_op1 )
 		alu_reg_get_raw( alu, NUM, &got_n, sizeof(uintmax_t) );
 		op1_reg( alu, NUM );
 		alu_reg_get_raw( alu, NUM, &got, sizeof(uintmax_t) );
-		
-		op1_i++;
 		
 		ck_assert_msg
 		(
@@ -372,7 +330,11 @@ END_TEST
 START_TEST( test_alu_op3 )
 {
 	int ret;
-	uintmax_t expect, got, got_n, got_v;
+	uintmax_t expect
+		, op3_f = _i / ops_loop_until
+		, op3_n = 0xDEADC0DE
+		, op3_v = _i % ops_loop_until
+		, got, got_n, got_v;
 	uint_t nodes[REG_COUNT] = {0}, num, val, tmp;
 	alu_reg_t NUM, VAL, TMP;
 	
@@ -393,18 +355,10 @@ START_TEST( test_alu_op3 )
 	
 	NUM.upto = VAL.upto = TMP.upto = bitsof(uintmax_t);
 	
-	if ( op3_i == ops_loop_until )
-	{
-		op3_f++;
-		op3_i = 0;
-	}
-	
 	op3_str = op3_str_array[op3_f];
 	op3_ret = op3_ret_array[op3_f];
 	op3_reg = op3_reg_array[op3_f];
 	op3__reg = op3__reg_array[op3_f];
-	
-	op3_v = op3_i;
 	
 	if ( op3_str )
 	{
@@ -425,7 +379,6 @@ START_TEST( test_alu_op3 )
 			alu_print_reg( "VAL", alu, VAL, 1, 1, 0 );
 		}
 #endif
-		op3_i++;
 			
 		ck_assert_msg
 		(
@@ -451,7 +404,11 @@ START_TEST( test_alu_op2 )
 	int ret;
 	uint_t nodes[REG_COUNT] = {0}, num, val;
 	alu_reg_t NUM, VAL;
-	uintmax_t expect, got, got_n, got_v;
+	uintmax_t expect
+		, op2_f = _i / ops_loop_until
+		, op2_n = 0xDEADC0DE
+		, op2_v = _i % ops_loop_until
+		, got, got_n, got_v;
 	
 	ret = alu_get_reg_nodes( alu, nodes, REG_COUNT, 0 );
 	
@@ -467,17 +424,9 @@ START_TEST( test_alu_op2 )
 	
 	NUM.upto = VAL.upto = bitsof(uintmax_t);
 	
-	if ( op2_i == ops_loop_until )
-	{
-		op2_f++;
-		op2_i = 0;
-	}
-	
 	op2_str = op2_str_array[op2_f];
 	op2_ret = op2_ret_array[op2_f];
 	op2_reg = op2_reg_array[op2_f];
-	
-	op2_v = op2_i;
 	
 	if ( op2_str )
 	{		
@@ -492,8 +441,6 @@ START_TEST( test_alu_op2 )
 		op2_reg( alu, NUM, VAL );
 		
 		alu_uint_get_raw( alu, num, &got );
-		
-		++op2_i;
 		
 		ck_assert_msg
 		(
@@ -626,7 +573,7 @@ START_TEST( test_alu_reg_set_raw )
 {
 	int ret;
 	uint_t num = 0;
-	uintmax_t val, got;
+	uintmax_t val = _i, got;
 	alu_reg_t NUM;
 	
 	ret = alu_get_reg_node( alu, &num, 0 );
@@ -642,20 +589,49 @@ START_TEST( test_alu_reg_set_raw )
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	NUM.upto = bitsof(uintmax_t);
+
+	alu_reg_set_raw( alu, NUM, &val, sizeof(uintmax_t), 0 );
+	alu_reg_get_raw( alu, NUM, &got, sizeof(uintmax_t) );
 	
-	for ( val = 0; val < bitsof(uintmax_t); ++val )
-	{
-		alu_reg_set_raw( alu, NUM, &val, sizeof(uintmax_t), 0 );
-		alu_reg_get_raw( alu, NUM, &got, sizeof(uintmax_t) );
-		
-		ck_assert_msg
-		(
-			val == got
-			, "Expected %ju, Got %ju"
-			, val
-			, got
-		);
-	}
+	ck_assert_msg
+	(
+		val == got
+		, "Expected %ju, Got %ju"
+		, val
+		, got
+	);
+	
+	alu_rem_reg_node( alu, &num );
+}
+END_TEST
+
+START_TEST( test_alu_uint_set_raw )
+{
+	int ret;
+	uint_t num = 0;
+	uintmax_t val = _i, got;
+	
+	ret = alu_get_reg_node( alu, &num, 0 );
+	
+	ck_assert_msg
+	(
+		ret == 0
+		, "Error: %08X, %i, '%s'"
+		, ret
+		, ret
+		, strerror(ret)
+	);
+
+	alu_uint_set_raw( alu, num, val );
+	alu_uint_get_raw( alu, num, &got );
+	
+	ck_assert_msg
+	(
+		val == got
+		, "Expected %ju, Got %ju"
+		, val
+		, got
+	);
 	
 	alu_rem_reg_node( alu, &num );
 }
@@ -725,7 +701,7 @@ START_TEST( test_alu_bit_set_bit )
 {
 	int ret;
 	uint_t num = 0;
-	uintmax_t *N, i;
+	uintmax_t *N;
 	alu_bit_t n;
 	
 	ret = alu_get_reg_node( alu, &num, 0 );
@@ -741,17 +717,13 @@ START_TEST( test_alu_bit_set_bit )
 	
 	N = (void*)alu_data( alu, num );
 	
-	for ( i = bitsof(uintmax_t); i; )
-	{
-		--i;
-		n = alu_bit_set_bit( N, i );
-	
-		ck_assert( n.bit == i );
-		ck_assert( n.seg == (i / bitsof(uintmax_t)) );
-		ck_assert( n.pos == (i % bitsof(uintmax_t)) );
-		ck_assert( n.ptr == (void*)(N + (i / bitsof(uintmax_t))) );
-		ck_assert( n.mask == 1uLL << (i % bitsof(uintmax_t)) );
-	}
+	n = alu_bit_set_bit( N, _i );
+
+	ck_assert( n.bit == (size_t)_i );
+	ck_assert( n.seg == (size_t)(_i / bitsof(uintmax_t)) );
+	ck_assert( n.pos == (size_t)(_i % bitsof(uintmax_t)) );
+	ck_assert( n.ptr == (void*)(N + (_i / bitsof(uintmax_t))) );
+	ck_assert( n.mask == 1uLL << (_i % bitsof(uintmax_t)) );
 	
 	alu_rem_reg_node( alu, &num );
 }
@@ -759,88 +731,47 @@ END_TEST
 
 START_TEST( test_alu_bit_inc )
 {
-	int ret;
-	uint_t num = 0;
-	uintmax_t *N, i;
+	uintmax_t i = _i;
 	alu_bit_t n, v;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
+	n = alu_bit_set_bit( &i, i );
+	v = alu_bit_set_bit( &i, ++i );
+	alu_bit_inc(&n);
 	
+	ck_assert( n.bit == i );
+	ck_assert( n.seg == (i / bitsof(uintmax_t)) );
+	ck_assert( n.pos == (i % bitsof(uintmax_t)) );
 	ck_assert_msg
 	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
+		n.ptr == v.ptr
+		, "Expected %p, Got %p"
+		, (void*)(v.ptr)
+		, (void*)(n.ptr)
 	);
-	
-	N = (void*)alu_data( alu, num );
-	n = alu_bit_set_bit( N, 0 );
-	
-	for ( i = 0; i < bitsof(uintmax_t); )
-	{
-		v = alu_bit_set_bit( N, ++i );
-		alu_bit_inc(&n);
-		
-		ck_assert( n.bit == v.bit );
-		ck_assert( n.pos == v.pos );
-		ck_assert( n.seg == v.seg );
-		ck_assert_msg
-		(
-			n.ptr == v.ptr
-			, "Expected %p, Got %p"
-			, (void*)(v.ptr)
-			, (void*)(n.ptr)
-		);
-		ck_assert( n.mask == v.mask );
-	}
-	
-	alu_rem_reg_node( alu, &num );
+	ck_assert( n.mask == v.mask );
 }
 END_TEST
 
 START_TEST( test_alu_bit_dec )
 {
-	int ret;
-	uint_t num = 0;
-	uintmax_t *N, i;
+	uintmax_t i = _i;
 	alu_bit_t n, v;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
+	n = alu_bit_set_bit( &i, i );
+	v = alu_bit_set_bit( &i, --i );
+	alu_bit_dec(&n);
 	
+	ck_assert( n.bit == i );
+	ck_assert( n.seg == (i / bitsof(uintmax_t)) );
+	ck_assert( n.pos == (i % bitsof(uintmax_t)) );
 	ck_assert_msg
 	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
+		n.ptr == v.ptr
+		, "Expected %p, Got %p"
+		, (void*)(v.ptr)
+		, (void*)(n.ptr)
 	);
-	
-	i = bitsof(uintmax_t);
-	N = (void*)alu_data( alu, num );
-	n = alu_bit_set_bit( N, i );
-	
-	while ( i )
-	{
-		v = alu_bit_set_bit( N, --i );
-		alu_bit_dec(&n);
-		
-		ck_assert( n.bit == v.bit );
-		ck_assert( n.pos == v.pos );
-		ck_assert( n.seg == v.seg );
-		ck_assert_msg
-		(
-			n.ptr == v.ptr
-			, "Expected %p, Got %p"
-			, (void*)(v.ptr)
-			, (void*)(n.ptr)
-		);
-		ck_assert( n.mask == v.mask );
-	}
-	
-	alu_rem_reg_node( alu, &num );
+	ck_assert( n.mask == v.mask );
 }
 END_TEST
 
@@ -863,7 +794,7 @@ Suite * alu_suite(void)
 {
 	Suite *s;
 	TCase *tc_core;
-	uint_t f = 0, j = 0;
+	uint_t f = 0;
 
 	s = suite_create("ALU");
 
@@ -873,32 +804,26 @@ Suite * alu_suite(void)
 	tcase_add_test( tc_core, test_alu_setup_reg );
 	tcase_add_test( tc_core, test_alu_get_reg_node );
 	tcase_add_test( tc_core, test_alu_get_reg_nodes );
-	tcase_add_test( tc_core, test_alu_reg_set_raw );
-	tcase_add_test( tc_core, test_alu_bit_set_bit );
-	tcase_add_test( tc_core, test_alu_bit_inc );
-	tcase_add_test( tc_core, test_alu_bit_dec );
+	tcase_add_loop_test( tc_core, test_alu_bit_set_bit, 0, ops_loop_until );
+	tcase_add_loop_test( tc_core, test_alu_bit_inc, 0, ops_loop_until );
+	tcase_add_loop_test( tc_core, test_alu_bit_dec, 1, ops_loop_until + 1 );
+	tcase_add_loop_test( tc_core, test_alu_reg_set_raw, 0, ops_loop_until );
+	tcase_add_loop_test( tc_core, test_alu_reg_set_raw, 0, ops_loop_until );
 	tcase_add_test( tc_core, test_alu_reg_end_bit );
 	tcase_add_loop_test( tc_core, test_alu_reg_cmp, 0, ops_loop_until );
 	
-	for ( f = 0; op1_str_array[f]; ++f )
-	{
-		for ( j = 0; j < ops_loop_until; ++j )
-			tcase_add_test( tc_core, test_alu_op1 );
-	}
+#if 0
+	for ( f = 0; op1_str_array[f]; ++f );
+	tcase_add_loop_test( tc_core, test_alu_op1, 0, f * ops_loop_until );
 	
-	for ( f = 0; op3_str_array[f]; ++f )
-	{
-		for ( j = 0; j < ops_loop_until; ++j )
-			tcase_add_test( tc_core, test_alu_op3 );
-	}
+	for ( f = 0; op2_str_array[f]; ++f );
+	tcase_add_loop_test( tc_core, test_alu_op2, 0, f * ops_loop_until );
 	
-	for ( f = 0; op2_str_array[f]; ++f )
-	{
-		for ( j = 0; j < ops_loop_until; ++j )
-			tcase_add_test( tc_core, test_alu_op2 );
-	}
+	for ( f = 0; op3_str_array[f]; ++f );
+	tcase_add_loop_test( tc_core, test_alu_op3, 0, f * ops_loop_until );
 	
 	tcase_add_test( tc_core, test_alu_reg2str );
+#endif
 	tcase_add_test( tc_core, test_alu_vec_release );
 	suite_add_tcase( s, tc_core);
 
