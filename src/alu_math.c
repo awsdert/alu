@@ -223,6 +223,278 @@ int_t alu_set_raw( alu_t *alu, uint_t num, uintmax_t raw, uint_t info )
 	return alu_reg_set_raw( alu, NUM, &raw, sizeof(uintmax_t), info );
 }
 
+int alu_reg_int2int( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
+{
+	alu_bit_t d, s;
+	size_t limit;
+	bool neg;
+	
+	if ( alu )
+	{		
+		d = alu_bit_set_bit( (void*)alu_reg_data( alu, DST ), DST.from );
+		s = alu_bit_set_bit( (void*)alu_reg_data( alu, SRC ), SRC.from );
+		
+		limit = DST.from + LOWEST( DST.upto - DST.from, SRC.upto - SRC.from );
+		
+		while ( d.bit < limit )
+		{
+			*(d.ptr) &= ~(d.mask);
+			*(d.ptr) |= SET1IF( *(s.ptr) & s.mask, d.mask );
+			
+			alu_bit_inc(&d);
+			alu_bit_inc(&s);
+		}
+		
+		alu_bit_dec(&s);
+		
+		neg = TRUEIF( alu_reg_signed( SRC ), *(s.ptr) & s.mask );
+		
+		while ( d.bit < DST.upto )
+		{
+			*(d.ptr) &= ~(d.mask);
+			*(d.ptr) |= SET1IF( neg, d.mask );
+			
+			alu_bit_inc(&d);
+		}
+		
+		return SET1IF( d.bit < (DST.from + (SRC.upto - SRC.from)), EOVERFLOW );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
+{
+	int ret;
+	alu_reg_t DEXP, DMAN;
+	alu_bit_t d, s;
+	void *D;
+	size_t dig, exp, bias;
+	bool neg;
+	
+	if ( alu )
+	{
+		neg = alu_reg_below0( alu, SRC );
+		dig = DST.upto - DST.from;
+		
+		alu_reg_init( alu, DEXP, DST.node, 0 );
+		alu_reg_init( alu, DMAN, DST.node, 0 );
+		
+		dig = alu_man_dig(dig);
+		
+		DEXP.upto = DST.upto - 1;
+		DMAN.upto = DEXP.from = DST.from + dig;
+		DMAN.from = DST.from;
+		
+		bias = -1;
+		bias <<= (DEXP.upto - DEXP.from);
+		bias = ~bias;
+		bias >>= 1;
+		
+		/* Set +/- */
+		D = alu_reg_data( alu, DST );
+		d = alu_bit_set_bit( D, DEXP.upto );
+		*(d.ptr) &= ~(d.mask);
+		*(d.ptr) |= SET1IF( neg, d.mask );
+		
+		s = alu_reg_end_bit( alu, SRC );
+		
+		if ( s.bit >= bias )
+		{
+			/* Set Infinity */
+			(void)alu_reg_set_max( alu, DEXP );
+			/* Clear mantissa so not treated as NaN */
+			(void)alu_reg_clr( alu, DMAN );
+			return EOVERFLOW;
+		}
+		
+		/* FIXME: I think there is a bug here */
+		exp = bias + s.bit;
+		ret = alu_reg_set_raw( alu, DEXP, &exp, sizeof(size_t), 0 );
+		
+		if ( ret != 0 )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		return alu_reg_int2int( alu, DMAN, SRC );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int alu_reg_flt2int( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
+{
+	int ret;
+	uint_t tmp = 0;
+	alu_reg_t DEXP, SEXP, SMAN, TMP;
+	alu_bit_t d, s;
+	size_t dlength, slength, dman_dig, sman_dig, exp, bias;
+	bool Inf, neg;
+	
+	if ( alu )
+	{
+		dlength = DST.upto - DST.from;
+		slength = SRC.upto - SRC.from;
+		
+		dman_dig = alu_man_dig(dlength);
+		sman_dig = alu_man_dig(slength);
+		
+		alu_reg_init( alu, DEXP, DST.node, 0 );
+		alu_reg_init( alu, SEXP, SRC.node, 0 );
+		alu_reg_init( alu, SMAN, SRC.node, 0 );
+		
+		DEXP.upto = DST.upto - 1;
+		DEXP.from = DST.from + dman_dig;
+		SEXP.upto = SRC.upto - 1;
+		SMAN.upto = SEXP.from = SRC.from + sman_dig;
+		SMAN.from = SRC.from;
+		
+		bias = -1;
+		bias <<= (SEXP.upto - SEXP.from);
+		bias = ~bias;
+		
+		ret = alu_reg_get_raw( alu, SEXP, &exp, sizeof(size_t) );
+		
+		if ( ret != 0 )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		neg = alu_reg_below0( alu, SRC );
+		Inf = (exp == bias);
+			
+		/* Set +/- */
+		d = alu_bit_set_bit( (void*)alu_reg_data( alu, DST ), DEXP.upto );
+		*(d.ptr) &= ~(d.mask);
+		*(d.ptr) |= (neg * d.mask);
+		
+		if ( Inf )
+		{
+			s = alu_reg_end_bit( alu, SMAN );
+			
+			/* NaN cannot be recorded by an integer, use 0 instead */
+			if ( *(s.ptr) & s.mask )
+				return alu_reg_clr( alu, DST );
+			
+			/* Infinity cannot be recorded by an integer,
+			 * use min/max instead */
+			(void)alu_reg_set_max( alu, DST );
+			return neg ? alu_reg_not( alu, DST ) : 0;
+		}
+		
+		/* Check if exponent is negative - meaning the number is between
+		 * 0 & 1, if it is then just set the integer to 0 */
+		bias >>= 1;
+		
+		if ( exp < bias )
+			return alu_reg_clr( alu, DST );
+		
+		exp -= bias;
+		
+		/* Check if number is to big to fit in the integer */
+		if ( (exp + sman_dig + 1) > dlength )
+		{
+			(void)alu_reg_set_max( alu, DST );
+			return neg ? alu_reg_not( alu, DST ) : 0;
+		}
+		
+		/* alu_reg_get_raw() will have retrieved and released a register,
+		 * since that succeeded will end up with that register here as the
+		 * register was not released from memory, only usage */
+		
+		/* Mantissas have an assumed bit,
+		 * in this case it's value can only be 1 */
+		dlength = 1;
+		(void)alu_reg_set_raw( alu, DST, &dlength, 1, 0 );
+		
+		(void)alu_get_reg_node( alu, &tmp, 0 );
+		alu_reg_init( alu, TMP, tmp, 0 );
+		
+		/* These cannot possibly fail at this point */
+		(void)alu_reg__shl( alu, DST, TMP, sman_dig );
+		(void)alu_reg__or( alu, DST, SMAN );
+		(void)alu_reg__shl( alu, DST, TMP, exp );
+		
+		alu_rem_reg_node( alu, &tmp );
+		
+		return 0;
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int alu_reg_flt2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
+{
+	int ret;
+	alu_reg_t DEXP, DMAN, SEXP, SMAN;
+	alu_bit_t d;
+	size_t dlength, slength, dman_dig, sman_dig, exp, bias;
+	bool Inf, neg;
+	
+	if ( alu )
+	{
+		dlength = DST.upto - DST.from;
+		slength = SRC.upto - SRC.from;
+		
+		dman_dig = alu_man_dig(dlength);
+		sman_dig = alu_man_dig(slength);
+		
+		alu_reg_init( alu, DEXP, DST.node, 0 );
+		alu_reg_init( alu, DMAN, DST.node, 0 );
+		alu_reg_init( alu, SEXP, SRC.node, 0 );
+		alu_reg_init( alu, SMAN, SRC.node, 0 );
+		
+		DEXP.upto = DST.upto - 1;
+		DMAN.upto = DEXP.from = DST.from + dman_dig;
+		DMAN.from = DST.from;
+		SEXP.upto = SRC.upto - 1;
+		SMAN.upto = SEXP.from = SRC.from + sman_dig;
+		SMAN.from = SRC.from;
+		
+		bias = -1;
+		bias <<= (SEXP.upto - SEXP.from);
+		bias = ~bias;
+		
+		ret = alu_reg_get_raw( alu, SEXP, &exp, sizeof(size_t) );
+		
+		if ( ret != 0 )
+		{
+			alu_error(ret);
+			return ret;
+		}
+		
+		neg = alu_reg_below0( alu, SRC );
+		Inf = (exp == bias);
+			
+		/* Set +/- */
+		d = alu_bit_set_bit( (void*)alu_reg_data( alu, DST ), DEXP.upto );
+		*(d.ptr) &= ~(d.mask);
+		*(d.ptr) |= (neg * d.mask);
+		
+		/* Simplify code and pass on duties to another instance, added
+		 * bonus of setting Infinity if >= Exponent limit */
+		alu_reg_int2int( alu, DEXP, SEXP );
+		
+		dlength = DMAN.upto - DMAN.from;
+		slength = SMAN.upto - SMAN.from;
+		
+		/* Make sure we copy the upper bits of the src mantissa */
+		SMAN.from = SMAN.upto - LOWEST( dlength, slength );
+		
+		/* Whether it is NaN or a fittable number copying the mantissa
+		 * is fine as long as we make sure it was not Infinity to begin
+		 * with */
+		return Inf
+			? alu_reg_clr( alu, DMAN )
+			: alu_reg_int2int( alu, DMAN, SMAN );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
 int alu_reg_mov
 (
 	alu_t *alu,
@@ -230,202 +502,17 @@ int alu_reg_mov
 	alu_reg_t SRC
 )
 {
-	int ret;
-	void *D, *S;
-	uint_t tmp = 0;
-	alu_bit_t d, s;
-	size_t ndiff, vdiff, nman_dig, vman_dig, upto, exp, bias;
-	bool neg, Inf = false;
-	alu_reg_t DEXP, DMAN, SEXP, SMAN, TMP;
-	
-	ret = alu_reg_clr( alu, DST );
-	
-	if ( ret == 0 )
+	if ( alu_reg_floating( SRC ) )
 	{
-		DST.node %= alu_used( alu );
-		SRC.node %= alu_used( alu );
-		
-		ndiff = DST.upto - DST.from;
-		vdiff = SRC.upto - SRC.from;
-		
-		/* Check for +/- */
-		neg = alu_reg_below0( alu, SRC );
-		
-		if ( alu_reg_floating( SRC ) )
-		{
-			alu_reg_init( alu, SEXP, SRC.node, 0 );
-			alu_reg_init( alu, SMAN, SRC.node, 0 );
-			
-			vman_dig = alu_man_dig(vdiff);
-			
-			SEXP.upto = SRC.upto - 1;
-			SMAN.upto = SEXP.from = SRC.from + vman_dig;
-			SMAN.from = SRC.from;
-			
-			bias = -1;
-			bias <<= (SEXP.upto - SEXP.from);
-			bias = ~bias;
-			
-			ret = alu_reg_get_raw( alu, SEXP, &exp, sizeof(size_t) );
-			
-			if ( ret != 0 )
-			{
-				alu_error(ret);
-				return ret;
-			}
-			
-			Inf = (exp == bias);
-			
-			if ( alu_reg_floating( DST ) )
-			{
-				alu_reg_init( alu, DEXP, DST.node, 0 );
-				alu_reg_init( alu, DMAN, DST.node, 0 );
-				
-				nman_dig = alu_man_dig( ndiff );
-				
-				DEXP.upto = DST.upto - 1;
-				DMAN.upto = DEXP.from = DST.from + nman_dig;
-				DMAN.from = DST.from;
-				
-				D = alu_reg_data( alu, DST );
-				/* Set +/- */
-				d = alu_bit_set_bit( D, DEXP.upto );
-				*(d.ptr) &= ~(d.mask);
-				*(d.ptr) |= (neg * d.mask);
-				
-				/* Simplify code and pass on duties to another instance, added
-				 * bonus of setting Infinity if >= Exponent limit */
-				alu_reg_mov( alu, DEXP, SEXP );
-				
-				ndiff = DMAN.upto - DMAN.from;
-				vdiff = SMAN.upto - SMAN.from;
-				
-				/* Make sure we copy the upper bits of the src mantissa */
-				SMAN.from = SMAN.upto - LOWEST( ndiff, vdiff );
-				
-				/* Whether it is NaN or a fittable number copying the mantissa
-				 * is fine as long as we make sure it was not Infinity to begin
-				 * with */
-				return Inf
-					? alu_reg_clr( alu, DMAN )
-					: alu_reg_mov( alu, DMAN, SMAN );
-			}
-			
-			if ( Inf )
-			{
-				s = alu_reg_end_bit( alu, SMAN );
-				
-				/* NaN cannot be recorded by an integer, use 0 instead */
-				if ( *(s.ptr) & s.mask )
-					return alu_reg_clr( alu, DST );
-				
-				/* Infinity cannot be recorded by an integer,
-				 * use min/max instead */
-				(void)alu_reg_set_max( alu, DST );
-				return neg ? alu_reg_not( alu, DST ) : 0;
-			}
-			
-			/* Check if exponent is negative - meaning the number is between
-			 * 0 & 1, if it is then just set the integer to 0 */
-			bias >>= 1;
-			
-			if ( exp < bias )
-				return alu_reg_clr( alu, DST );
-			
-			exp -= bias;
-			
-			/* Check if number is to big to fit in the integer */
-			if ( (exp + vman_dig + 1) > ndiff )
-			{
-				(void)alu_reg_set_max( alu, DST );
-				return neg ? alu_reg_not( alu, DST ) : 0;
-			}
-			
-			/* alu_reg_get_raw() will have retrieved and released a register,
-			 * since that succeeded will end up with that register here as the
-			 * register was not released from memory, only usage */
-			
-			/* Mantissas have an assumed bit,
-			 * in this case it's value can only be 1 */
-			ndiff = 1;
-			(void)alu_reg_set_raw( alu, DST, &ndiff, 1, 0 );
-			
-			(void)alu_get_reg_node( alu, &tmp, 0 );
-			alu_reg_init( alu, TMP, tmp, 0 );
-			
-			/* These cannot possibly fail at this point */
-			(void)alu_reg__shl( alu, DST, TMP, vman_dig );
-			(void)alu_reg__or( alu, DST, SMAN );
-			(void)alu_reg__shl( alu, DST, TMP, exp );
-			
-			alu_rem_reg_node( alu, &tmp );
-			
-			return 0;
-		}
-		
 		if ( alu_reg_floating( DST ) )
-		{
-			alu_reg_init( alu, DEXP, DST.node, 0 );
-			alu_reg_init( alu, DMAN, DST.node, 0 );
-			
-			nman_dig = alu_man_dig(ndiff);
-			
-			DEXP.upto = DST.upto - 1;
-			DMAN.upto = DEXP.from = DST.from + nman_dig;
-			DMAN.from = DST.from;
-			
-			bias = -1;
-			bias <<= (DEXP.upto - DEXP.from);
-			bias = ~bias;
-			bias >>= 1;
-			
-			/* Set +/- */
-			D = alu_reg_data( alu, DST );
-			d = alu_bit_set_bit( D, DEXP.upto );
-			*(d.ptr) &= ~(d.mask);
-			*(d.ptr) |= SET1IF( neg, d.mask );
-			
-			s = alu_reg_end_bit( alu, SRC );
-			
-			if ( s.bit >= bias )
-			{
-				/* Set Infinity */
-				alu_reg_set_max( alu, DEXP );
-				/* Clear mantissa so not treated as NaN */
-				return alu_reg_clr( alu, DMAN );
-			}
-			
-			/* FIXME: I think there is a bug here */
-			exp = bias + s.bit;
-			ret = alu_reg_set_raw( alu, DEXP, &exp, sizeof(size_t), 0 );
-			
-			return alu_reg_mov( alu, DMAN, SRC );
-		}
-		
-		D = alu_reg_data( alu, DST );
-		S = alu_reg_data( alu, SRC );
-		
-		d = alu_bit_set_bit( D, DST.from );
-		s = alu_bit_set_bit( S, SRC.from );
-		upto = DST.from + LOWEST( ndiff, vdiff );
-		
-		for ( ; d.bit < upto; alu_bit_inc(&d), alu_bit_inc(&s) )
-		{
-			*(d.ptr) &= ~(d.mask);
-			*(d.ptr) |= SET1IF( *(s.ptr) & s.mask, d.mask );
-		}
-		
-		for ( ; d.bit < DST.upto; alu_bit_inc(&d) )
-		{
-			*(d.ptr) &= ~(d.mask);
-			*(d.ptr) |= SET1IF( neg, d.mask );
-		}
-		
-		return 0;
+			return alu_reg_flt2flt( alu, DST, SRC );
+		return alu_reg_flt2int( alu, DST, SRC );
 	}
 	
-	alu_error( ret );
-	return ret;
+	if ( alu_reg_floating( DST ) )
+		return alu_reg_int2flt( alu, DST, SRC );
+	
+	return alu_reg_int2int( alu, DST, SRC );
 }
 
 int_t alu_mov( alu_t *alu, uint_t num, uint_t val )
