@@ -8,13 +8,12 @@ alu_t _alu = {0}, *alu = &_alu;
 int wrChar( char32_t c, void *dst )
 {
 	alu_block_t *ALUSTR = dst;
-	int ret = alu_block_expand( dst, ALUSTR->taken + 1 );
-	char *alustr;
+	char *alustr = alu_block_expand( dst, ALUSTR->taken + 1 );
 	
-	if ( ret != 0 )
+	if ( !alustr )
 	{
-		alu_error(ret);
-		return ret;
+		alu_error(ALUSTR->fault);
+		return ALUSTR->fault;
 	}
 	
 	alustr = ALUSTR->block;
@@ -186,7 +185,7 @@ START_TEST( test_alu_setup_reg )
 	int ret;
 	uint_t want = bitsof(uintmax_t);
 
-	ret = alu_setup_reg( alu, want, 0, 0 );
+	ret = alu_setup_reg( alu, want, 0 );
 	
 	ck_assert( ret == 0 );
 	ck_assert( alu_used( alu ) != 0 );
@@ -209,8 +208,18 @@ START_TEST( test_alu_reg_cmp )
 	alu_reg_t NUM, VAL;
 	intmax_t cmp_n = ops_loop_until, cmp_v = _i, got_n, got_v;
 	cmp_n  -= _i;
+	bool active;
 	
 	ret = alu_get_reg_nodes( alu, nodes, REG_COUNT, 0 );
+	
+	ck_assert_msg
+	(
+		ret == 0
+		, "Error 0x%08X, %i, '%s'"
+		, ret
+		, ret
+		, strerror(ret)
+	);
 	
 	num = nodes[0];
 	val = nodes[1];
@@ -218,9 +227,18 @@ START_TEST( test_alu_reg_cmp )
 	ck_assert( ret == 0 );
 	ck_assert( num != 0 );
 	ck_assert( val != 0 );
+	active = alu_get_active( alu, num );
+	ck_assert( active == false );
+	active = alu_get_active( alu, val );
+	ck_assert( active == false );
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	alu_reg_init( alu, VAL, val, 0 );
+	
+	active = alu_get_active( alu, num );
+	ck_assert( active == false );
+	active = alu_get_active( alu, val );
+	ck_assert( active == false );
 	
 	NUM.upto = VAL.upto = bitsof(uintmax_t);
 		
@@ -229,7 +247,18 @@ START_TEST( test_alu_reg_cmp )
 	expect = (cmp_n > cmp_v) - (cmp_n < cmp_v);
 	
 	alu_int_set_raw( alu, num, cmp_n );
+	
+	active = alu_get_active( alu, num );
+	ck_assert( active == false );
+	active = alu_get_active( alu, val );
+	ck_assert( active == false );
+	
 	alu_int_get_raw( alu, num, &got_n );
+	
+	active = alu_get_active( alu, num );
+	ck_assert( active == false );
+	active = alu_get_active( alu, val );
+	ck_assert( active == false );
 	
 	ck_assert_msg
 	(
@@ -280,17 +309,13 @@ END_TEST
 
 START_TEST( test_alu_op1 )
 {
-	int ret;
-	uint_t num;
+	uint_t num = alu_get_reg_node( alu, 0 );
 	alu_reg_t NUM;
 	uintmax_t expect
 		, op1_f = _i / ops_loop_until
 		, op1_n = _i % ops_loop_until
 		, got, got_n;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
-	
-	ck_assert( ret == 0 );
 	ck_assert( num != 0 );
 	
 	alu_reg_init( alu, NUM, num, 0 );
@@ -471,8 +496,7 @@ START_TEST( test_alu_reg2str )
 	alu_dst_t alu_dst = {0};
 	alu_base_t base = {0};
 	char stdstr[bitsof(uint_t) * 2] = {0}, *alustr;
-	uint_t num = 0;
-	ret = alu_get_reg_node( alu, &num, 0 );
+	uint_t num = alu_get_reg_node( alu, 0 );
 	
 	ck_assert( ret == 0 );
 	ck_assert( num != 0 );
@@ -511,20 +535,10 @@ END_TEST
 
 START_TEST( test_alu_get_reg_node )
 {
-	int ret;
-	uint_t num = 0;
+	uint_t num = alu_get_reg_node( alu, 0 );
 	bool active;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
-	
-	ck_assert_msg
-	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
-	);
+	ck_assert( num != 0 );
 	
 	active = alu_get_active( alu, num );
 	
@@ -571,21 +585,11 @@ END_TEST
 
 START_TEST( test_alu_reg_set_raw )
 {
-	int ret;
-	uint_t num = 0;
+	uint_t num = alu_get_reg_node( alu, 0 );
 	uintmax_t val = _i, got;
 	alu_reg_t NUM;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
-	
-	ck_assert_msg
-	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
-	);
+	ck_assert( num != 0 );
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	NUM.upto = bitsof(uintmax_t);
@@ -607,20 +611,10 @@ END_TEST
 
 START_TEST( test_alu_uint_set_raw )
 {
-	int ret;
-	uint_t num = 0;
+	uint_t num = alu_get_reg_node( alu, 0 );
 	uintmax_t val = _i, got;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
-	
-	ck_assert_msg
-	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
-	);
+	ck_assert( num != 0 );
 
 	alu_uint_set_raw( alu, num, val );
 	alu_uint_get_raw( alu, num, &got );
@@ -639,23 +633,13 @@ END_TEST
 
 START_TEST( test_alu_reg_end_bit )
 {
-	int ret;
-	uint_t num = 0;
+	uint_t num = alu_get_reg_node( alu, 0 );
 	size_t bit = 0;
 	void *N;
 	alu_reg_t NUM;
 	alu_bit_t n, v;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
-	
-	ck_assert_msg
-	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
-	);
+	ck_assert( num != 0 );
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	/* Ensure any realloc occurs BEFORE we get our pointer - prevents it
@@ -699,21 +683,11 @@ END_TEST
 
 START_TEST( test_alu_bit_set_bit )
 {
-	int ret;
-	uint_t num = 0;
+	uint_t num = alu_get_reg_node( alu, 0 );
 	uintmax_t *N;
 	alu_bit_t n;
 	
-	ret = alu_get_reg_node( alu, &num, 0 );
-	
-	ck_assert_msg
-	(
-		ret == 0
-		, "Error: %08X, %i, '%s'"
-		, ret
-		, ret
-		, strerror(ret)
-	);
+	ck_assert( num != 0 );
 	
 	N = (void*)alu_data( alu, num );
 	

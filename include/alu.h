@@ -55,7 +55,7 @@ typedef struct alu_block {
  * 	0 = normal realloc behaviour
  * @return 0 on success, errno.h value on failure
  * **/
-int_t alu_block( struct alu_block *mem, size_t want, int_t dir );
+void* alu_block( alu_block_t *mem, size_t want, int_t dir );
 # define alu_block_expand( MEM, WANT ) alu_block( MEM, WANT, 1 )
 # define alu_block_shrink( MEM, WANT ) alu_block( MEM, WANT, -1 )
 # define alu_block_release( MEM ) (void)alu_block( MEM, 0, -1 )
@@ -223,6 +223,8 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 #define alu_upto( alu ) ((alu)->given)
 #define alu_used( alu ) ((alu)->taken)
 
+#define alu_errno( alu ) ((alu)->block.fault)
+
 #define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_Nsize(alu)))
 #define alu_get_active( alu, reg ) \
 	!!(alu_valid(alu)[(reg) / CHAR_BIT] & (1u << ((reg) % CHAR_BIT)))
@@ -317,7 +319,7 @@ int_t alu_rem_flag( alu_t *alu, alu_reg_t *reg, uint_t info );
 		(alu)->block.taken = count * alu_Nsize(alu); \
 	} \
 	while ( 0 )
-int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t Nsize );
+int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize );
 void alu__print_reg
 (
 	char *file
@@ -350,7 +352,7 @@ void alu_set_constants( alu_t *alu );
 int_t alu_update_bounds( alu_t *alu, uint_t reg );
 int_t alu_reg_update_bounds( alu_t *alu, alu_reg_t reg );
 
-int_t alu_get_reg_node( alu_t *alu, uint_t *reg, size_t need );
+uint_t alu_get_reg_node( alu_t *alu, size_t need );
 int_t alu_get_reg_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
 
 #define alu_rem_reg_node( alu, reg ) \

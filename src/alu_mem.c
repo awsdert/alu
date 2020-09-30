@@ -2,14 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
+void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 {
 	int ret = EINVAL;
 	uchar_t *block = NULL;
 	size_t size;
 	
 	if ( mem )
-	{	
+	{
+		mem->fault = 0;
+		
 		if ( mem->block )
 		{
 			want = SET2IF( dir > 0, HIGHEST( mem->given, want ), want );
@@ -32,14 +34,14 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 				}
 				else
 				{
-					return 0;
+					return mem->block;
 				}
 			}
 			else
 			{
 				free( mem->block );
 				(void)memset( mem, 0, sizeof(alu_block_t) );
-				return 0;
+				return NULL;
 			}
 		}
 		else
@@ -63,7 +65,7 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 			}
 			else
 			{
-				return 0;
+				return mem->block;
 			}
 		}
 		
@@ -76,10 +78,13 @@ int_t alu_block( struct alu_block *mem, size_t want, int_t dir )
 			
 			for ( size = want; size > mem->taken; block[--size] = 0 );
 			
-			return 0;
+			return block;
 		}
 		
-		return ret;
+		mem->fault = ret;
+		return NULL;
 	}
-	return alu_err_null_ptr( "mem" );
+	
+	(void)alu_err_null_ptr( "mem" );
+	return NULL;
 }

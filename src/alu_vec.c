@@ -3,7 +3,6 @@
 
 int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 {
-	int ret = 0;
 	uchar_t *dst, *src, *block;
 	size_t diff, desire;
 	uint_t used;
@@ -18,17 +17,15 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 			
 			if ( Nsize >= vec->Nsize )
 			{
-				ret = alu_block( &(vec->block), desire, dir );
+				block = alu_block( &(vec->block), desire, dir );
 				
-				if ( ret == 0 )
+				if ( block )
 				{
 					diff = Nsize - (vec->Nsize);
 					
 					if ( !diff )
 						goto done;
 						
-					/* Align nodes and initialise extra bytes */
-					block = vec->block.block;
 					while ( used )
 					{
 						--used;
@@ -55,10 +52,10 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 					(void)memmove( dst, src + diff, Nsize );
 				}
 				
-				ret = alu_block( &(vec->block), desire, dir );
+				block = alu_block( &(vec->block), desire, dir );
 			}
 			
-			if ( ret == 0 )
+			if ( block )
 			{
 				done:
 				vec->Nsize = Nsize;
@@ -69,8 +66,8 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 				return 0;
 			}
 			
-			alu_error(ret);
-			return ret;
+			alu_error(vec->block.fault);
+			return vec->block.fault;
 		}
 		
 		alu_block_release( &(vec->block) );

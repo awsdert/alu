@@ -144,17 +144,16 @@ int_t alu_reg_get_raw
 	, size_t size
 )
 {
-	int ret;
-	uint_t tmp = 0;
+	uint_t tmp;
 	alu_reg_t TMP;
 	
 	if ( raw )
 	{
 		size = HIGHEST( size, 1 );
 		
-		ret = alu_get_reg_node( alu, &tmp, size );
+		tmp = alu_get_reg_node( alu, size );
 		
-		if ( ret == 0 )
+		if ( tmp )
 		{
 			alu_reg_init( alu, TMP, tmp, 0 );
 			TMP.upto = size * UNIC_CHAR_BIT;
@@ -167,8 +166,13 @@ int_t alu_reg_get_raw
 			return 0;
 		}
 		
-		alu_error( ret );
-		return ret;
+		if ( alu )
+		{
+			alu_error( alu_errno(alu) );
+			return alu_errno(alu);
+		}
+		
+		return alu_err_null_ptr("alu");
 	}
 		
 	return alu_err_null_ptr("raw");
@@ -190,15 +194,15 @@ int_t alu_reg_set_raw
 	, uint_t info
 )
 {
-	int ret;
+	int_t ret;
 	uint_t tmp = 0;
 	alu_reg_t TMP;
 	
 	size = HIGHEST( size, 1 );
 	
-	ret = alu_get_reg_node( alu, &tmp, size );
+	tmp = alu_get_reg_node( alu, size );
 	
-	if ( ret == 0 )
+	if ( tmp )
 	{
 		alu_reg_init( alu, TMP, tmp, info );
 		TMP.upto = size * UNIC_CHAR_BIT;
@@ -212,8 +216,13 @@ int_t alu_reg_set_raw
 		return ret;
 	}
 	
-	alu_error( ret );
-	return ret;
+	if ( alu )
+	{
+		alu_error( alu_errno(alu) );
+		return alu_errno(alu);
+	}
+	
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_set_raw( alu_t *alu, uint_t num, uintmax_t raw, uint_t info )
@@ -245,9 +254,7 @@ int alu_reg_int2int( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 			alu_bit_inc(&s);
 		}
 		
-		alu_bit_dec(&s);
-		
-		neg = TRUEIF( alu_reg_signed( SRC ), *(s.ptr) & s.mask );
+		neg = alu_reg_below0( alu, SRC );
 		
 		while ( d.bit < DST.upto )
 		{
@@ -257,7 +264,13 @@ int alu_reg_int2int( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 			alu_bit_inc(&d);
 		}
 		
-		return SET1IF( d.bit < (DST.from + (SRC.upto - SRC.from)), EOVERFLOW );
+		alu_errno(alu) = SET1IF
+		(
+			d.bit < (DST.from + (SRC.upto - SRC.from))
+			, EOVERFLOW
+		);
+		
+		return 0;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -410,7 +423,7 @@ int alu_reg_flt2int( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		dlength = 1;
 		(void)alu_reg_set_raw( alu, DST, &dlength, 1, 0 );
 		
-		(void)alu_get_reg_node( alu, &tmp, 0 );
+		tmp = alu_get_reg_node( alu, 0 );
 		alu_reg_init( alu, TMP, tmp, 0 );
 		
 		/* These cannot possibly fail at this point */

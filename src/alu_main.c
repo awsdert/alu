@@ -133,7 +133,7 @@ size_t alu_set_bounds( alu_t *alu, alu_reg_t *REG, size_t from, size_t upto )
 	return upto;
 }
 
-int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t Nsize )
+int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize )
 {
 	int ret;
 	uint_t i;
@@ -143,8 +143,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t Nsize )
 	{
 		want = HIGHEST( want, ALU_REG_ID_NEED );
 		want = LOWEST( want, ALU_REG_ID_LIMIT );
-		used = LOWEST( want, HIGHEST( used, ALU_REG_ID_NEED ) );
-		
+				
 		need = (want / CHAR_BIT) + !!(want % CHAR_BIT);
 		Nsize = HIGHEST( Nsize, need );
 		Nsize += LOWEST
@@ -157,7 +156,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t Nsize )
 		
 		if ( ret == 0 )
 		{
-			alu_set_used( alu, used );
+			alu_used( alu ) = HIGHEST( ALU_REG_ID_NEED, alu_used(alu) );
 			
 			for ( i = 0; i < ALU_REG_ID_NEED; ++i )
 			{
@@ -175,57 +174,45 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, uint_t used, size_t Nsize )
 	return alu_err_null_ptr( "alu" );
 }
 
-int_t alu_get_reg_node( alu_t *alu, uint_t *dst, size_t need )
+uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 {
-	int ret;
-	uint_t count = 0, r = count;
-	void *part;
+	uint_t count = 0, index, reg;
 	
 	if ( alu )
 	{
-		if ( dst )
+		index = ALU_REG_ID_NEED;
+		count = alu_used( alu );
+		
+		for ( reg = index; index < count; ++index )
 		{
-			*dst = 0;
-			
-			need = HIGHEST( need, alu_Nsize( alu ) );
-			count = alu_used( alu );
-			
-			for ( r = ALU_REG_ID_NEED; r < count; ++r )
-			{
-				count = SET1IF( alu_get_active( alu, r ), count );
-			}
-			
-			r = SET2IF( count, count, r - 1 );
-			count = alu_used( alu );
-			
-			if ( r >= alu_upto( alu ) || need > alu_Nsize( alu ) )
-			{
-				count = HIGHEST( r + 1, alu_upto( alu ) );
-				ret = alu_setup_reg( alu, count, count, need );
-					
-				if ( ret != 0 )
-				{
-					alu_error( ret );
-					return ret;
-				}
-			}
-			
-			alu_used( alu ) = HIGHEST( r + 1, count );
-			
-			part = alu_data( alu, r );
-			(void)memset( part, 0, need );
-			
-			alu_set_active( alu, r );
-			
-			*dst = r;
-			
+			reg = index;
+			count = SET1IF( alu_get_active( alu, index ), count );
+		}
+		
+		index = HIGHEST( count, reg );
+		count = HIGHEST( index + 1, alu_used(alu) );
+		Nsize = HIGHEST( Nsize, alu_Nsize( alu ) );
+		reg = HIGHEST( count, alu_upto( alu ) );
+		
+		alu_errno(alu) = alu_setup_reg( alu, reg, Nsize );
+				
+		if ( alu_errno(alu) )
+		{
+			alu_error( alu_errno(alu) );
 			return 0;
 		}
 		
-		return alu_err_null_ptr( "dst" );		
+		alu_used( alu ) = count;
+		
+		(void)memset( alu_data( alu, index ), 0, Nsize );
+		
+		alu_set_active( alu, index );
+		
+		return index;
 	}
 	
-	return alu_err_null_ptr( "alu" );
+	(void)alu_err_null_ptr( "alu" );
+	return 0;
 }
 
 int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count )
@@ -250,27 +237,24 @@ int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count )
 
 int_t alu_get_reg_nodes( alu_t *alu, uint_t *nodes, uint_t count, size_t need )
 {
-	int ret = 0;
-	uint_t r;
-	uint_t *dst;
+	uint_t index;
 	
 	if ( alu )
 	{
-		for ( r = 0; r < count; ++r )
-		{
-			dst = nodes + r;
-				
-			ret = alu_get_reg_node( alu, dst, need );
-			count *= (ret == 0);
+		for ( index = 0; index < count; ++index )
+		{		
+			nodes[index] = alu_get_reg_node( alu, need );
+			count *= (nodes[index] != 0);
 		}
 		
-		if ( ret != 0 )
+		if ( !count )
 		{
-			alu_error( ret );
-			alu_rem_reg_nodes( alu, nodes, r );
+			alu_error( alu_errno(alu) );
+			alu_rem_reg_nodes( alu, nodes, index );
+			return alu_errno(alu);
 		}
 		
-		return ret;
+		return 0;
 	}
 	
 	return alu_err_null_ptr( "alu" );
@@ -471,7 +455,7 @@ int_t alu_lit2reg
 	
 	if ( *(src.nextpos) < 0 )
 		*(src.nextpos) = 0;
-		
+	
 	ret = alu_get_reg_nodes( alu, nodes, ALU_LIT_COUNT, 0 );
 	
 	if ( ret != 0 )
@@ -618,8 +602,6 @@ int_t alu_lit2reg
 	case 0: case EOF: c = 0; break;
 	default: goto fail;
 	}
-
-	Nsize = alu_Nsize( alu );
 	
 	/* Check if reading a floating point number */
 	if ( c == '.' )
@@ -635,26 +617,11 @@ int_t alu_lit2reg
 		default: goto fail;
 		}
 		
+		Nsize = alu_Nsize( alu );
 		/* Make sure have enough space for later calculations */
 		bits = dst.upto - dst.from;
-		if ( bits == (Nsize * CHAR_BIT) )
-		{
-			ret = alu_setup_reg
-			(
-				alu
-				, alu_upto( alu )
-				, alu_used( alu )
-				, Nsize * 2
-			);
-			
-			if ( ret != 0 )
-			{
-				alu_error(ret);
-				goto fail;
-			}
-			
-			Nsize = alu_Nsize( alu );
-		}
+		if ( bits >= (alu_Nbits(alu) / 2) )
+			return ERANGE;
 		
 		/* Check how many bits to assign to exponent & mantissa */
 		man_dig = SET2IF
