@@ -1,33 +1,28 @@
 #include "alu.h"
 #include <string.h>
 
-alu_bit_t alu_bit_set_bit
-(
-	uintmax_t *init,
-	size_t bit
-)
+alu_bit_t alu_bit( uintmax_t *ptr, size_t bit )
 {
 	alu_bit_t alu_bit = {0};
 	alu_bit.bit = bit;
 	alu_bit.pos = bit % bitsof(uintmax_t);
 	alu_bit.seg = bit / bitsof(uintmax_t);
-	alu_bit.ptr = init + (alu_bit.seg);
+	alu_bit.ptr = ptr + (alu_bit.seg);
 	alu_bit.mask = UNIC_SIZE_C(1) << alu_bit.pos;
 	return alu_bit;
 }
 
-alu_bit_t alu_bit_set_byte
-(
-	uintmax_t *init,
-	size_t byte
-)
+bool alu_get_bit( uintmax_t *ptr, size_t bit )
 {
-	alu_bit_t alu_bit = {0};
-	alu_bit.bit = byte * CHAR_BIT;
-	alu_bit.seg = byte / sizeof(size_t);
-	alu_bit.ptr = init + alu_bit.seg;
-	alu_bit.mask = UNIC_SIZE_C(1);
-	return alu_bit;
+	alu_bit_t b = alu_bit( ptr, bit );
+	return !!(*(b.ptr) & b.mask);
+}
+
+void alu_set_bit( uintmax_t *ptr, size_t bit, bool val )
+{
+	alu_bit_t b = alu_bit( ptr, bit );
+	*(b.ptr) &= ~(b.mask);
+	*(b.ptr) |= SET1IF( val, b.mask );
 }
 
 void alu_bit_inc( alu_bit_t *alu_bit )

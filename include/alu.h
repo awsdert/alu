@@ -74,22 +74,17 @@ typedef struct alu_bit {
 void alu_print_bit( char *pfx, alu_bit_t pos, bool getbit );
 
 /** @brief sets bit position by bit count
- * @param pos object holding various values needed for bit position
+ * @param ptr Base pointer that bit 0 starts from
+ * @param pos Bit index to calculate position from
  * **/
-alu_bit_t alu_bit_set_bit
-(
-	uintmax_t *init,
-	size_t bit
-);
-
+alu_bit_t alu_bit( uintmax_t *ptr, size_t bit );
+bool alu_get_bit( uintmax_t *ptr, size_t bit );
+void alu_set_bit( uintmax_t *ptr, size_t bit, bool val );
 /** @brief sets bit position by byte count
- * @param pos object holding various values needed for bit position
+ * @param ptr Base pointer that byte 0 starts from
+ * @param pos Byte index to calculate position from
  * **/
-alu_bit_t alu_bit_set_byte
-(
-	uintmax_t *init,
-	size_t byte
-);
+#define alu_byte( ptr, byte ) alu_bit( ptr, byte * CHAR_BIT )
 
 /** @brief increments bit position
  * @param pos object holding various values needed for bit position
@@ -219,21 +214,16 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 #define alu_Nsize( alu ) ((alu)->Nsize)
 #define alu_Nbits( alu ) (alu_Nsize(alu) * CHAR_BIT)
 #define alu_nodes( alu ) ((uchar_t*)((alu)->block.block))
-#define alu_valid( alu ) ((uchar_t*)((alu)->block.block))
+#define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_Nsize(alu)))
+#define alu_valid( alu ) alu_data( alu, 0 )
 #define alu_upto( alu ) ((alu)->given)
 #define alu_used( alu ) ((alu)->taken)
 
 #define alu_errno( alu ) ((alu)->block.fault)
 
-#define alu_data( alu, reg ) (alu_nodes(alu) + ((reg) * alu_Nsize(alu)))
-#define alu_get_active( alu, reg ) \
-	!!(alu_valid(alu)[(reg) / CHAR_BIT] & (1u << ((reg) % CHAR_BIT)))
-
-#define alu_clr_active( alu, reg ) \
-	alu_valid(alu)[(reg) / CHAR_BIT] &= ~(1uLL << ((reg) % CHAR_BIT))
-
-#define alu_set_active( alu, reg ) \
-	alu_valid(alu)[(reg) / CHAR_BIT] |= (1uLL << ((reg) % CHAR_BIT))
+#define alu_get_active( alu, reg ) alu_get_bit( (void*)alu_valid(alu), reg )
+#define alu_clr_active( alu, reg ) alu_set_bit( (void*)alu_valid(alu), reg, 0 )
+#define alu_set_active( alu, reg ) alu_set_bit( (void*)alu_valid(alu), reg, 1 )
 
 #define alu_reg_data( alu, alu_reg ) alu_data( alu, (alu_reg).node )
 #define alu_reg_get_active( alu, alu_reg ) alu_get_active( alu, (alu_reg).node )

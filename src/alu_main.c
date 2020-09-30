@@ -78,7 +78,7 @@ void alu__print_reg
 	
 	if ( print_value )
 	{
-		n = alu_bit_set_bit( R, REG.upto );
+		n = alu_bit( R, REG.upto );
 		
 		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
 		if ( n.bit == REG.from )
@@ -136,8 +136,8 @@ size_t alu_set_bounds( alu_t *alu, alu_reg_t *REG, size_t from, size_t upto )
 int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize )
 {
 	int ret;
-	uint_t i;
 	size_t need;
+	alu_bit_t a;
 	
 	if ( alu )
 	{
@@ -158,9 +158,12 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize )
 		{
 			alu_used( alu ) = HIGHEST( ALU_REG_ID_NEED, alu_used(alu) );
 			
-			for ( i = 0; i < ALU_REG_ID_NEED; ++i )
+			a = alu_bit( (void*)alu_valid(alu), 0 );
+			
+			while ( a.bit < ALU_REG_ID_NEED )
 			{
-				alu_set_active( alu, i );
+				*(a.ptr) |= a.mask;
+				alu_bit_inc(&a);
 			}
 			
 			alu_set_constants( alu );
@@ -842,7 +845,7 @@ int_t alu_lit2reg
 				{
 				case 1:
 					part = alu_reg_data( alu, MAN );
-					n = alu_bit_set_bit( part, MAN.from );
+					n = alu_bit( part, MAN.from );
 					
 					if ( *(n.ptr) & n.mask )
 						(void)alu_reg_inc( alu, MAN );
@@ -857,7 +860,7 @@ int_t alu_lit2reg
 			(void)alu_reg_mov( alu, VAL, DOT );
 			
 			part = alu_reg_data( alu, MAN );
-			n = alu_bit_set_bit( part, MAN.from );
+			n = alu_bit( part, MAN.from );
 			
 			for ( bits = 0; pos < man_dig; ++pos )
 			{

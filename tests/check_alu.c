@@ -1,7 +1,7 @@
 #include <alu.h>
 #include <stdlib.h>
 
-alu_t _alu = {0}, *alu = &_alu;
+alu_t *alu = NULL;
 
 #define REG_COUNT 3
 
@@ -188,7 +188,8 @@ START_TEST( test_alu_setup_reg )
 	ret = alu_setup_reg( alu, want, 0 );
 	
 	ck_assert( ret == 0 );
-	ck_assert( alu_used( alu ) != 0 );
+	ck_assert( alu_used( alu ) > 0 );
+	ck_assert( alu_upto( alu ) > 0 );
 	ck_assert_msg
 	(
 		alu_upto( alu ) >= want
@@ -198,6 +199,8 @@ START_TEST( test_alu_setup_reg )
 	);
 	ck_assert( alu_valid( alu ) != NULL );
 	ck_assert( alu_Nsize( alu ) >= sizeof(uintmax_t) );
+	
+	alu_printf( "alu_upto() = %u", alu_upto(alu) );
 }
 END_TEST
 
@@ -226,19 +229,19 @@ START_TEST( test_alu_reg_cmp )
 	
 	ck_assert( ret == 0 );
 	ck_assert( num != 0 );
-	ck_assert( val != 0 );
+	ck_assert( val > num );
 	active = alu_get_active( alu, num );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	active = alu_get_active( alu, val );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	alu_reg_init( alu, VAL, val, 0 );
 	
 	active = alu_get_active( alu, num );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	active = alu_get_active( alu, val );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	
 	NUM.upto = VAL.upto = bitsof(uintmax_t);
 		
@@ -249,16 +252,16 @@ START_TEST( test_alu_reg_cmp )
 	alu_int_set_raw( alu, num, cmp_n );
 	
 	active = alu_get_active( alu, num );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	active = alu_get_active( alu, val );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	
 	alu_int_get_raw( alu, num, &got_n );
 	
 	active = alu_get_active( alu, num );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	active = alu_get_active( alu, val );
-	ck_assert( active == false );
+	ck_assert( active == true );
 	
 	ck_assert_msg
 	(
@@ -535,6 +538,8 @@ END_TEST
 
 START_TEST( test_alu_get_reg_node )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	uint_t num = alu_get_reg_node( alu, 0 );
 	bool active;
 	
@@ -555,6 +560,8 @@ END_TEST
 
 START_TEST( test_alu_get_reg_nodes )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	int ret;
 	uint_t nodes[REG_COUNT] = {0}, n;
 	
@@ -585,17 +592,31 @@ END_TEST
 
 START_TEST( test_alu_reg_set_raw )
 {
+	ck_assert( alu_upto( alu ) > 0 );
+	
 	uint_t num = alu_get_reg_node( alu, 0 );
 	uintmax_t val = _i, got;
 	alu_reg_t NUM;
+	bool active = alu_get_active( alu, num );
 	
 	ck_assert( num != 0 );
+	ck_assert( active == true );
 	
 	alu_reg_init( alu, NUM, num, 0 );
 	NUM.upto = bitsof(uintmax_t);
+	
+	active = alu_get_active( alu, num );
+	ck_assert( active == true );
 
 	alu_reg_set_raw( alu, NUM, &val, sizeof(uintmax_t), 0 );
+	
+	active = alu_get_active( alu, num );
+	ck_assert( active == true );
+	
 	alu_reg_get_raw( alu, NUM, &got, sizeof(uintmax_t) );
+	
+	active = alu_get_active( alu, num );
+	ck_assert( active == true );
 	
 	ck_assert_msg
 	(
@@ -650,7 +671,7 @@ START_TEST( test_alu_reg_end_bit )
 	
 	while ( bit < bitsof(uintmax_t) )
 	{	
-		v = alu_bit_set_bit( N, bit++ );
+		v = alu_bit( N, bit++ );
 		
 		alu_set_raw( alu, num, v.mask, 0 );
 		
@@ -681,8 +702,10 @@ START_TEST( test_alu_reg_end_bit )
 }
 END_TEST
 
-START_TEST( test_alu_bit_set_bit )
+START_TEST( test_alu_bit )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	uint_t num = alu_get_reg_node( alu, 0 );
 	uintmax_t *N;
 	alu_bit_t n;
@@ -691,7 +714,7 @@ START_TEST( test_alu_bit_set_bit )
 	
 	N = (void*)alu_data( alu, num );
 	
-	n = alu_bit_set_bit( N, _i );
+	n = alu_bit( N, _i );
 
 	ck_assert( n.bit == (size_t)_i );
 	ck_assert( n.seg == (size_t)(_i / bitsof(uintmax_t)) );
@@ -705,11 +728,13 @@ END_TEST
 
 START_TEST( test_alu_bit_inc )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	uintmax_t i = _i;
 	alu_bit_t n, v;
 	
-	n = alu_bit_set_bit( &i, i );
-	v = alu_bit_set_bit( &i, ++i );
+	n = alu_bit( &i, i );
+	v = alu_bit( &i, ++i );
 	alu_bit_inc(&n);
 	
 	ck_assert( n.bit == i );
@@ -728,11 +753,13 @@ END_TEST
 
 START_TEST( test_alu_bit_dec )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	uintmax_t i = _i;
 	alu_bit_t n, v;
 	
-	n = alu_bit_set_bit( &i, i );
-	v = alu_bit_set_bit( &i, --i );
+	n = alu_bit( &i, i );
+	v = alu_bit( &i, --i );
 	alu_bit_dec(&n);
 	
 	ck_assert( n.bit == i );
@@ -763,6 +790,25 @@ START_TEST( test_alu_vec_release )
 }
 END_TEST
 
+START_TEST( test_alu_set_bit )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	uintmax_t num = 1, val = 0;
+	
+	num <<= _i;
+	alu_set_bit( &val, _i, 1 );
+	
+	ck_assert_msg
+	(
+		num == val
+		, "Expected %016jX, Got %016jX"
+		, num
+		, val
+	);
+}
+END_TEST
+
 /* Modified copy & paste of code given in check's guide */
 Suite * alu_suite(void)
 {
@@ -778,15 +824,19 @@ Suite * alu_suite(void)
 	tcase_add_test( tc_core, test_alu_setup_reg );
 	tcase_add_test( tc_core, test_alu_get_reg_node );
 	tcase_add_test( tc_core, test_alu_get_reg_nodes );
-	tcase_add_loop_test( tc_core, test_alu_bit_set_bit, 0, ops_loop_until );
+	
+	tcase_add_loop_test( tc_core, test_alu_bit, 0, ops_loop_until );
+	tcase_add_loop_test( tc_core, test_alu_set_bit, 0, bitsof(uintmax_t) );
 	tcase_add_loop_test( tc_core, test_alu_bit_inc, 0, ops_loop_until );
 	tcase_add_loop_test( tc_core, test_alu_bit_dec, 1, ops_loop_until + 1 );
+
 	tcase_add_loop_test( tc_core, test_alu_reg_set_raw, 0, ops_loop_until );
-	tcase_add_loop_test( tc_core, test_alu_reg_set_raw, 0, ops_loop_until );
+#if 0
+	tcase_add_loop_test( tc_core, test_alu_uint_set_raw, 0, ops_loop_until );
+	
 	tcase_add_test( tc_core, test_alu_reg_end_bit );
 	tcase_add_loop_test( tc_core, test_alu_reg_cmp, 0, ops_loop_until );
-	
-#if 0
+
 	for ( f = 0; op1_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op1, 0, f * ops_loop_until );
 	
@@ -809,6 +859,8 @@ int main(void)
 	int number_failed;
 	Suite *s;
 	SRunner *sr;
+	alu_t _alu = {0};
+	alu = &_alu;
 	
 	alu_puts( "Running unit tests under 'check' test suite" );
 
