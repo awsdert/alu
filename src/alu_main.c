@@ -135,43 +135,30 @@ size_t alu_set_bounds( alu_t *alu, alu_reg_t *REG, size_t from, size_t upto )
 
 int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize )
 {
-	int ret;
 	size_t need;
-	alu_bit_t a;
+	uintmax_t *block;
 	
 	if ( alu )
 	{
 		want = HIGHEST( want, ALU_REG_ID_NEED );
 		want = LOWEST( want, ALU_REG_ID_LIMIT );
-				
+		
 		need = (want / CHAR_BIT) + !!(want % CHAR_BIT);
 		Nsize = HIGHEST( Nsize, need );
-		Nsize += LOWEST
-		(
-			sizeof(uintmax_t)
-			, sizeof(uintmax_t) - (Nsize % sizeof(uintmax_t))
-		);
+		need = Nsize % sizeof(uintmax_t);
+		Nsize += SET1IF( need, sizeof(uintmax_t) - need );
 		
-		ret = alu_vec_expand( alu, want, Nsize );
+		block = alu_vec_expand( alu, want, Nsize );
 		
-		if ( ret == 0 )
+		if ( block )
 		{
-			alu_used( alu ) = HIGHEST( ALU_REG_ID_NEED, alu_used(alu) );
-			
-			a = alu_bit( (void*)alu_valid(alu), 0 );
-			
-			while ( a.bit < ALU_REG_ID_NEED )
-			{
-				*(a.ptr) |= a.mask;
-				alu_bit_inc(&a);
-			}
-			
-			alu_set_constants( alu );
+			alu->taken = HIGHEST( alu->taken, ALU_REG_ID_NEED );
+			alu_set_constants( alu );		
 			return 0;
 		}
 		
-		alu_error( ret );
-		return ret;
+		alu_error( alu->block.fault );
+		return alu->block.fault;
 	}
 	
 	return alu_err_null_ptr( "alu" );
@@ -205,7 +192,7 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 			return 0;
 		}
 		
-		alu_used( alu ) = count;
+		alu->taken = count;
 		
 		(void)memset( alu_data( alu, index ), 0, Nsize );
 		
@@ -268,11 +255,16 @@ void alu_set_constants( alu_t *alu )
 	int r, used = alu_used( alu );
 	size_t Nsize = alu_Nsize( alu ), last = Nsize - 1;
 	uchar_t *part;
+	alu_bit_t c = alu_bit( (void*)alu_valid(alu), 0 );
 	
 	used = LOWEST( used, ALU_REG_ID_NEED );
 	
-	for ( r = 0; r < used; ++r )
+	*(c.ptr) |= c.mask;
+	
+	for ( r = 1, alu_bit_inc(&c); r < used; ++r, alu_bit_inc(&c) )
 	{
+		*(c.ptr) |= c.mask;
+		
 		part = alu_data( alu, r );
 		
 		memset

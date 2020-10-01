@@ -1,7 +1,7 @@
 #include "alu.h"
 #include <string.h>
 
-int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
+void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 {
 	uchar_t *dst, *src, *block;
 	size_t diff, desire;
@@ -14,6 +14,7 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 		if ( desire )
 		{
 			used = vec->taken;
+			vec->block.taken = used * vec->Nsize;
 			
 			if ( Nsize >= vec->Nsize )
 			{
@@ -59,21 +60,22 @@ int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 			{
 				done:
 				vec->Nsize = Nsize;
-				vec->given = want;
-				vec->taken = LOWEST( vec->taken, want );
+				vec->given = vec->block.given / Nsize;
+				vec->taken = LOWEST( vec->taken, vec->given );
 				vec->block.taken = vec->taken * vec->Nsize;
 				
-				return 0;
+				return block;
 			}
 			
 			alu_error(vec->block.fault);
-			return vec->block.fault;
+			return NULL;
 		}
 		
 		alu_block_release( &(vec->block) );
 		(void)memset( vec, 0, sizeof(alu_vec_t) );
-		return 0;
+		return NULL;
 	}
 	
-	return alu_err_null_ptr( "vec" );
+	(void)alu_err_null_ptr( "vec" );
+	return NULL;
 }

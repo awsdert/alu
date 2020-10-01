@@ -457,6 +457,7 @@ START_TEST( test_alu_op2 )
 	if ( op2_str )
 	{		
 		expect = op2_ret( op2_n, op2_v );
+
 		
 		alu_uint_set_raw( alu, num, op2_n );
 		alu_uint_get_raw( alu, num, &got_n );
@@ -484,8 +485,6 @@ START_TEST( test_alu_op2 )
 	}
 	
 	alu_rem_reg_nodes( alu, nodes, REG_COUNT );
-	
-	++op2_v;
 }
 END_TEST
 
@@ -551,8 +550,6 @@ START_TEST( test_alu_get_reg_node )
 	alu_rem_reg_node( alu, &num );
 	
 	ck_assert( num == 0 );
-	active = alu_get_active( alu, num );
-	ck_assert( active == false );
 }
 END_TEST
 
@@ -792,17 +789,21 @@ START_TEST( test_alu_set_bit )
 {
 	ck_assert( alu_upto(alu) > 0 );
 	
-	uintmax_t num = 1, val = 0;
+	uintmax_t num[] = {0,0}, val[] = {0,0}, i = _i;
 	
-	num <<= _i;
-	alu_set_bit( &val, _i, 1 );
+	if ( i >= bitsof(uintmax_t) )
+		num[1] = 1uLL << _i % bitsof(uintmax_t);
+	else
+		num[0] = 1uLL << _i;
+		
+	alu_set_bit( val, _i, 1 );
 	
 	ck_assert_msg
 	(
-		num == val
-		, "Expected %016jX, Got %016jX"
-		, num
-		, val
+		memcmp( num, val, sizeof(uintmax_t) * 2 ) == 0
+		, "Expected 0x%016jX%016jX, Got 0x%016jX%016jX"
+		, num[0], num[1]
+		, val[0], val[1]
 	);
 }
 END_TEST
@@ -824,14 +825,13 @@ Suite * alu_suite(void)
 	tcase_add_test( tc_core, test_alu_get_reg_nodes );
 	
 	tcase_add_loop_test( tc_core, test_alu_bit, 0, ops_loop_until );
-	tcase_add_loop_test( tc_core, test_alu_set_bit, 0, bitsof(uintmax_t) );
+	tcase_add_loop_test( tc_core, test_alu_set_bit, 0, (bitsof(uintmax_t) * 2) );
 	tcase_add_loop_test( tc_core, test_alu_bit_inc, 0, ops_loop_until );
 	tcase_add_loop_test( tc_core, test_alu_bit_dec, 1, ops_loop_until + 1 );
 
 	tcase_add_loop_test( tc_core, test_alu_reg_set_raw, 0, ops_loop_until );
-#if 0
 	tcase_add_loop_test( tc_core, test_alu_uint_set_raw, 0, ops_loop_until );
-	
+
 	tcase_add_test( tc_core, test_alu_reg_end_bit );
 	tcase_add_loop_test( tc_core, test_alu_reg_cmp, 0, ops_loop_until );
 
@@ -840,7 +840,8 @@ Suite * alu_suite(void)
 	
 	for ( f = 0; op2_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op2, 0, f * ops_loop_until );
-	
+
+#if 0
 	for ( f = 0; op3_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op3, 0, f * ops_loop_until );
 	

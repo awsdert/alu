@@ -163,6 +163,7 @@ int_t alu_reg_get_raw
 			(void)memcpy( raw, alu_data( alu, tmp ), size );
 			
 			alu_rem_reg_node( alu, &tmp );
+			
 			return 0;
 		}
 		
@@ -200,10 +201,7 @@ int_t alu_reg_set_raw
 	
 	size = HIGHEST( size, 1 );
 	
-
-	alu_print_reg("NUM#1", alu, NUM, 1, 0, 0 );
 	tmp = alu_get_reg_node( alu, size );
-	alu_print_reg("NUM#2", alu, NUM, 1, 0, 0 );
 	
 	if ( tmp )
 	{

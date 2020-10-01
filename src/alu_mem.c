@@ -18,16 +18,17 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 			want = SET2IF( dir < 0, LOWEST( mem->given, want ), want );
 			
 			if ( want )
-			{
-				want += 4 * sizeof(size_t);
-				
+			{	
 				size = want % sizeof(size_t);
 				want /= SET2IF( size, sizeof(size_t), 1 );
 				want *= SET2IF( size, sizeof(size_t), 1 );
 				want += SET1IF( size, sizeof(size_t) );
 				
 				if ( want != mem->given )
-				{				
+				{	
+					alu_printf("want = %zu, given = %zu", want, mem->given);
+					want += 4 * sizeof(size_t);
+					
 					errno = 0;
 					block = realloc( mem->block, want );
 					ret = errno;
@@ -51,13 +52,14 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 			memset( mem, 0, sizeof(alu_block_t) );
 			
 			if ( want )
-			{
-				want += 4 * sizeof(size_t);
-				
+			{				
 				size = want % sizeof(size_t);
 				want /= SET2IF( size, sizeof(size_t), 1 );
 				want *= SET2IF( size, sizeof(size_t), 1 );
 				want += SET1IF( size, sizeof(size_t) );
+				
+				alu_printf("want = %zu, given = %zu", want, mem->given);
+				want += 4 * sizeof(size_t);
 				
 				errno = 0;
 				block = malloc( want );

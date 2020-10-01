@@ -105,7 +105,7 @@ typedef struct alu_vec
 
 typedef uint_t alu_int_t, alu_uint_t, alu_fpn_t;
 
-int_t alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir );
+void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir );
 # define alu_vec_expand( VEC, WANT, PERN ) alu_vec( VEC, WANT, PERN, 1 )
 # define alu_vec_shrink( VEC, WANT, PERN ) alu_vec( VEC, WANT, PERN, -1 )
 # define alu_vec_release( VEC, PERN ) (void)alu_vec( VEC, 0, PERN, -1 )
@@ -221,14 +221,15 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
 #define alu_errno( alu ) ((alu)->block.fault)
 
+#define alu_reg_data( alu, alu_reg ) alu_data( alu, (alu_reg).node )
+
 #define alu_get_active( alu, reg ) alu_get_bit( (void*)alu_valid(alu), reg )
 #define alu_clr_active( alu, reg ) alu_set_bit( (void*)alu_valid(alu), reg, 0 )
 #define alu_set_active( alu, reg ) alu_set_bit( (void*)alu_valid(alu), reg, 1 )
-
-#define alu_reg_data( alu, alu_reg ) alu_data( alu, (alu_reg).node )
 #define alu_reg_get_active( alu, alu_reg ) alu_get_active( alu, (alu_reg).node )
 #define alu_reg_clr_active( alu, alu_reg ) alu_clr_active( alu, (alu_reg).node )
 #define alu_reg_set_active( alu, alu_reg ) alu_set_active( alu, (alu_reg).node )
+
 #define alu_reg_signed( alu_reg ) !!((alu_reg).info & ALU_INFO__SIGN)
 #define alu_reg_floating( alu_reg ) !!((alu_reg).info & ALU_INFO_FLOAT)
 
