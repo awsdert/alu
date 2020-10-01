@@ -186,19 +186,19 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 		
 		alu_errno(alu) = alu_setup_reg( alu, reg, Nsize );
 				
-		if ( alu_errno(alu) )
-		{
-			alu_error( alu_errno(alu) );
-			return 0;
+		if ( !alu_errno(alu) )
+		{		
+			alu->taken = count;
+			
+			(void)memset( alu_data( alu, index ), 0, Nsize );
+			
+			alu_set_active( alu, index );
+			
+			return index;
 		}
 		
-		alu->taken = count;
-		
-		(void)memset( alu_data( alu, index ), 0, Nsize );
-		
-		alu_set_active( alu, index );
-		
-		return index;
+		alu_error( alu_errno(alu) );
+		return 0;
 	}
 	
 	(void)alu_err_null_ptr( "alu" );
