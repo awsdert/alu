@@ -199,8 +199,6 @@ START_TEST( test_alu_setup_reg )
 	);
 	ck_assert( alu_valid( alu ) != NULL );
 	ck_assert( alu_Nsize( alu ) >= sizeof(uintmax_t) );
-	
-	alu_printf( "alu_upto() = %u", alu_upto(alu) );
 }
 END_TEST
 
@@ -866,7 +864,8 @@ int main(void)
 
 	s = alu_suite();
 	sr = srunner_create(s);
-
+	
+	srunner_set_fork_status(sr,CK_NOFORK);
 	srunner_run_all(sr, CK_NORMAL);
 	number_failed = srunner_ntests_failed(sr);
 	srunner_free(sr);
