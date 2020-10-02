@@ -20,6 +20,7 @@ F_fPIE:=$(call ifin,$(CC),vc,,-fPIE)
 F_g_gdb:=$(call ifin,$(CC),vc,,-ggdb)
 F_pg:=$(call ifin,$(CC),vc,,-pg)
 F_pedantic:=$(call ifin,$(CC),vc,,-pedantic)
+F_santize-address:=$(call ifin,$(CC),vc,,-fsanitize=address)
 F_L:=$(COP)L
 F_l:=$(COP)l
 F_I:=$(COP)I
@@ -42,7 +43,7 @@ PFL_SFX:=_p
 endif
 
 ifeq '$(filter debug,$(MAKECMDGOALS))' 'debug'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
@@ -52,7 +53,7 @@ PFL_SFX:=
 endif
 
 ifeq '$(filter gede,$(MAKECMDGOALS))' 'gede'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
@@ -62,7 +63,7 @@ PFL_SFX:=
 endif
 
 ifeq '$(filter check,$(MAKECMDGOALS))' 'check'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling

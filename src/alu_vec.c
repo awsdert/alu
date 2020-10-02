@@ -16,7 +16,11 @@ void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 			used = vec->taken;
 			vec->block.taken = used * vec->Nsize;
 			
-			if ( Nsize >= vec->Nsize )
+			if ( Nsize == vec->Nsize )
+			{
+				return vec->block.block;
+			}
+			else if ( Nsize > vec->Nsize )
 			{
 				block = alu_block( &(vec->block), desire, dir );
 				

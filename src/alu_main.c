@@ -163,6 +163,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize )
 	
 	return alu_err_null_ptr( "alu" );
 }
+#include <assert.h>
 
 uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 {
@@ -186,18 +187,20 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 		
 		alu_errno(alu) = alu_setup_reg( alu, reg, Nsize );
 				
-		if ( !alu_errno(alu) )
+		if ( alu->given >= count )
 		{		
 			alu->taken = count;
 			
-			(void)memset( alu_data( alu, index ), 0, Nsize );
+			(void)memset( alu_data( alu, index ), 0, alu->Nsize );
 			
 			alu_set_active( alu, index );
 			
 			return index;
 		}
 		
+		alu->block.fault = SET2IF( alu_errno(alu), alu_errno(alu), ERANGE );
 		alu_error( alu_errno(alu) );
+		alu_printf( "given = %u, needed %u", alu->given, count );
 		return 0;
 	}
 	
