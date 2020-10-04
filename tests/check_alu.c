@@ -513,7 +513,7 @@ START_TEST( test_alu_reg2str )
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 	}
 	else
 	{

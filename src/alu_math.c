@@ -329,7 +329,7 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		
 		if ( ret != 0 )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -374,7 +374,7 @@ int alu_reg_flt2int( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		
 		if ( ret != 0 )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -477,7 +477,7 @@ int alu_reg_flt2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		
 		if ( ret != 0 )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -586,7 +586,7 @@ int_t alu_reg_cmp(
 			
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			
 			if ( !NUM.node ) alu_puts( "NUM.node was 0" );
 			
@@ -679,7 +679,7 @@ int_t alu_reg_not( alu_t *alu, alu_reg_t NUM )
 		if ( !NUM.node )
 		{
 			ret = EINVAL;
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -771,7 +771,7 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 			
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1006,7 +1006,7 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1071,7 +1071,7 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1080,7 +1080,7 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1134,7 +1134,7 @@ int_t alu_reg__shift
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1187,7 +1187,7 @@ int_t alu_reg_multiply
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1218,7 +1218,7 @@ int_t alu_reg_multiply
 		return carry ? EOVERFLOW : 0;
 	}
 	
-	alu_error(ret);
+	alu_error( ret );
 	return ret;
 }
 
@@ -1247,7 +1247,7 @@ int_t alu_reg_mul
 		return ret;
 	}
 	
-	alu_error(ret);
+	alu_error( ret );
 	return ret;
 }
 
@@ -1258,7 +1258,7 @@ int_t alu_reg_neg( alu_t *alu, alu_reg_t NUM )
 	if ( ret == 0 )
 		return alu_reg_inc( alu, NUM );
 		
-	alu_error(ret);
+	alu_error( ret );
 	return ret;
 }
 
@@ -1289,7 +1289,7 @@ int_t alu_reg_divide
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			
 			if ( !NUM.node )
 				alu_puts("NUM.node was 0");
@@ -1315,7 +1315,7 @@ int_t alu_reg_divide
 		if ( vNeg )
 			alu_reg_neg( alu, VAL );
 		
-		(void)alu_reg_mov( alu, REM, NUM );
+		(void)alu_reg_int2int( alu, REM, NUM );
 		(void)alu_reg_clr( alu, NUM );
 		
 		N = alu_reg_data( alu, NUM );
@@ -1431,7 +1431,7 @@ int_t alu_reg__rol( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1487,7 +1487,7 @@ int_t alu_reg__ror( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1546,7 +1546,7 @@ int_t alu_reg__rotate
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1599,7 +1599,7 @@ int_t alu_reg_and( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 			
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 		
@@ -1650,7 +1650,7 @@ int_t alu_reg__or( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 	
@@ -1693,7 +1693,7 @@ int_t alu_reg_xor( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 		
 		if ( ret )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			return ret;
 		}
 	

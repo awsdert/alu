@@ -134,7 +134,7 @@ int modify(
 		break;
 	case 'l':
 		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
-		expect = rol( expect, _val );
+		expect = unic_rol( expect, _val );
 		ret = alu_reg_rol( alu, NUM, VAL, TMP );
 		break;
 	case '<':
@@ -144,7 +144,7 @@ int modify(
 		break;
 	case 'r':
 		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
-		expect = ror( expect, _val );
+		expect = unic_ror( expect, _val );
 		ret = alu_reg_ror( alu, NUM, VAL, TMP );
 		break;
 	case '>':
@@ -222,12 +222,12 @@ size_t rng( size_t n )
 		m = matrix[n % 5][n % 16],
 		X = matrix[m % 5][m]
 	;
-	n = rol( n, X % bitsof(size_t) );
+	n = unic_rol( n, X % bitsof(size_t) );
 	n *= (m ^ X) ^ (n & 0xF);
 	n += b;
 	m = matrix[n % 5][X % 16];
 	X = matrix[m % 5][m];
-	n = ror( n, X % bitsof(size_t) );
+	n = unic_ror( n, X % bitsof(size_t) );
 	n ^= (uint_t) (((n) * 16777215.0) / UINT_MAX );
 	return n % RAND_MAX;
 }
@@ -514,14 +514,17 @@ int func_wrChar32( char32_t src, alu_block_t *dst )
 	char *str;
 	if ( dst->taken >= dst->given )
 	{
-		ret = alu_block_expand( dst, dst->taken + 50 );
-		if ( ret != 0 )
+		str = alu_block_expand( dst, dst->taken + 50 );
+		if ( !str )
 		{
-			alu_error(ret);
+			alu_error( dst->fault );
 			return ret;
 		}
 	}
-	str = dst->block;
+	else
+	{
+		str = dst->block;
+	}
 	str[dst->taken] = src;
 	dst->taken++;
 	return 0;
@@ -549,9 +552,9 @@ int reg_print_value
 	, bool print_anyways
 )
 {
-	uint_t tmp = -1;
+	int ret;
+	uint_t tmp = alu_get_reg_node( alu, 0 );
 	alu_reg_t _tmp = {0};
-	int ret = alu_get_reg_node( alu, &tmp, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
@@ -561,9 +564,10 @@ int reg_print_value
 		alu_puts( "-------------------------------------" );
 	}
 	
-	if ( ret != 0 )
+	if ( tmp == 0 )
 	{
-		alu_error(ret);
+		ret = alu_errno(alu);
+		alu_error( ret );
 		return ret;
 	}
 	
@@ -575,13 +579,13 @@ int reg_print_value
 	{
 	case 0: case EILSEQ: break;
 	default:
-		alu_error(ret);
+		alu_error( ret );
 		goto fail;
 	}
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 		goto fail;
 	}
 	
@@ -590,7 +594,7 @@ int reg_print_value
 	ret = alu_reg2str( alu, _dst, _tmp, base );
 	
 	if ( ret != 0 )
-		alu_error(ret);
+		alu_error( ret );
 	
 	dst = __src->block;
 	if ( strcmp( src, dst ) != 0 || print_anyways )
@@ -610,8 +614,8 @@ int uint_print_value
 	, bool print_anyways
 )
 {
-	alu_uint_t tmp = -1;
-	int ret = alu_get_reg_node( alu, &tmp, 0 );
+	int ret;
+	alu_uint_t tmp = alu_get_reg_node( alu, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
@@ -621,9 +625,10 @@ int uint_print_value
 		alu_puts( "---------------------------------------" );
 	}
 	
-	if ( ret != 0 )
+	if ( tmp == 0 )
 	{
-		alu_error(ret);
+		ret = alu_errno(alu);
+		alu_error( ret );
 		return ret;
 	}
 	
@@ -631,7 +636,7 @@ int uint_print_value
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 		goto fail;
 	}
 	
@@ -639,7 +644,7 @@ int uint_print_value
 	ret = alu_uint2str( alu, _dst, tmp, base );
 	
 	if ( ret != 0 )
-		alu_error(ret);
+		alu_error( ret );
 	
 	dst = __src->block;
 	if ( strcmp( src, dst ) != 0 || print_anyways )
@@ -659,8 +664,8 @@ int int_print_value
 	, bool print_anyways
 )
 {
-	alu_int_t tmp = 0;
-	int ret = alu_get_reg_node( alu, &tmp, 0 );
+	int ret;
+	alu_int_t tmp = alu_get_reg_node( alu, 0 );
 	alu_block_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
@@ -670,9 +675,10 @@ int int_print_value
 		alu_puts( "-------------------------------------" );
 	}
 	
-	if ( ret != 0 )
+	if ( tmp == 0 )
 	{
-		alu_error(ret);
+		ret = alu_errno(alu);
+		alu_error( ret );
 		return ret;
 	}
 	
@@ -680,7 +686,7 @@ int int_print_value
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 		goto fail;
 	}
 	
@@ -689,7 +695,7 @@ int int_print_value
 	
 	
 	if ( ret != 0 )
-		alu_error(ret);
+		alu_error( ret );
 	
 	dst = __src->block;
 	if ( strcmp( src, dst ) != 0 || print_anyways )
@@ -800,7 +806,7 @@ int print_value( alu_t *alu, bool print_anyways )
 	alu_dst_t _dst = {NULL};
 	alu_base_t base = {0};
 	alu_block_t __src = {0}, __dst = {0};
-	char *src;
+	char *src, *dst;
 	long nextpos;
 	
 	(void)alu_puts( "Printing values..." );
@@ -831,9 +837,13 @@ int print_value( alu_t *alu, bool print_anyways )
 		__src.block = src;
 		__src.given = __src.taken = strlen(src);
 		
-		ret = alu_block_expand( &__dst, __src.given * 2 );
-		if ( ret != 0 )
-			return ret;
+		dst = alu_block_expand( &__dst, __src.given * 2 );
+		if ( !dst )
+		{
+			ret = __dst.fault;
+			alu_error( ret );
+			goto fail;
+		}
 		
 		ret = reg_print_value( alu, _src, _dst, base, print_anyways );
 		
@@ -877,16 +887,16 @@ int print_value( alu_t *alu, bool print_anyways )
 		__src.block = src;
 		__src.given = __src.taken = strlen(src);
 		
-		ret = alu_block_expand( &__dst, __src.given * 2 );
+		dst = alu_block_expand( &__dst, __src.given * 2 );
 		
-		if ( ret != 0 )
+		if ( !dst )
 		{
+			ret = __dst.fault;
 			alu_error( ret );
 			goto fail;
 		}
 		
 		ret = int_print_value( alu, _src, _dst, base, print_anyways );
-		
 		
 		if ( ret != 0 )
 		{
@@ -913,7 +923,7 @@ int main()
 	//print_limits();
 
 	alu_printf( "Pre-allocating %u ALU registers...", preallocate );
-	ret = alu_setup_reg( alu, preallocate, 0, 0 );
+	ret = alu_setup_reg( alu, preallocate, 0 );
 	
 	if ( ret != 0 )
 	{

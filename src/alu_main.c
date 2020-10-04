@@ -320,7 +320,7 @@ int_t alu_str2reg
 	{
 	case 0: case '\'': case '_': case ',': break;
 	default:
-		alu_error(ret);
+		alu_error( ret );
 		alu_printf( "base.digsep = '%c'", base.digsep );
 		return EINVAL;
 	}
@@ -343,7 +343,7 @@ int_t alu_str2reg
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 		goto fail;
 	}
 
@@ -357,7 +357,7 @@ int_t alu_str2reg
 		
 		if ( ret != 0 )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			break;
 		}
 		
@@ -458,7 +458,7 @@ int_t alu_lit2reg
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 		return ret;
 	}
 	
@@ -477,7 +477,7 @@ int_t alu_lit2reg
 	case 0: case '\'': case '_': case ',': break;
 	default:
 		ret = EINVAL;
-		alu_error(ret);
+		alu_error( ret );
 		alu_printf( "base.digsep = '%c'", base.digsep );
 		goto fail;
 	}
@@ -559,7 +559,7 @@ int_t alu_lit2reg
 				if ( !base.base )
 				{
 					ret = EILSEQ;
-					alu_error(ret);
+					alu_error( ret );
 					alu_puts( "Invalid base provided" );
 					goto fail;
 				}
@@ -574,7 +574,7 @@ int_t alu_lit2reg
 				break;
 			default:
 				ret = EILSEQ;
-				alu_error(ret);
+				alu_error( ret );
 				alu_puts( "Expected x, X, o, O, b, B, ~ or 1 to 9" );
 				goto fail;
 			}
@@ -907,7 +907,7 @@ int_t alu_lit2reg
 			else
 			{
 				ret = EILSEQ;
-				alu_error(ret);
+				alu_error( ret );
 				alu_puts( "Expected ')' to close Exponent or Float" );
 				alu_printf( "Current character is '%c'", c );
 				goto fail;
@@ -939,7 +939,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	if ( !(dst.next) || !(dst.flip) )
 	{
 		ret = EADDRNOTAVAIL;
-		alu_error(ret);
+		alu_error( ret );
 		return ret;
 	}
 		
@@ -949,7 +949,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	if ( base.base > strlen(base_str) )
 	{
 		ret = ERANGE;
-		alu_error(ret);
+		alu_error( ret );
 		return ret;
 	}
 	
@@ -1001,7 +1001,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 		
 		if ( ret != 0 )
 		{
-			alu_error(ret);
+			alu_error( ret );
 			goto fail;
 		}
 		
@@ -1013,7 +1013,7 @@ int_t alu_reg2str( alu_t *alu, alu_dst_t dst, alu_reg_t src, alu_base_t base )
 	
 	if ( ret != 0 )
 	{
-		alu_error(ret);
+		alu_error( ret );
 		goto fail;
 	}
 	

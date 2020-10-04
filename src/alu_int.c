@@ -73,7 +73,7 @@ int_t alu_int2str( alu_t *alu, alu_dst_t dst, alu_int_t src, alu_base_t base )
 	ret = alu_reg2str( alu, dst, tmp, base );
 	
 	if ( ret != 0 )
-		alu_error(ret);
+		alu_error( ret );
 	
 	return ret;
 }
