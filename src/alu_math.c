@@ -1371,12 +1371,17 @@ int_t alu_reg_div
 	uint_t nodes[2] = {0};
 	alu_reg_t REM, TMP;
 	
+	alu_print_reg( alu, VAL, 1, 1 );
+	
 	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	
 	if ( ret == 0 )
 	{
 		alu_reg_init( alu, REM, nodes[0], 0 );
 		alu_reg_init( alu, TMP, nodes[1], 0 );
+		
+		alu_print_reg( alu, VAL, 1, 1 );
+		
 		ret = alu_reg_divide( alu, NUM, VAL, REM, TMP );
 		alu_rem_reg_nodes( alu, nodes, 2 );
 		return ret;
@@ -1404,7 +1409,7 @@ int_t alu_reg_rem
 		alu_reg_init( alu, REM, nodes[0], 0 );
 		alu_reg_init( alu, TMP, nodes[1], 0 );
 		ret = alu_reg_divide( alu, NUM, VAL, REM, TMP );
-		(void)alu_reg_mov( alu, NUM, REM );
+		(void)alu_reg_int2int( alu, NUM, REM );
 		alu_rem_reg_nodes( alu, nodes, 2 );
 		return ret;
 	}

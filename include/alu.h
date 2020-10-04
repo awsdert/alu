@@ -1,14 +1,14 @@
 #ifndef INC_ALU_H
 # define INC_ALU_H
 
-#include <unic/limits.h>
-#include <unic/stdint.h>
 #include <errno.h>
 #include <uchar.h>
 #include <float.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+#include <unic/limits.h>
+#include <unic/stdint.h>
 
 # define alu__printf( FORMAT, THEFILE, THELINE, THEFUNC, ... ) \
 	fprintf \
@@ -130,14 +130,6 @@ typedef enum ALU_REG_ID {
 	/* Minimum registers for ALU to allocate */
 	ALU_REG_ID_NEED
 } ALU_REG_ID_t;
-
-#if defined( _SC_PAGESIZE )
-#define ALU_REG_ID_LIMIT sysconf(_SC_PAGESIZE)
-#elif defined( SCHAR_MAX )
-#define ALU_REG_ID_LIMIT SCHAR_MAX
-#else
-#define ALU_REG_ID_LIMIT INT_MAX
-#endif
 
 # define _BIT_FROM_END( MIN, POS )\
 	(((((MIN)>>(POS))^-1)<<1) & ((MIN)>>(POS)))
@@ -316,26 +308,24 @@ void alu__print_reg
 	char *file
 	, uint_t line
 	, const char *func
-	, char *pfx
+	, char *name
 	, alu_t *alu
 	, alu_reg_t reg
 	, bool print_info
 	, bool print_value
-	, bool print_flags
 );
 
-#define alu_print_reg( pfx, alu, reg, print_info, print_value, print_flags ) \
+#define alu_print_reg( alu, reg, print_info, print_value ) \
 	alu__print_reg \
 	( \
 		__FILE__ \
 		, __LINE__ \
 		, __func__ \
-		, pfx \
+		, #reg \
 		, alu \
 		, reg \
 		, print_info \
 		, print_value \
-		, print_flags \
 	)
 void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t flags );
 size_t alu_set_bounds( alu_t *alu, alu_reg_t *REG, size_t from, size_t upto );

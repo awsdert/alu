@@ -465,6 +465,9 @@ START_TEST( test_alu_op2 )
 		alu_uint_set_raw( alu, val, op2_v );
 		alu_uint_get_raw( alu, val, &got_v );
 		
+		if ( op2_reg == alu_reg_div )
+			alu_print_reg( alu, VAL, 1, 1 );
+			
 		op2_reg( alu, NUM, VAL );
 		
 		alu_uint_get_raw( alu, num, &got );

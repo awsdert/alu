@@ -2,36 +2,6 @@
 #include <string.h>
 #include <stdio.h>
 
-void alu_print_info( char *pfx, alu_t *alu, alu_reg_t reg, uint_t info )
-{
-	reg.node %= alu_used( alu );
-	alu_printf( "Checking %s.info for flags:", pfx );
-
-	alu_printf
-	(
-		"alu_reg_get_active( alu, %s ), has this flag?... %s"
-		, pfx, alu_reg_get_active( alu, reg ) ? "Yes" : "No"
-	);
-	
-	if ( info & ALU_INFO__SIGN )
-	{
-		alu_printf
-		(
-			"alu_reg_signed( %s ), has this flag?... %s"
-			, pfx, alu_reg_signed( reg ) ? "Yes" : "No"
-		);
-	}
-	
-	if ( info & ALU_INFO_FLOAT )
-	{
-		alu_printf
-		(
-			"alu_reg_floating( %s ), has this flag?... %s"
-			, pfx, alu_reg_floating( reg ) ? "Yes" : "No"
-		);
-	}
-}
-
 void alu__print_reg
 (
 	char *file
@@ -42,7 +12,6 @@ void alu__print_reg
 	, alu_reg_t REG
 	, bool print_info
 	, bool print_value
-	, bool print_flags
 )
 {
 	void *R;
@@ -69,11 +38,6 @@ void alu__print_reg
 			, '0' + alu_reg_signed( REG )
 			, '0' + alu_reg_floating( REG )
 		);
-	}
-	
-	if ( print_flags )
-	{
-		alu_print_info( pfx, alu, REG, -1 );
 	}
 	
 	if ( print_value )
@@ -141,7 +105,6 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize )
 	if ( alu )
 	{
 		want = HIGHEST( want, ALU_REG_ID_NEED );
-		want = LOWEST( want, ALU_REG_ID_LIMIT );
 		
 		need = (want / CHAR_BIT) + !!(want % CHAR_BIT);
 		Nsize = HIGHEST( Nsize, need );

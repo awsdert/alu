@@ -35,6 +35,7 @@ DBG_SFX:=
 PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
+CHK_FLAGS:=
 
 ifeq '$(filter profile,$(MAKECMDGOALS))' 'profile'
 PFL_FLAGS:=$(F_pg)
@@ -70,4 +71,6 @@ DBG_SFX:=_d
 PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
+# Check needs libraries
+CHK_FLAGS:=$(F_l) check $(F_l) subunit $(F_l) rt $(F_l) pthread $(F_l) m
 endif
