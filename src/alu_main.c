@@ -45,11 +45,6 @@ void alu__print_reg
 		n = alu_bit( R, REG.upto );
 		
 		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
-		if ( n.bit == REG.from )
-		{
-			fputc( '0', stderr );
-			alu_error( ERANGE );
-		}
 		while ( n.bit > REG.from )
 		{
 			alu_bit_dec(&n);

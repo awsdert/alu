@@ -610,10 +610,10 @@ int_t alu_reg_cmp(
 		alu_bit_inc(&n);
 		alu_bit_inc(&v);
 		
-		ret = SET2IF( ret == 0, (n.bit > v.bit) - (n.bit < v.bit), ret );
-		
 		ndiff = SET1IF( ret == 0, n.bit - NUM.from );
 		vdiff = SET1IF( ret == 0, v.bit - VAL.from );
+		
+		ret = SET2IF( ret == 0, (ndiff > vdiff) - (ndiff < vdiff), ret );
 		
 		/* Deal with different sized integers */
 		
@@ -775,7 +775,7 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 			return ret;
 		}
 		
-		pos = alu_lowest_upto( NUM, VAL );
+		pos = NUM.from + LOWEST( NUM.upto - NUM.from, VAL.upto - VAL.from );
 		
 		part = alu_reg_data( alu, NUM );
 		n = alu_bit( part, NUM.from );
@@ -810,6 +810,20 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 				}
 				else
 					*(n.ptr) |= n.mask;
+			}
+		}
+		
+		/* Prevent false ENODATA's */
+		for
+		(
+			; v.bit < VAL.upto
+			; alu_bit_inc(&v)
+		)
+		{
+			if ( *(v.ptr) & v.mask )
+			{
+				changed = true;
+				break;
 			}
 		}
 		
@@ -915,7 +929,7 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 	NUM.node %= alu_used( alu );
 	VAL.node %= alu_used( alu );
 	
-	pos = alu_lowest_upto( NUM, VAL );
+	pos = NUM.from + LOWEST( NUM.upto - NUM.from, VAL.upto - VAL.from );
 	
 	part = alu_reg_data( alu, NUM );
 	n = alu_bit( part, NUM.from );
@@ -950,6 +964,20 @@ int_t alu_reg_sub( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 				*(n.ptr) |= n.mask;
 				carry = true;
 			}
+		}
+	}
+	
+	/* Prevent false reports of ENODATA */
+	for
+	(
+		; v.bit < pos
+		; alu_bit_inc(&v)
+	)
+	{
+		if ( *(v.ptr) & v.mask )
+		{
+			changed = true;
+			break;
 		}
 	}
 	
@@ -1345,7 +1373,7 @@ int_t alu_reg_divide
 		if ( SEG.from > REM.from )
 			alu_reg__shl( alu, NUM, TMP, (SEG.from - REM.from) );
 		
-		if ( ret != ENODATA && nNeg != vNeg )
+		if ( nNeg != vNeg )
 			alu_reg_neg( alu, NUM );
 		
 		if ( nNeg )
@@ -1371,8 +1399,6 @@ int_t alu_reg_div
 	uint_t nodes[2] = {0};
 	alu_reg_t REM, TMP;
 	
-	alu_print_reg( alu, VAL, 1, 1 );
-	
 	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
 	
 	if ( ret == 0 )
@@ -1380,7 +1406,8 @@ int_t alu_reg_div
 		alu_reg_init( alu, REM, nodes[0], 0 );
 		alu_reg_init( alu, TMP, nodes[1], 0 );
 		
-		alu_print_reg( alu, VAL, 1, 1 );
+		REM.upto = NUM.upto;
+		REM.from = NUM.from;
 		
 		ret = alu_reg_divide( alu, NUM, VAL, REM, TMP );
 		alu_rem_reg_nodes( alu, nodes, 2 );
@@ -1408,6 +1435,10 @@ int_t alu_reg_rem
 	{
 		alu_reg_init( alu, REM, nodes[0], 0 );
 		alu_reg_init( alu, TMP, nodes[1], 0 );
+		
+		REM.upto = NUM.upto;
+		REM.from = NUM.from;
+		
 		ret = alu_reg_divide( alu, NUM, VAL, REM, TMP );
 		(void)alu_reg_int2int( alu, NUM, REM );
 		alu_rem_reg_nodes( alu, nodes, 2 );

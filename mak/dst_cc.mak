@@ -72,5 +72,7 @@ PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
 # Check needs libraries
-CHK_FLAGS:=$(F_l) check $(F_l) subunit $(F_l) rt $(F_l) pthread $(F_l) m
+# If this doesn't compile for you then add $(F_l) subunit between check and
+# $(F_l) rt, not yet figured out how to detect this situation
+CHK_FLAGS:=$(F_l) check  $(F_l) rt $(F_l) pthread $(F_l) m
 endif

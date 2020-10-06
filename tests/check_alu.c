@@ -458,15 +458,11 @@ START_TEST( test_alu_op2 )
 	{		
 		expect = op2_ret( op2_n, op2_v );
 
-		
 		alu_uint_set_raw( alu, num, op2_n );
 		alu_uint_get_raw( alu, num, &got_n );
 		
 		alu_uint_set_raw( alu, val, op2_v );
 		alu_uint_get_raw( alu, val, &got_v );
-		
-		if ( op2_reg == alu_reg_div )
-			alu_print_reg( alu, VAL, 1, 1 );
 			
 		op2_reg( alu, NUM, VAL );
 		
