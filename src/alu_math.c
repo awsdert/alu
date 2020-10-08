@@ -754,13 +754,19 @@ int_t alu_reg_dec( alu_t *alu, alu_reg_t NUM )
 	return SET2IF( NUM.upto, EOVERFLOW, 0 );
 }
 
-int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
+int_t alu_reg_add(
+	alu_t *alu
+	, alu_reg_t NUM
+	, alu_reg_t VAL
+)
 {
 	int ret;
 	bool carry = false, changed = false;
 	alu_bit_t n, v = {0};
 	size_t pos = 0;
 	void *part;
+	uint_t nodes[3], ncpy, vcpy, tmp;
+	alu_reg_t NCPY, VCPY, NEXP, NMAN, VEXP, VMAN, TMP;
 	
 	if ( alu )
 	{
@@ -772,6 +778,51 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 		if ( ret )
 		{
 			alu_error( ret );
+			
+			if ( !NUM.node ) alu_puts( "NUM.node was 0!" );
+			
+			if ( !VAL.node ) alu_puts( "VAL.node was 0!" );
+			
+			return ret;
+		}
+		
+		if ( alu_reg_floating( NUM ) )
+		{
+			ret = alu_get_reg_nodes( alu, nodes, 3, 0 );
+			
+			if ( ret == 0 )
+			{
+				ncpy = nodes[0];
+				vcpy = nodes[1];
+				tmp = nodes[2];
+				
+				alu_reg_init( alu, NCPY, ncpy, ALU_INFO_FLOAT | ALU_INFO__SIGN );
+				alu_reg_init( alu, VCPY, ncpy, ALU_INFO_FLOAT | ALU_INFO__SIGN );
+				alu_reg_init( alu, TMP, tmp, 0 );
+				
+				/* Need NUM to be unchanged so can restore details later,
+				 * having both floats the same size also makes math easier */
+				ret = alu_reg_mov( alu, NCPY, NUM );
+				
+				/* VAL is supposed to be unchanged so use VCPY instead */
+				ret = alu_reg_mov( alu, VCPY, VAL );
+				
+				alu_reg_init_mantissa( NCPY, NMAN );
+				alu_reg_init_exponent( NCPY, NEXP );
+				
+				alu_reg_init_mantissa( VCPY, VMAN );
+				alu_reg_init_exponent( VCPY, VEXP );
+				
+				alu_rem_reg_nodes( alu, nodes, 3 );
+				
+				/* TODO: Implement addition:
+				 * https://www.youtube.com/watch?v=Pox8LzIHhR4 */
+				ret = ENOSYS;
+				alu_error(ret);
+				return ret;
+			}
+			
+			alu_error(ret);
 			return ret;
 		}
 		
@@ -852,71 +903,32 @@ int_t alu_reg_add( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )
 	return alu_err_null_ptr("alu");
 }
 
-int_t alu_reg_add_raw( alu_t *alu, alu_reg_t NUM, void *raw, size_t size )
+int_t alu_reg_add_raw( alu_t *alu, alu_reg_t NUM, void *raw, size_t size, uint_t info )
 {
-	bool carry = false, changed = false;
-	alu_bit_t n, v = {0};
-	size_t pos = 0;
-	void *part;
+	int ret;
+	uint_t tmp = alu_get_reg_node( alu, size );
+	alu_reg_t TMP;
 	
-	NUM.node %= alu_used( alu );
-	
-	pos = LOWEST( size * CHAR_BIT, NUM.upto );
-	
-	part = alu_reg_data( alu, NUM );
-	n = alu_bit( part, NUM.from );
-	v = alu_bit( raw, 0 );
-	
-	for
-	(
-		; n.bit < pos
-		; alu_bit_inc(&n), alu_bit_inc(&v)
-	)
+	if ( tmp )
 	{
-		if ( carry )
-		{
-			if ( (*(n.ptr) & n.mask) )
-				*(n.ptr) ^= n.mask;
-			else
-			{
-				*(n.ptr) |= n.mask;
-				carry = false;
-			}
-		}
+		alu_reg_init( alu, TMP, tmp, info );
+		ret = alu_reg_set_raw( alu, TMP, raw, size, info );
 		
-		if ( *(v.ptr) & v.mask )
-		{
-			changed = true;
-			if ( *(n.ptr) & n.mask )
-			{
-				*(n.ptr) ^= n.mask;
-				carry = true;
-			}
-			else
-				*(n.ptr) |= n.mask;
-		}
+		if ( ret == 0 )
+			return alu_reg_add( alu, NUM, TMP );
+			
+		alu_error(ret);
+		return ret;
 	}
 	
-	if ( carry )
+	if ( alu )
 	{
-		for
-		(
-			; n.bit < NUM.upto
-			; alu_bit_inc(&n)
-		)
-		{
-			if ( (*(n.ptr) & n.mask) )
-				*(n.ptr) ^= n.mask;
-			else
-			{
-				*(n.ptr) |= n.mask;
-				carry = false;
-				break;
-			}
-		}
+		ret = alu_errno(alu);
+		alu_error(ret);
+		return ret;
 	}
 	
-	return changed ? (carry ? EOVERFLOW : 0) : ENODATA;
+	return alu_err_null_ptr("alu");
 }
 
 int_t alu_reg_sub( alu_t *alu, alu_reg_t NUM, alu_reg_t VAL )

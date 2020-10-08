@@ -173,6 +173,25 @@ typedef alu_vec_t alu_t;
 		(alu_reg).upto = alu_Nbits( alu ); \
 	} \
 	while (0)
+	
+#define alu_reg_init_mantissa( NUM, MAN ) \
+	do \
+	{ \
+		MAN = NUM; \
+		MAN.info = 0; \
+		MAN.upto = alu_man_dig( NUM.upto - NUM.from ); \
+	} \
+	while (0)
+	
+#define alu_reg_init_exponent( NUM, EXP ) \
+	do \
+	{ \
+		EXP = NUM; \
+		EXP.info = 0; \
+		EXP.upto--; \
+		EXP.from = alu_man_dig( NUM.upto - NUM.from ); \
+	} \
+	while (0)
 
 size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
