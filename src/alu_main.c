@@ -155,10 +155,16 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 			
 			return index;
 		}
+		else
+		{
+			int ret = alu_errno(alu);
+			
+			ret = SET2IF( ret, ret, EIO );
+			alu->block.fault = ret;
+			alu_error( ret );
+			alu_printf( "given = %u, needed %u", alu->given, count );
+		}
 		
-		alu->block.fault = SET2IF( alu_errno(alu), alu_errno(alu), ERANGE );
-		alu_error( alu_errno(alu) );
-		alu_printf( "given = %u, needed %u", alu->given, count );
 		return 0;
 	}
 	

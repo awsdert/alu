@@ -165,7 +165,7 @@ typedef alu_vec_t alu_t;
 		(alu_reg).node = reg; \
 		(alu_reg).info = SET2IF \
 		( \
-			inf & ALU_INFO_FLOAT \
+			(inf) & ALU_INFO_FLOAT \
 			, ALU_INFO_FLOAT | ALU_INFO__SIGN \
 			, inf \
 		); \
