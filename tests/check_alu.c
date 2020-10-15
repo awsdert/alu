@@ -233,8 +233,8 @@ START_TEST( test_alu_reg_cmp )
 	active = alu_get_active( alu, val );
 	ck_assert( active == true );
 	
-	alu_reg_init( alu, NUM, num, 0 );
-	alu_reg_init( alu, VAL, val, 0 );
+	alu_reg_init_unsigned( alu, NUM, num );
+	alu_reg_init_unsigned( alu, VAL, val );
 	
 	active = alu_get_active( alu, num );
 	ck_assert( active == true );
@@ -319,7 +319,7 @@ START_TEST( test_alu_op1 )
 	
 	ck_assert( num != 0 );
 	
-	alu_reg_init( alu, NUM, num, 0 );
+	alu_reg_init_unsigned( alu, NUM, num );
 	
 	NUM.upto = bitsof(uintmax_t);
 	
@@ -375,9 +375,9 @@ START_TEST( test_alu_op3 )
 	ck_assert( val != 0 );
 	ck_assert( tmp != 0 );
 	
-	alu_reg_init( alu, NUM, num, 0 );
-	alu_reg_init( alu, VAL, val, 0 );
-	alu_reg_init( alu, TMP, tmp, 0 );
+	alu_reg_init_unsigned( alu, NUM, num );
+	alu_reg_init_unsigned( alu, VAL, val );
+	alu_reg_init_unsigned( alu, TMP, tmp );
 	
 	NUM.upto = VAL.upto = TMP.upto = bitsof(uintmax_t);
 	
@@ -445,8 +445,8 @@ START_TEST( test_alu_op2 )
 	ck_assert( num != 0 );
 	ck_assert( val != 0 );
 	
-	alu_reg_init( alu, NUM, num, 0 );
-	alu_reg_init( alu, VAL, val, 0 );
+	alu_reg_init_unsigned( alu, NUM, num );
+	alu_reg_init_unsigned( alu, VAL, val );
 	
 	NUM.upto = VAL.upto = bitsof(uintmax_t);
 	
@@ -596,7 +596,7 @@ START_TEST( test_alu_reg_set_raw )
 	ck_assert( num != 0 );
 	ck_assert( active == true );
 	
-	alu_reg_init( alu, NUM, num, 0 );
+	alu_reg_init_unsigned( alu, NUM, num );
 	NUM.upto = bitsof(uintmax_t);
 	
 	active = alu_get_active( alu, num );
@@ -656,7 +656,7 @@ START_TEST( test_alu_reg_end_bit )
 	
 	ck_assert( num != 0 );
 	
-	alu_reg_init( alu, NUM, num, 0 );
+	alu_reg_init_unsigned( alu, NUM, num );
 	/* Ensure any realloc occurs BEFORE we get our pointer - prevents it
 	 * changing during the following loop */
 	alu_set_raw( alu, num, 0, 0 );
@@ -840,12 +840,10 @@ Suite * alu_suite(void)
 	for ( f = 0; op2_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op2, 0, f * ops_loop_until );
 
-#if 0
 	for ( f = 0; op3_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op3, 0, f * ops_loop_until );
 	
 	tcase_add_test( tc_core, test_alu_reg2str );
-#endif
 	tcase_add_test( tc_core, test_alu_vec_release );
 	suite_add_tcase( s, tc_core);
 
@@ -859,8 +857,6 @@ int main(void)
 	SRunner *sr;
 	alu_t _alu = {0};
 	alu = &_alu;
-	
-	alu_puts( "Running unit tests under 'check' test suite" );
 
 	s = alu_suite();
 	sr = srunner_create(s);

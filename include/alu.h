@@ -159,18 +159,34 @@ typedef alu_vec_t alu_t;
 
 #define TRUEIF( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
 
-#define alu_reg_init( alu, alu_reg, reg, inf ) \
+#define alu_reg_init_unsigned( alu, alu_reg, reg ) \
 	do \
 	{ \
 		(alu_reg).node = reg; \
-		(alu_reg).info = SET2IF \
-		( \
-			(inf) & ALU_INFO_FLOAT \
-			, ALU_INFO_FLOAT | ALU_INFO__SIGN \
-			, inf \
-		); \
+		(alu_reg).info = 0; \
 		(alu_reg).from = 0; \
 		(alu_reg).upto = alu_Nbits( alu ); \
+	} \
+	while (0)
+	
+#define alu_reg_init___signed( alu, alu_reg, reg ) \
+	do \
+	{ \
+		(alu_reg).node = reg; \
+		(alu_reg).info = ALU_INFO__SIGN; \
+		(alu_reg).from = 0; \
+		(alu_reg).upto = alu_Nbits( alu ); \
+	} \
+	while (0)
+	
+#define alu_reg_init_floating( alu, alu_reg, reg ) \
+	do \
+	{ \
+		(alu_reg).node = reg; \
+		(alu_reg).info = ALU_INFO_FLOAT | ALU_INFO__SIGN; \
+		(alu_reg).from = 0; \
+		(alu_reg).upto = alu_Nbits( alu ) / 4; \
+		(alu_reg).upto -= UNIC_CHAR_BIT; \
 	} \
 	while (0)
 	
@@ -486,8 +502,8 @@ int_t alu_reg_divide
 	alu_t *alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, alu_reg_t rem
-	, alu_reg_t tmp
+	, uint_t rem
+	, uint_t tmp
 );
 
 typedef int_t (*func_alu_reg_op1_t)
@@ -508,8 +524,8 @@ typedef int_t (*func_alu_reg_op4_t)
 	alu_t* alu
 	, alu_reg_t num
 	, alu_reg_t val
-	, alu_reg_t reg
-	, alu_reg_t tmp
+	, uint_t reg
+	, uint_t tmp
 );
 
 typedef int_t (*func_alu_reg__shift_t)

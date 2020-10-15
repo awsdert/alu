@@ -43,8 +43,8 @@ int reg_compare(
 			"0x%016zX vs 0x%016zX Expected %i, Got %i\n",
 			_num, _val, expect, cmp
 		);
-		alu_print_reg( "num", alu, NUM, false, true, false );
-		alu_print_reg( "val", alu, VAL, false, true, false );
+		alu_print_reg( alu, NUM, false, true );
+		alu_print_reg( alu, VAL, false, true );
 	}
 	
 	alu_rem_reg_nodes( alu, nodes, 2 );
@@ -191,8 +191,8 @@ int modify(
 			"%s, Expected 0x%016jX, Got 0x%016jX, op = '%c'\n",
 			pfx, expect, _num, op
 		);
-		alu_print_reg( "num", alu, NUM, 0, 1, 0 );
-		alu_print_reg( "val", alu, VAL, 0, 1, 0 );
+		alu_print_reg( alu, NUM, false, true );
+		alu_print_reg( alu, VAL, false, true );
 	}
 	
 	fail:
@@ -510,14 +510,14 @@ int func_rdChar32( char32_t *dst, alu_block_t *src, long *nextpos )
 
 int func_wrChar32( char32_t src, alu_block_t *dst )
 {
-	int ret;
 	char *str;
 	if ( dst->taken >= dst->given )
 	{
 		str = alu_block_expand( dst, dst->taken + 50 );
 		if ( !str )
 		{
-			alu_error( dst->fault );
+			int ret = dst->fault;
+			alu_error( ret );
 			return ret;
 		}
 	}
