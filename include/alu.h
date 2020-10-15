@@ -159,6 +159,28 @@ typedef alu_vec_t alu_t;
 
 #define TRUEIF( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
 
+#define alu_man_dig( bits ) \
+	SET2IF \
+	( \
+		(bits) < 6 \
+		, 2, SET2IF \
+		( \
+			(bits) < bitsof(float) \
+			, 4 \
+			, SET2IF \
+			( \
+				(bits) < bitsof(double) \
+				, FLT_MANT_DIG \
+				, SET2IF \
+				( \
+					(bits) < bitsof(long double) \
+					, DBL_MANT_DIG \
+					, LDBL_MANT_DIG \
+				) \
+			) \
+		) \
+	)
+
 #define alu_reg_init_unsigned( alu, alu_reg, reg ) \
 	do \
 	{ \
@@ -195,7 +217,7 @@ typedef alu_vec_t alu_t;
 	{ \
 		MAN = NUM; \
 		MAN.info = 0; \
-		MAN.upto = alu_man_dig( NUM.upto - NUM.from ); \
+		MAN.upto = alu_man_dig( NUM.upto - NUM.from ) - 1; \
 	} \
 	while (0)
 	
@@ -205,38 +227,11 @@ typedef alu_vec_t alu_t;
 		EXP = NUM; \
 		EXP.info = 0; \
 		EXP.upto--; \
-		EXP.from = alu_man_dig( NUM.upto - NUM.from ); \
+		EXP.from = alu_man_dig( NUM.upto - NUM.from ) - 1; \
 	} \
 	while (0)
 
 size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
-
-#define alu_man_dig( bits ) \
-	SET2IF \
-	( \
-		(bits) < 6 \
-		, 3, SET2IF \
-		( \
-			(bits) < bitsof(float) \
-			, (bits) / 2 \
-			, SET2IF \
-			( \
-				(bits) < bitsof(double) \
-				, FLT_MANT_DIG \
-				, SET2IF \
-				( \
-					(bits) < bitsof(long double) \
-					, DBL_MANT_DIG \
-					, SET2IF \
-					( \
-						(bits) == (bitsof(long double)) \
-						, LDBL_MANT_DIG \
-						, (bits) - (bitsof(long double) - LDBL_MANT_DIG) \
-					) \
-				) \
-			) \
-		) \
-	)
 
 #define alu_Nsize( alu ) ((alu)->Nsize)
 #define alu_Nbits( alu ) (alu_Nsize(alu) * CHAR_BIT)

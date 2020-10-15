@@ -600,33 +600,12 @@ int_t alu_lit2reg
 		Nsize = alu_Nsize( alu );
 		/* Make sure have enough space for later calculations */
 		bits = DST.upto - DST.from;
-		if ( bits >= (alu_Nbits(alu) / 2) )
+		if ( bits >= (alu_Nbits(alu) / 4) )
 			return EDOM;
 		
 		/* Check how many bits to assign to exponent & mantissa */
-		man_dig = SET2IF
-		(
-			Nsize < 2
-			, (CHAR_BIT / 2) - 1
-			, SET2IF
-			(
-				Nsize < sizeof(float)
-				, CHAR_BIT - 1
-				, SET2IF
-				(
-					Nsize < sizeof(double)
-					, FLT_MANT_DIG
-					, SET2IF
-					(
-						Nsize < sizeof(long double)
-						, DBL_MANT_DIG
-						, LDBL_MANT_DIG
-					)
-				)
-			)
-		);
-		
-		exp_dig = ((Nsize * CHAR_BIT) - man_dig) - 1;
+		man_dig = alu_man_dig( bits );
+		exp_dig = ((Nsize * UNIC_CHAR_BIT) - man_dig) - 1;
 		
 		/* Update Exponent & Mantissa Bounds */
 		alu_set_bounds( alu, &BIAS, 0, exp_dig );

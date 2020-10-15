@@ -348,16 +348,15 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		alu_reg_t EXP, MAN;
 		alu_bit_t d, s;
 		void *D;
-		size_t exp, bias;
+		size_t exp, bias, b;
 		bool neg = alu_reg_below0( alu, SRC );
 		
 		alu_reg_init_exponent( DST, EXP );
 		alu_reg_init_mantissa( DST, MAN );
 		
-		bias = -1;
-		bias <<= (EXP.upto - EXP.from);
+		bias = UNIC_SIZE_C(~0);
+		bias <<= (EXP.upto - EXP.from) - 1;
 		bias = ~bias;
-		bias >>= 1;
 		
 		/* Set +/- */
 		D = alu_reg_data( alu, DST );
@@ -366,8 +365,9 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		*(d.ptr) |= SET1IF( neg, d.mask );
 		
 		s = alu_reg_end_bit( alu, SRC );
+		b = s.bit - SRC.from;
 		
-		if ( s.bit >= bias )
+		if ( b >= bias )
 		{
 			/* Set Infinity */
 			(void)alu_reg_set_max( alu, EXP );
@@ -376,8 +376,13 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 			return EOVERFLOW;
 		}
 		
-		/* FIXME: I think there is a bug here */
-		exp = bias + s.bit;
+		/* +0 should look like an integer 0 */
+		if ( !b && !(*(s.ptr) & s.mask) )
+		{
+			return alu_reg_clr( alu, DST );
+		}
+		
+		exp = (bias + b);
 		ret = alu_reg_set_raw( alu, EXP, &exp, sizeof(size_t), 0 );
 		
 		if ( ret != 0 )
@@ -386,7 +391,27 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 			return ret;
 		}
 		
-		return alu_reg_int2int( alu, MAN, SRC );
+		/* Buffer may have changed address, update our handle to be sure */
+		D = alu_reg_data( alu, DST );
+		d = alu_bit( D, MAN.upto );
+		
+		while ( b )
+		{
+			--b;
+			alu_bit_dec(&d);
+			alu_bit_dec(&s);
+			
+			*(d.ptr) &= ~(d.mask);
+			*(d.ptr) |= SET1IF( *(s.ptr) & s.mask, d.mask );
+		}
+		
+		while ( d.bit > MAN.from )
+		{
+			alu_bit_dec(&d);
+			*(d.ptr) &= ~(d.mask);
+		}
+		
+		return 0;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -937,14 +962,19 @@ int_t alu_reg_addition(
 		
 		if ( alu_reg_floating( VAL ) )
 		{				
-			alu_reg_init_floating( alu, CPY, cpy );
 			alu_reg_init_floating( alu, TMP, tmp );
+			
+			TMP.upto = alu_Nbits(alu);
 			
 			/* VAL is supposed to be unchanged so use VCPY instead */
 			ret = alu_reg_mov( alu, TMP, VAL );
 			
 			if ( ret == 0 )
 			{	
+				alu_reg_init_floating( alu, CPY, cpy );
+				
+				CPY.upto = alu_Nbits(alu);
+				
 				/* Need NUM to be unchanged so can restore details later,
 				* having both floats the same size also makes math easier,
 				* also no chance of failure here as the previous move
@@ -962,12 +992,10 @@ int_t alu_reg_addition(
 					alu_reg_init_mantissa( CPY, CMAN );
 					alu_reg_init_mantissa( TMP, TMAN );
 					
-					/* TODO: Implement addition:
-					* https://www.youtube.com/watch?v=Pox8LzIHhR4 */
 					ret = alu_reg_add( alu, CMAN, TMAN );
 					
-					/* No chance of failure again */
-					alu_reg_mov( alu, NUM, CPY );
+					/* No chance of failure here either */
+					(void)alu_reg_mov( alu, NUM, CPY );
 					
 					return ret;
 				}

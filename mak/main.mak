@@ -90,13 +90,12 @@ clean:
 	rm -f $(PRJ_SRC_DIR)/*.o $(PRJ_SRC_DIR)/*.obj
 	rm -f $(PRJ_CHK_DIR)/*.o $(PRJ_CHK_DIR)/*.obj
 
-run: $(PRJ_BIN_NAME)
+run:
+	$(DBG_APP) $(PFL_APP) $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 test: build
-	$(DBG_APP) $(PFL_APP) $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 
 check: build
-	$(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 gede: debug
 	gede --args $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)

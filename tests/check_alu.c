@@ -807,6 +807,185 @@ START_TEST( test_alu_set_bit )
 }
 END_TEST
 
+START_TEST( test_alu_reg_set_floating )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	uint_t nodes[2], num, val;
+	ullong_t _num = _i, _val = 1;
+	int ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
+	double src_num = _num, src_val = _val, got_num, got_val;
+	alu_reg_t NUM, VAL;
+	void *N, *V;
+	
+	ck_assert( ret == 0 );
+	
+	num = nodes[0];
+	val = nodes[1];
+	
+	alu_reg_init_floating( alu, NUM, num );
+	alu_reg_init_floating( alu, VAL, val );
+	
+	NUM.upto = VAL.upto = bitsof(double);
+	
+	/* Set values */
+	
+	ret = alu_reg_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+	ck_assert( ret == 0 );
+	
+	ret = alu_reg_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
+	ck_assert( ret == 0 );
+	
+	/* Get values */
+	
+	ret = alu_reg_get_raw( alu, NUM, &got_num, sizeof(double) );
+	ck_assert( ret == 0 );
+	
+	ret = alu_reg_get_raw( alu, VAL, &got_val, sizeof(double) );
+	ck_assert( ret == 0 );
+	
+	N = alu_reg_data( alu, NUM );
+	V = alu_reg_data( alu, VAL );
+	
+	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
+	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
+	
+	/* Set values */
+	
+	ret = alu_reg_set_raw( alu, NUM, &_num, sizeof(ullong_t), 0 );
+	ck_assert( ret == 0 );
+	
+	ret = alu_reg_set_raw( alu, VAL, &_val, sizeof(ullong_t), 0 );
+	ck_assert( ret == 0 );
+	
+	/* Get values */
+	
+	ret = alu_reg_get_raw( alu, NUM, &got_num, sizeof(double) );
+	ck_assert( ret == 0 );
+	
+	ret = alu_reg_get_raw( alu, VAL, &got_val, sizeof(double) );
+	ck_assert( ret == 0 );
+	
+	N = alu_reg_data( alu, NUM );
+	V = alu_reg_data( alu, VAL );
+	
+	//ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
+	//ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
+	
+	if
+	(
+		memcmp( N, &src_num, sizeof(double) ) != 0
+		|| memcmp( V, &src_val, sizeof(double) ) != 0
+	)
+	{
+		alu_reg_t EXP, MAN;
+		
+		alu_reg_init_exponent( NUM, EXP );
+		alu_reg_init_mantissa( NUM, MAN );
+		
+		alu_printf
+		(
+			"_num = %llu, _val = %llu, "
+			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
+			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
+			, _num
+			, _val
+			, EXP.upto, EXP.from, EXP.upto - EXP.from
+			, MAN.upto, MAN.from, MAN.upto - MAN.from
+		);
+		
+		alu_print_reg( alu, NUM, 0, 1 );
+		ret = alu_reg_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+		alu_print_reg( alu, NUM, 0, 1 );
+		
+		alu_print_reg( alu, VAL, 0, 1 );
+		ret = alu_reg_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
+		alu_print_reg( alu, VAL, 0, 1 );
+		
+		ck_assert( 1 == 0 );
+	}
+	
+	alu_rem_reg_nodes( alu, nodes, 2 );
+}
+END_TEST
+
+START_TEST( test_alu_reg_add_floating )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	uint_t nodes[2], num, val;
+	ullong_t _num = _i, _val = 1;
+	int ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
+	double src_num = _num, src_val = _val, got_num, got_val;
+	alu_reg_t NUM, VAL;
+	void *N, *V;
+	
+	ck_assert( ret == 0 );
+	
+	num = nodes[0];
+	val = nodes[1];
+	
+	alu_reg_init_floating( alu, NUM, num );
+	alu_reg_init_floating( alu, VAL, val );
+	
+	NUM.upto = VAL.upto = bitsof(double);
+	
+	/* Set values */
+	
+	ret = alu_reg_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+	ck_assert( ret == 0 );
+	
+	ret = alu_reg_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
+	ck_assert( ret == 0 );
+	
+	/* Get values */
+	
+	ret = alu_reg_get_raw( alu, NUM, &got_num, sizeof(double) );
+	ck_assert( ret == 0 );
+	
+	ret = alu_reg_get_raw( alu, VAL, &got_val, sizeof(double) );
+	ck_assert( ret == 0 );
+	
+	N = alu_reg_data( alu, NUM );
+	V = alu_reg_data( alu, VAL );
+	
+	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
+	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
+	
+	src_num += src_val;
+	ret = alu_reg_add( alu, NUM, VAL );
+	
+	N = alu_reg_data( alu, NUM );
+	
+	if ( memcmp( N, &src_num, sizeof(double) ) != 0 )
+	{
+		alu_reg_t EXP, MAN;
+		
+		alu_reg_init_exponent( NUM, EXP );
+		alu_reg_init_mantissa( NUM, MAN );
+		
+		alu_printf
+		(
+			"_num = %llu, _val = %llu, "
+			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
+			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
+			, _num
+			, _val
+			, EXP.upto, EXP.from, EXP.upto - EXP.from
+			, MAN.upto, MAN.from, MAN.upto - MAN.from
+		);
+		
+		alu_print_reg( alu, NUM, 0, 1 );
+		ret = alu_reg_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+		alu_print_reg( alu, NUM, 0, 1 );
+		
+		ck_assert( 1 == 0 );
+	}
+	
+	alu_rem_reg_nodes( alu, nodes, 2 );
+}
+END_TEST
+
 /* Modified copy & paste of code given in check's guide */
 Suite * alu_suite(void)
 {
@@ -842,6 +1021,9 @@ Suite * alu_suite(void)
 
 	for ( f = 0; op3_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op3, 0, f * ops_loop_until );
+	
+	tcase_add_loop_test( tc_core, test_alu_reg_set_floating, 0, DBL_MANT_DIG );
+	tcase_add_loop_test( tc_core, test_alu_reg_add_floating, 0, DBL_MANT_DIG );
 	
 	tcase_add_test( tc_core, test_alu_reg2str );
 	tcase_add_test( tc_core, test_alu_vec_release );
