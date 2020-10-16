@@ -824,21 +824,23 @@ int_t alu_reg_dec( alu_t *alu, alu_reg_t NUM )
 	return SET2IF( NUM.upto, EOVERFLOW, 0 );
 }
 
-int_t alu_match_exponents
+int_t alu_match_exponents_and_normalise
 (
 	alu_t *alu
 	, uint_t num
 	, uint_t val
+	, uint_t tmp
 )
 {
 	if ( alu )
 	{
 		int_t ret;
-		alu_reg_t NUM, VAL, NEXP, VEXP, NMAN, VMAN;
+		alu_reg_t NUM, VAL, NEXP, VEXP, NMAN, VMAN, TMP;
 		size_t nexp;
-				
+			
 		alu_reg_init_floating( alu, NUM, num );
 		alu_reg_init_floating( alu, VAL, val );
+		alu_reg_init_unsigned( alu, TMP, tmp );
 		
 		NUM.upto = alu_Nbits(alu);
 		VAL.upto = alu_Nbits(alu);
@@ -854,70 +856,70 @@ int_t alu_match_exponents
 		if ( ret == 0 )
 		{
 			size_t vexp, diff;
+			bool truncated = false;
 			
-			(void)alu_reg_get_raw( alu, VEXP, &vexp, sizeof(size_t) );
-				
-			diff = SET2IF( nexp > vexp, nexp - vexp, vexp - nexp );
+			(void)alu_reg_get_raw( alu, VEXP, &vexp, sizeof(ssize_t) );
 			
-			if ( diff >= NMAN.upto )
+			alu->block.fault = 0;
+			
+			if ( nexp > vexp )
 			{
-				if ( nexp > vexp )
-				{
-					alu_reg_clr( alu, VMAN );
-					alu_reg_int2int( alu, VEXP, NEXP );
-				}
-				else
-				{
-					alu_reg_clr( alu, NMAN );
-					alu_reg_int2int( alu, NEXP, VEXP );
-				}
+				diff = nexp - vexp;
 				
-				/* We'll use this to indicate truncation, should be impossible
-				 * in this case given we are taking more space than the
-				 * developer would normally take if they use the API as
-				 * intended, this at least covers the being abused scenario */
-				return ERANGE;
+				/* Match exponent and align mantissa */
+				alu_reg_int2int( alu, VEXP, NEXP );
+				alu_reg__shr( alu, VMAN, TMP, diff );
+				truncated = (alu_errno(alu) == ERANGE);
+				
+				/* Insert assumed bit back into position */
+				if ( diff < VMAN.upto )
+				{
+					void *V = alu_reg_data( alu, VAL );
+					alu_bit_t v = alu_bit( V, VMAN.upto - diff );
+					*(v.ptr) |= v.mask;
+				
+					/* Normalise */
+					diff = VMAN.upto - v.bit;
+					
+					alu->block.fault = 0;
+					alu_reg__shr( alu, NMAN, TMP, diff );
+					truncated = (truncated || alu_errno(alu) == ERANGE);
+					alu_reg__shr( alu, VMAN, TMP, diff );
+					vexp = nexp + diff;
+					alu_reg_set_raw( alu, VEXP, &vexp, sizeof(size_t), 0 );
+				}
+			}
+			else if ( vexp > nexp )
+			{
+				diff = vexp - nexp;
+				
+				alu_reg_int2int( alu, NEXP, VEXP );
+				alu_reg__shr( alu, NMAN, TMP, diff );
+				truncated = (alu_errno(alu) == ERANGE);
+				
+				/* Insert assumed bit back into position */
+				if ( diff < NMAN.upto )
+				{
+					void *N = alu_reg_data( alu, NUM );
+					alu_bit_t n = alu_bit( N, NMAN.upto - diff );
+					*(n.ptr) |= n.mask;
+				
+					/* Normalise */
+					diff = NMAN.upto - n.bit;
+					
+					alu_reg__shr( alu, NMAN, TMP, diff );
+					alu->block.fault = 0;
+					alu_reg__shr( alu, VMAN, TMP, diff );
+					truncated = (truncated || alu_errno(alu) == ERANGE);
+					nexp = vexp + diff;
+					alu_reg_set_raw( alu, NEXP, &nexp, sizeof(size_t), 0 );
+				}
 			}
 			
-			if ( diff )
-			{
-				/* We don't check for success here because prior functions we
-				 * called already got & released the register we're about to
-				 * recieve */
-				uint_t tmp = alu_get_reg_node( alu, 0 );
-				alu_reg_t TMP;
-				alu_bit_t n;
-				
-				alu_reg_init_unsigned( alu, TMP, tmp );
-				
-				if ( nexp > vexp )
-				{
-					n = alu_bit( (void*)alu_reg_data( alu, VMAN ), 0 );
-					for ( ; ret == 0 && n.bit < diff; alu_bit_inc(&n) )
-					{
-						ret = SET1IF( *(n.ptr) & n.mask, ENOBUFS );
-					}
-					
-					alu_reg__shr( alu, VMAN, TMP, diff );
-				}
-				else
-				{
-					n = alu_bit( (void*)alu_reg_data( alu, NMAN ), 0 );
-					for ( ; ret == 0 && n.bit < diff; alu_bit_inc(&n) )
-					{
-						ret = SET1IF( *(n.ptr) & n.mask, ERANGE );
-					}
-					
-					alu_reg__shr( alu, VMAN, TMP, diff );
-				}
-				
-				alu_rem_reg_node( alu, &tmp );
-				
-				if ( ret )
-					alu_error(ret);
-			}
 			
-			return ret;
+			alu->block.fault = SET1IF(truncated,ERANGE);
+			
+			return 0;
 		}
 		
 		alu_error(ret);
@@ -961,44 +963,60 @@ int_t alu_reg_addition(
 		}
 		
 		if ( alu_reg_floating( VAL ) )
-		{				
-			alu_reg_init_floating( alu, TMP, tmp );
+		{
+			uint_t temp = alu_get_reg_node( alu, 0 );
 			
-			TMP.upto = alu_Nbits(alu);
-			
-			/* VAL is supposed to be unchanged so use VCPY instead */
-			ret = alu_reg_mov( alu, TMP, VAL );
-			
-			if ( ret == 0 )
-			{	
-				alu_reg_init_floating( alu, CPY, cpy );
+			if ( temp )
+			{
+				alu_reg_init_floating( alu, TMP, tmp );
 				
-				CPY.upto = alu_Nbits(alu);
+				TMP.upto = alu_Nbits(alu);
 				
-				/* Need NUM to be unchanged so can restore details later,
-				* having both floats the same size also makes math easier,
-				* also no chance of failure here as the previous move
-				* succeeded in getting the same temporary registers this
-				* one will be looking for */
-				(void)alu_reg_mov( alu, CPY, NUM );
-				
-				ret = alu_match_exponents( alu, cpy, tmp );
+				/* VAL is supposed to be unchanged so use VCPY instead */
+				ret = alu_reg_mov( alu, TMP, VAL );
 				
 				if ( ret == 0 )
-				{
-					alu_reg_init_exponent( CPY, CEXP );
-					alu_reg_init_exponent( TMP, TEXP );
+				{	
+					alu_reg_init_floating( alu, CPY, cpy );
 					
-					alu_reg_init_mantissa( CPY, CMAN );
-					alu_reg_init_mantissa( TMP, TMAN );
+					CPY.upto = alu_Nbits(alu);
 					
-					ret = alu_reg_add( alu, CMAN, TMAN );
+					/* Need NUM to be unchanged so can restore details later,
+					* having both floats the same size also makes math easier,
+					* also no chance of failure here as the previous move
+					* succeeded in getting the same temporary registers this
+					* one will be looking for */
+					(void)alu_reg_mov( alu, CPY, NUM );
 					
-					/* No chance of failure here either */
-					(void)alu_reg_mov( alu, NUM, CPY );
+					ret = alu_match_exponents_and_normalise( alu, cpy, tmp, temp );
 					
-					return ret;
+					if ( ret == 0 )
+					{
+						bool truncated = (alu_errno(alu) == ERANGE);
+						
+						alu_reg_init_exponent( CPY, CEXP );
+						alu_reg_init_exponent( TMP, TEXP );
+						
+						alu_reg_init_mantissa( CPY, CMAN );
+						alu_reg_init_mantissa( TMP, TMAN );
+						
+						ret = alu_reg_add( alu, CMAN, TMAN );
+						
+						if ( ret == EOVERFLOW )
+						{
+							ret = alu_reg_inc( alu, CEXP );
+						}
+						
+						/* No chance of failure here either */
+						(void)alu_reg_mov( alu, NUM, CPY );
+						
+						alu_rem_reg_node( alu, &temp );
+						
+						return SET2IF( truncated, ERANGE, ret );
+					}
 				}
+				
+				alu_rem_reg_node( alu, &temp );
 			}
 			
 			alu_error(ret);
@@ -1277,6 +1295,9 @@ int_t alu_reg__shl( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 			while ( by )
 			{
 				--by;
+				
+				alu->block.fault = SET2IF( *(n.ptr) & n.mask, ERANGE, alu->block.fault );
+				
 				*(n.ptr) &= ~(n.mask);
 				alu_bit_inc(&n);
 			}
@@ -1356,6 +1377,8 @@ int_t alu_reg__shr( alu_t *alu, alu_reg_t NUM, alu_reg_t TMP, size_t by )
 			{
 				--by;
 				alu_bit_dec(&n);
+				
+				alu->block.fault = SET2IF( *(n.ptr) & n.mask, ERANGE, alu->block.fault );
 				
 				*(n.ptr) &= ~(n.mask);
 				*(n.ptr) |= SET1IF( neg, n.mask );
