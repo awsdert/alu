@@ -41,15 +41,46 @@ void alu__print_reg
 	}
 	
 	if ( print_value )
-	{
+	{	
+		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
+		
 		n = alu_bit( R, REG.upto );
 		
-		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
-		while ( n.bit > REG.from )
+		if ( alu_reg_signed( REG ) )
 		{
 			alu_bit_dec(&n);
 			(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
+			(void)fputc( ' ', stderr );
 		}
+		
+		if ( alu_reg_floating( REG ) )
+		{
+			alu_reg_t EXP;
+			
+			alu_reg_init_exponent( REG, EXP );
+			
+			while ( n.bit > EXP.from )
+			{
+				alu_bit_dec(&n);
+				(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
+			}
+			
+			(void)fputc( ' ', stderr );
+			while ( n.bit > REG.from )
+			{
+				alu_bit_dec(&n);
+				(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
+			}
+		}
+		else
+		{
+			while ( n.bit > REG.from )
+			{
+				alu_bit_dec(&n);
+				(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
+			}
+		}
+		
 		fputc( '\n', stderr );
 	}
 }
