@@ -154,7 +154,7 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 		for ( reg = index; index < count; ++index )
 		{
 			reg = index;
-			count = SET1IF( alu_get_active( alu, index ), count );
+			count = IFTRUE( alu_get_active( alu, index ), count );
 		}
 		
 		index = HIGHEST( count, reg );
@@ -178,7 +178,7 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 		{
 			int ret = alu_errno(alu);
 			
-			ret = SET2IF( ret, ret, EIO );
+			ret = EITHER( ret, ret, EIO );
 			alu->block.fault = ret;
 			alu_error( ret );
 			alu_printf( "given = %u, needed %u", alu->given, count );
@@ -335,7 +335,7 @@ int_t alu_str2reg
 		c = -1;
 		ret = src.next( &c, src.src, src.nextpos );
 		
-		ret = SET1IF( ret != EOF, ret );
+		ret = IFTRUE( ret != EOF, ret );
 		
 		if ( ret != 0 )
 		{
@@ -389,7 +389,7 @@ int_t alu_str2reg
 		
 		ret = alu_reg_add( alu, DST, NUM );
 		
-		ret = SET1IF( ret != ENODATA, ret );
+		ret = IFTRUE( ret != ENODATA, ret );
 	}
 	while ( ret == 0 );
 	

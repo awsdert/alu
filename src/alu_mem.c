@@ -29,8 +29,8 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 			pagesize = sysconf(_SC_PAGESIZE);
 #endif
 			
-			want = SET2IF( dir > 0, HIGHEST( mem->given, want ), want );
-			want = SET2IF( dir < 0, LOWEST( mem->given, want ), want );
+			want = EITHER( dir > 0, HIGHEST( mem->given, want ), want );
+			want = EITHER( dir < 0, LOWEST( mem->given, want ), want );
 			
 			size = want % pagesize;
 			want /= pagesize;

@@ -22,7 +22,7 @@ void alu_set_bit( uintmax_t *ptr, size_t bit, bool val )
 {
 	alu_bit_t b = alu_bit( ptr, bit );
 	*(b.ptr) &= ~(b.mask);
-	*(b.ptr) |= SET1IF( val, b.mask );
+	*(b.ptr) |= IFTRUE( val, b.mask );
 }
 
 void alu_bit_inc( alu_bit_t *alu_bit )
@@ -53,7 +53,7 @@ void alu_bit_dec( alu_bit_t *alu_bit )
 		i = alu_bit->bit / bitsof(uintmax_t);
 		alu_bit->ptr -= (alu_bit->seg - i);
 		alu_bit->seg = i;
-		alu_bit->mask |= SET1IF( !(alu_bit->mask), INTMAX_MIN );
+		alu_bit->mask |= IFTRUE( !(alu_bit->mask), INTMAX_MIN );
 	}
 }
 

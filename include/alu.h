@@ -152,26 +152,26 @@ typedef struct alu_reg
  * time. **/
 typedef alu_vec_t alu_t;
 
-#define SET1IF( CMP, VAL ) ( (VAL) * !!(CMP) )
+#define IFTRUE( CMP, VAL ) ( (VAL) * !!(CMP) )
 
-#define SET2IF( CMP, ONTRUE, ONFALSE ) \
-	( SET1IF( CMP, ONTRUE ) | SET1IF( !(CMP), ONFALSE ) )
+#define EITHER( CMP, ONTRUE, ONFALSE ) \
+	( IFTRUE( CMP, ONTRUE ) | IFTRUE( !(CMP), ONFALSE ) )
 
 #define TRUEIF( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
 
 #define alu_man_dig( bits ) \
-	SET2IF \
+	EITHER \
 	( \
 		(bits) < 6 \
-		, 2, SET2IF \
+		, 2, EITHER \
 		( \
 			(bits) < bitsof(float) \
 			, 4 \
-			, SET2IF \
+			, EITHER \
 			( \
 				(bits) < bitsof(double) \
 				, FLT_MANT_DIG \
-				, SET2IF \
+				, EITHER \
 				( \
 					(bits) < bitsof(long double) \
 					, DBL_MANT_DIG \
@@ -256,7 +256,7 @@ size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 #define alu_reg_floating( alu_reg ) !!((alu_reg).info & ALU_INFO_FLOAT)
 
 #define alu_check1( alu, num ) \
-	SET1IF( !alu_get_active( alu, num ), EADDRNOTAVAIL )
+	IFTRUE( !alu_get_active( alu, num ), EADDRNOTAVAIL )
 	
 #define alu_check2( alu, num, val ) \
 	( alu_check1( alu, num ) | alu_check1( alu, val ) )

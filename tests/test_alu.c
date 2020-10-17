@@ -32,8 +32,8 @@ int reg_compare(
 	alu_int_set_raw( alu, NUM.node, _num );
 	alu_int_set_raw( alu, VAL.node, _val );
 	
-	expect = SET2IF( _num > _val, 1, expect );
-	expect = SET2IF( _num < _val, -1, expect );
+	expect = EITHER( _num > _val, 1, expect );
+	expect = EITHER( _num < _val, -1, expect );
 
 	cmp = alu_reg_cmp( alu, NUM, VAL );
 	
