@@ -157,29 +157,9 @@ typedef alu_vec_t alu_t;
 #define EITHER( CMP, ONTRUE, ONFALSE ) \
 	( IFTRUE( CMP, ONTRUE ) | IFTRUE( !(CMP), ONFALSE ) )
 
-#define TRUEIF( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
+#define IFBOTH( CMP1, CMP2 ) ( !!(CMP1) & !!(CMP2) )
 
-#define alu_man_dig( bits ) \
-	EITHER \
-	( \
-		(bits) < 6 \
-		, 2, EITHER \
-		( \
-			(bits) < bitsof(float) \
-			, 4 \
-			, EITHER \
-			( \
-				(bits) < bitsof(double) \
-				, FLT_MANT_DIG \
-				, EITHER \
-				( \
-					(bits) < bitsof(long double) \
-					, DBL_MANT_DIG \
-					, LDBL_MANT_DIG \
-				) \
-			) \
-		) \
-	)
+size_t alu_man_dig( size_t bits );
 
 #define alu_reg_init_unsigned( alu, alu_reg, reg ) \
 	do \
@@ -215,21 +195,24 @@ typedef alu_vec_t alu_t;
 #define alu_reg_init_mantissa( NUM, MAN ) \
 	do \
 	{ \
-		MAN = NUM; \
-		MAN.info = 0; \
-		MAN.upto = alu_man_dig( NUM.upto - NUM.from ) - 1; \
+		(MAN) = (NUM); \
+		(MAN).info = 0; \
+		(MAN).upto = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
 	} \
 	while (0)
 	
 #define alu_reg_init_exponent( NUM, EXP ) \
 	do \
 	{ \
-		EXP = NUM; \
-		EXP.info = 0; \
-		EXP.upto--; \
-		EXP.from = alu_man_dig( NUM.upto - NUM.from ) - 1; \
+		(EXP) = (NUM); \
+		(EXP).info = 0; \
+		(EXP).upto--; \
+		(EXP).from = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
 	} \
 	while (0)
+	
+int_t alu_reg_get_exponent( alu_t *alu, alu_reg_t SRC, size_t *exp );
+size_t alu_reg_get_exponent_bias( alu_reg_t SRC );
 
 size_t alu_lowest_upto( alu_reg_t num, alu_reg_t val );
 
@@ -319,11 +302,7 @@ int_t alu_rem_flag( alu_t *alu, alu_reg_t *reg, uint_t info );
 	(alu_reg_getSeg( alu, alu_reg, (bit) / CHAR_BIT ) \
 	& (1u << ((bit) % CHAR_BIT)))
 	
-#define alu_reg_below0( alu, alu_reg ) \
-	TRUEIF( \
-		alu_reg_signed( alu_reg ) \
-		, alu_reg_getBit( alu, alu_reg, (alu_reg).upto - 1) \
-	)
+bool alu_reg_below0( alu_t *alu, alu_reg_t REG );
 
 #define alu_set_used( alu, count ) \
 	do \

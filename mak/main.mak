@@ -28,7 +28,7 @@ PRJ_INC_FILES:=$(wildcard $(PRJ_INC_DIR)/*.h)
 
 PRJ_LIB_NAME:=alu$(PRJ_SFX)
 $(info PRJ_LIB_NAME=$(PRJ_LIB_NAME))
-PRJ_BIN_NAME:=$(call ifin,$(MAKECMDGOALS),check,check,test)
+PRJ_BIN_NAME:=$(call ifin,$(PRJ_GOALS),check,check,test)
 
 PRJ_DST_BIN:=$(PRJ_BIN_NAME)_$(PRJ_LIB_NAME)$(DST_BIN_SFX)
 PRJ_DST_LIB:=$(DST_LIB_PFX)$(PRJ_LIB_NAME)$(DST_LIB_SFX)
@@ -39,7 +39,7 @@ INC_FLAGS:=-I $(UNIC_INC_DIR) -I $(PRJ_INC_DIR)
 SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS) $(COP)D UNIC_FALLBACK
 DLL_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
 EXE_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
-LIB_FLAGS:=$(COP)l $(PRJ_LIB_NAME) $(call ifin,$(MAKECMDGOALS),check,$(CHK_FLAGS))
+LIB_FLAGS:=$(COP)l $(PRJ_LIB_NAME) $(call ifin,$(PRJ_GOALS),check,$(CHK_FLAGS))
 
 COMPILE_EXE=$(CC) $(EXE_FLAGS) $1 $(COP)o $(PRJ_BIN_DIR)/$2 $(PRJ_CHK_DIR)/$3 $(RPATH_FLAG) $(LIB_FLAGS)
 COMPILE_DLL=$(CC) $(DLL_FLAGS) $1 $(COP)o $(PRJ_LIB_DIR)/$2 $3 $(RPATH_FLAG)
@@ -90,14 +90,14 @@ clean:
 	rm -f $(PRJ_SRC_DIR)/*.o $(PRJ_SRC_DIR)/*.obj
 	rm -f $(PRJ_CHK_DIR)/*.o $(PRJ_CHK_DIR)/*.obj
 
-run:
+%.run: %
 	$(DBG_APP) $(PFL_APP) $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 test: build
 
 check: build
 	
-gede: debug
+%.gede: %
 	gede --args $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 debug: build

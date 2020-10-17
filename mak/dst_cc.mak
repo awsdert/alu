@@ -1,5 +1,6 @@
 include char.mak
 include func.mak
+include goals.mak
 
 VC_CXX:=$(call ifin,$(CC),vc,vc,)
 SYS_CXX:=$(call ifin,$(CC),cc,c++,)
@@ -37,13 +38,13 @@ PFL_APP:=
 PFL_SFX:=
 CHK_FLAGS:=
 
-ifeq '$(filter profile,$(MAKECMDGOALS))' 'profile'
+ifeq '$(filter profile,$(PRJ_GOALS))' 'profile'
 PFL_FLAGS:=$(F_pg)
 PFL_APP:=$(GPROF)
 PFL_SFX:=_p
 endif
 
-ifeq '$(filter debug,$(MAKECMDGOALS))' 'debug'
+ifeq '$(filter debug,$(PRJ_GOALS))' 'debug'
 DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
@@ -53,7 +54,7 @@ PFL_APP:=
 PFL_SFX:=
 endif
 
-ifeq '$(filter gede,$(MAKECMDGOALS))' 'gede'
+ifeq '$(filter gede,$(PRJ_GOALS))' 'gede'
 DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
@@ -63,7 +64,7 @@ PFL_APP:=
 PFL_SFX:=
 endif
 
-ifeq '$(filter check,$(MAKECMDGOALS))' 'check'
+ifeq '$(filter check,$(PRJ_GOALS))' 'check'
 DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d

@@ -885,21 +885,21 @@ START_TEST( test_alu_reg_set_floating )
 		
 		alu_printf
 		(
-			"_num = %llu, _val = %llu, "
+			"_num = %llu, src_num = %e, _val = %llu, src_val = %e\n"
 			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
 			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
-			, _num
-			, _val
+			, _num, src_num
+			, _val, src_val
 			, EXP.upto, EXP.from, EXP.upto - EXP.from
 			, MAN.upto, MAN.from, MAN.upto - MAN.from
 		);
 		
 		alu_print_reg( alu, NUM, 0, 1 );
-		ret = alu_reg_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+		(void)memcpy( alu_reg_data( alu, NUM ), &src_num, sizeof(double) );
 		alu_print_reg( alu, NUM, 0, 1 );
 		
 		alu_print_reg( alu, VAL, 0, 1 );
-		ret = alu_reg_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
+		(void)memcpy( alu_reg_data( alu, VAL ), &src_val, sizeof(double) );
 		alu_print_reg( alu, VAL, 0, 1 );
 		
 		ck_assert( 1 == 0 );

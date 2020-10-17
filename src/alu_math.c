@@ -1,4 +1,44 @@
 #include "alu.h"
+size_t alu_man_dig( size_t bits )
+{
+	return EITHER
+	(
+		bits < 6
+		, 3
+		, EITHER
+		(
+			bits < bitsof(float)
+			, 5
+			, EITHER
+			(
+				bits < bitsof(double)
+				, FLT_MANT_DIG
+				, EITHER
+				(
+					bits < bitsof(long double)
+					, DBL_MANT_DIG
+					, bits - 11
+				)
+			)
+		)
+	) - 1;
+}
+bool alu_reg_below0( alu_t *alu, alu_reg_t REG )
+{
+	if ( alu )
+	{
+		if ( REG.upto )
+		{
+			alu_bit_t r = alu_bit( (void*)alu_reg_data( alu, REG ), REG.upto - 1 );
+			
+			return IFBOTH( alu_reg_signed( REG ), *(r.ptr) & r.mask );
+		}
+		return 0;
+	}
+	
+	(void)alu_err_null_ptr("alu");
+	return 0;
+}
 int_t alu_reg_get_exponent( alu_t *alu, alu_reg_t SRC, size_t *dst )
 {
 	if ( dst )
@@ -379,8 +419,28 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		alu_reg_t EXP, MAN;
 		alu_bit_t d, s;
 		void *D;
-		size_t exp, bias = alu_reg_get_exponent_bias(DST), b;
+		size_t exp, bias, b;
 		bool neg = alu_reg_below0( alu, SRC );
+		
+		if ( neg )
+		{
+			alu_reg_neg( alu, SRC );
+		}
+		
+		s = alu_reg_end_bit( alu, SRC );
+		b = s.bit - SRC.from;
+		
+		/* +0 should look like an integer 0 */
+		if ( !b && !(*(s.ptr) & s.mask) )
+		{
+			/* Put back the way we received it */
+			if ( neg )
+			{
+				alu_reg_neg( alu, SRC );
+			}
+			
+			return alu_reg_clr( alu, DST );
+		}
 		
 		alu_reg_init_exponent( DST, EXP );
 		alu_reg_init_mantissa( DST, MAN );
@@ -391,52 +451,67 @@ int alu_reg_int2flt( alu_t *alu, alu_reg_t DST, alu_reg_t SRC )
 		*(d.ptr) &= ~(d.mask);
 		*(d.ptr) |= IFTRUE( neg, d.mask );
 		
-		s = alu_reg_end_bit( alu, SRC );
-		b = s.bit - SRC.from;
+		bias = alu_reg_get_exponent_bias(DST);
 		
 		if ( b >= bias )
 		{
+			/* Put back the way we received it */
+			if ( neg )
+			{
+				alu_reg_neg( alu, SRC );
+			}
+			
 			/* Set Infinity */
-			(void)alu_reg_set_max( alu, EXP );
+			exp = (bias << 1) | 1;
+			(void)alu_reg_set_exponent( alu, DST, exp );
 			/* Clear mantissa so not treated as NaN */
 			(void)alu_reg_clr( alu, MAN );
 			return EOVERFLOW;
 		}
 		
-		/* +0 should look like an integer 0 */
-		if ( !b && !(*(s.ptr) & s.mask) )
-		{
-			return alu_reg_clr( alu, DST );
-		}
-		
 		exp = (bias + b);
-		ret = alu_reg_set_raw( alu, EXP, &exp, sizeof(size_t), 0 );
+		ret = alu_reg_set_exponent( alu, DST, exp );
 		
 		if ( ret != 0 )
 		{
+			/* Put back the way we received it */
+			if ( neg )
+			{
+				alu_reg_neg( alu, SRC );
+			}
+			
 			alu_error( ret );
 			return ret;
 		}
 		
-		/* Buffer may have changed address, update our handle to be sure */
-		D = alu_reg_data( alu, DST );
-		d = alu_bit( D, MAN.upto );
-		b = LOWEST( b, MAN.upto );
+		SRC.upto = s.bit;
+		SRC.from = SRC.upto - LOWEST( b, MAN.upto - MAN.from );
+		MAN.from = MAN.upto - LOWEST( b, MAN.upto - MAN.from );
 		
-		while ( b )
+		(void)alu_reg_int2int( alu, MAN, SRC );
+		
+		/* Round to nearest */
+		if ( SRC.from > s.bit - b )
 		{
-			--b;
-			alu_bit_dec(&d);
-			alu_bit_dec(&s);
+			s = alu_bit
+			(
+				(void*)alu_reg_data( alu, SRC )
+				, (SRC.upto - b) - 1
+			);
 			
-			*(d.ptr) &= ~(d.mask);
+			d = alu_bit
+			(
+				(void*)alu_reg_data( alu, MAN )
+				, MAN.from
+			);
+			
 			*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
 		}
 		
-		while ( d.bit > MAN.from )
+		/* Put back the way we received it */
+		if ( neg )
 		{
-			alu_bit_dec(&d);
-			*(d.ptr) &= ~(d.mask);
+			alu_reg_neg( alu, SRC );
 		}
 		
 		return 0;
@@ -888,7 +963,7 @@ int_t alu_match_exponents
 	if ( alu )
 	{
 		int_t ret;
-		alu_reg_t NUM, VAL, NEXP, VEXP, NMAN, VMAN, TMP;
+		alu_reg_t NUM, VAL, MAN, TMP;
 		size_t nexp;
 			
 		alu_reg_init_floating( alu, NUM, num );
@@ -897,58 +972,58 @@ int_t alu_match_exponents
 		
 		NUM.upto = alu_Nbits(alu);
 		VAL.upto = alu_Nbits(alu);
-				
-		alu_reg_init_mantissa( NUM, NMAN );
-		alu_reg_init_exponent( NUM, NEXP );
 		
-		alu_reg_init_mantissa( VAL, VMAN );
-		alu_reg_init_exponent( VAL, VEXP );
-		
-		ret = alu_reg_get_raw( alu, NEXP, &nexp, sizeof(size_t) );
+		ret = alu_reg_get_exponent( alu, NUM, &nexp );
 		
 		if ( ret == 0 )
 		{
 			size_t vexp, diff;
 			bool truncated = false;
 			
-			(void)alu_reg_get_raw( alu, VEXP, &vexp, sizeof(ssize_t) );
-			
-			alu->block.fault = 0;
+			(void)alu_reg_get_exponent( alu, VAL, &vexp );
 			
 			if ( nexp > vexp )
 			{
-				diff = nexp - vexp;
-				
-				/* Match exponent and align mantissa */
-				alu_reg_int2int( alu, VEXP, NEXP );
-				alu_reg__shr( alu, VMAN, TMP, diff );
-				truncated = (alu_errno(alu) == ERANGE);
-				
-				/* Insert assumed bit back into position */
-				if ( diff < VMAN.upto )
+				if ( vexp )
 				{
-					void *V = alu_reg_data( alu, VAL );
-					alu_bit_t v = alu_bit( V, VMAN.upto - diff );
-					*(v.ptr) |= v.mask;
-				
-					/* Normalise */
-					diff = VMAN.upto - v.bit;
+					diff = nexp - vexp;
+					alu_reg_init_mantissa( VAL, MAN );
+					
+					/* Match exponent and align mantissa */
+					(void)alu_reg_set_exponent( alu, VAL, nexp );
+					alu->block.fault = 0;
+					alu_reg__shr( alu, MAN, TMP, diff );
+					truncated = (alu_errno(alu) == ERANGE);
+					
+					/* Insert assumed bit back into position */
+					if ( diff < MAN.upto )
+					{
+						void *V = alu_reg_data( alu, VAL );
+						alu_bit_t v = alu_bit( V, MAN.upto - diff );
+						*(v.ptr) |= v.mask;
+					}
 				}
 			}
 			else if ( vexp > nexp )
 			{
-				diff = vexp - nexp;
-				
-				alu_reg_int2int( alu, NEXP, VEXP );
-				alu_reg__shr( alu, NMAN, TMP, diff );
-				truncated = (alu_errno(alu) == ERANGE);
-				
-				/* Insert assumed bit back into position */
-				if ( diff < NMAN.upto )
+				if ( nexp )
 				{
-					void *N = alu_reg_data( alu, NUM );
-					alu_bit_t n = alu_bit( N, NMAN.upto - diff );
-					*(n.ptr) |= n.mask;
+					diff = vexp - nexp;
+					
+					alu_reg_init_mantissa( NUM, MAN );
+					
+					(void)alu_reg_set_exponent( alu, NUM, vexp );
+					alu->block.fault = 0;
+					alu_reg__shr( alu, MAN, TMP, diff );
+					truncated = (alu_errno(alu) == ERANGE);
+					
+					/* Insert assumed bit back into position */
+					if ( diff < MAN.upto )
+					{
+						void *N = alu_reg_data( alu, NUM );
+						alu_bit_t n = alu_bit( N, MAN.upto - diff );
+						*(n.ptr) |= n.mask;
+					}
 				}
 			}
 			
@@ -1037,7 +1112,7 @@ int_t alu_reg_addition(
 						if ( ret == 0 )
 						{
 							alu_reg_t _CMAN, _TMAN;
-							size_t bias, cexp;
+							size_t bias, exp;
 							
 							alu_reg_init_unsigned( alu, _CMAN, nodes[0] );
 							alu_reg_init_unsigned( alu, _TMAN, nodes[1] );
@@ -1051,11 +1126,37 @@ int_t alu_reg_addition(
 							alu_reg_int2int( alu, _CMAN, CMAN );
 							alu_reg_int2int( alu, _TMAN, TMAN );
 							
+							(void)alu_reg_get_exponent( alu, CPY, &exp );
+							bias = alu_reg_get_exponent_bias( CPY );
+							
+							exp -= bias;
+							if ( (ssize_t)exp < 0 )
+							{
+								exp = -exp;
+							}
+							
+							n = alu_bit
+							(
+								(void*)alu_reg_data( alu, _CMAN )
+								, exp
+							);
+							
+							*(n.ptr) |= n.mask;
+							
+							n = alu_bit
+							(
+								(void*)alu_reg_data( alu, _TMAN )
+								, exp
+							);
+							
+							*(v.ptr) |= v.mask;
+							
+							/* Not possible to get an EOVERFLOW from these */
 							ret = alu_reg_add( alu, _CMAN, _TMAN );
 							
 							switch ( ret )
 							{
-							case 0: case EOVERFLOW: case ENODATA: break;
+							case 0: case ENODATA: break;
 							default:
 								alu_rem_reg_nodes( alu, nodes, 2 );
 								alu_error(ret);
@@ -1063,12 +1164,9 @@ int_t alu_reg_addition(
 							}
 							
 							n = alu_reg_end_bit( alu, _CMAN );
-							(void)alu_reg_get_exponent( alu, CPY, &cexp );
-							
-							bias = alu_reg_get_exponent_bias( CPY );
-							cexp -= bias;
-							
-							ret = alu_reg_set_raw( alu, CEXP, &(n.bit), sizeof(size_t), 0 );
+							exp = bias + n.bit;
+						
+							ret = alu_reg_set_exponent( alu, CPY, exp );
 							
 							/* No chance of failure at this point */
 							(void)alu_reg_mov( alu, NUM, CPY );

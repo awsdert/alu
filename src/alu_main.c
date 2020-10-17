@@ -16,16 +16,23 @@ void alu__print_reg
 {
 	void *R;
 	alu_bit_t n;
+	alu_reg_t EXP;
 	
 	REG.node %= alu_used( alu );
 	R = alu_reg_data( alu, REG );
+	
+	alu_reg_init_exponent( REG, EXP );
 
 	if ( print_info )
 	{
+		size_t exp_dig = alu_reg_floating( REG ) ? EXP.upto - EXP.from : 0;
+		size_t man_dig = alu_reg_floating( REG ) ? EXP.from - REG.from : 0;
+		
 		alu__printf
 		(
 			"%s: node = %u, part = %p, from = %zu, upto = %zu"
 			", active = %c, signed = %c, floating = %c"
+			", exp_dig = %zu, man_dig = %zu"
 			, file
 			, line
 			, func
@@ -37,6 +44,8 @@ void alu__print_reg
 			, '0' + alu_reg_get_active( alu, REG )
 			, '0' + alu_reg_signed( REG )
 			, '0' + alu_reg_floating( REG )
+			, exp_dig
+			, man_dig
 		);
 	}
 	
@@ -55,9 +64,21 @@ void alu__print_reg
 		
 		if ( alu_reg_floating( REG ) )
 		{
-			alu_reg_t EXP;
+			size_t exp;
+			int_t ret = alu_reg_get_exponent( alu, REG, &exp );
 			
-			alu_reg_init_exponent( REG, EXP );
+			if ( ret == 0 )
+			{
+				char str[bitsof(size_t)] = {0};
+				
+				sprintf( str, "%04zd ", (ssize_t)exp );
+				
+				fputs( str, stderr );
+			}
+			else
+			{
+				fputs( "???? ", stderr );
+			}
 			
 			while ( n.bit > EXP.from )
 			{
