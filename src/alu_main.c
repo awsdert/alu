@@ -71,7 +71,9 @@ void alu__print_reg
 			{
 				char str[bitsof(size_t)] = {0};
 				
-				sprintf( str, "%04zd ", (ssize_t)exp );
+				exp -= alu_reg_get_exponent_bias(REG);
+				
+				sprintf( str, "%+05zd ", (ssize_t)exp );
 				
 				fputs( str, stderr );
 			}

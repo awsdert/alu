@@ -1117,13 +1117,6 @@ int_t alu_reg_addition(
 		
 				if ( temp )
 				{
-					alu_puts( "Addition details" );
-					alu_puts( "================" );
-#if 0
-					alu_print_reg( alu, CPY, 0, 1 );
-					alu_print_reg( alu, TMP, 0, 1 );
-#endif
-						
 					ret = alu_match_exponents( alu, cpy, tmp, temp );
 					alu_rem_reg_node( alu, &temp );
 					
@@ -1139,7 +1132,8 @@ int_t alu_reg_addition(
 							do
 							{
 								alu_reg_t _CMAN, _TMAN;
-								size_t bias, exp;
+								size_t bias, _exp;
+								ssize_t exp;
 								
 								alu_reg_init_unsigned( alu, _CMAN, nodes[0] );
 								alu_reg_init_unsigned( alu, _TMAN, nodes[1] );
@@ -1156,12 +1150,12 @@ int_t alu_reg_addition(
 								alu_reg_int2int( alu, _CMAN, CMAN );
 								alu_reg_int2int( alu, _TMAN, TMAN );
 								
-								(void)alu_reg_get_exponent( alu, CPY, &exp );
+								(void)alu_reg_get_exponent( alu, CPY, &_exp );
 								bias = alu_reg_get_exponent_bias( CPY );
 								
-								if ( exp && exp != bias )
+								if ( _exp && _exp != bias )
 								{
-									exp -= bias;
+									_exp -= bias;
 									
 									n = alu_bit
 									(
@@ -1179,35 +1173,35 @@ int_t alu_reg_addition(
 									
 									*(v.ptr) |= v.mask;
 								}
-#if 0
-								/* Not possible to get an EOVERFLOW from these */
-								alu_print_reg( alu, _CMAN, 0, 1 );
-								alu_print_reg( alu, _TMAN, 0, 1 );
-#endif
+									
+								exp = _exp;
 								
 								ret = alu_reg_add( alu, _CMAN, _TMAN );
+								
+								if ( ret == ENODATA )
+								{
+									++exp;
+									ret = 0;
+								}
 								
 								if ( ret != 0 && ret != ENODATA )
 									break;
 								
 								n = alu_reg_end_bit( alu, _CMAN );
-								if ( n.bit || *(n.ptr) & n.mask )
-								{
-									exp = n.bit + bias;
-							
-									ret = alu_reg_set_exponent( alu, CPY, exp );
+								part = alu_reg_data( alu, _CMAN );
+								for
+								(
+									v = alu_bit( part, 0 )
+									; v.bit < n.bit && !(*(v.ptr) & v.mask)
+									; alu_bit_inc(&v)
+								);
 								
-									if ( ret )
-										break;
-									
-									_CMAN.upto = n.bit - 1;
-									
-									pos = LOWEST( CMAN.upto, _CMAN.upto );
-									
-									_CMAN.from = _CMAN.upto - pos;
-									CMAN.from = CMAN.upto - pos;
-									(void)alu_reg_int2int( alu, CMAN, _CMAN );
-								}
+								ret = alu_reg_set_exponent( alu, CPY, bias + exp );
+								
+								if ( ret )
+									break;
+								
+								(void)alu_reg_int2int( alu, CMAN, _CMAN );
 								
 								ret = alu_reg_mov( alu, NUM, CPY );
 								if ( ret )
@@ -1855,8 +1849,9 @@ int_t alu_reg_divide
 		SEG.upto = SEG.from = n.bit + 1;
 		n = alu_bit( N, NUM.from );
 		
-		for ( ; SEG.from > REM.from; ++bits )
+		while ( SEG.from > REM.from )
 		{
+			++bits;
 			SEG.from--;
 			if ( alu_reg_cmp( alu, SEG, VAL ) >= 0 )
 			{
