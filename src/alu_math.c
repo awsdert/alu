@@ -1116,9 +1116,15 @@ int_t alu_reg_addition(
 				uint_t temp = alu_get_reg_node( alu, 0 );
 		
 				if ( temp )
-				{					
+				{
+					alu_puts( "Addition details" );
+					alu_puts( "================" );
+#if 0
+					alu_print_reg( alu, CPY, 0, 1 );
+					alu_print_reg( alu, TMP, 0, 1 );
+#endif
+						
 					ret = alu_match_exponents( alu, cpy, tmp, temp );
-					
 					alu_rem_reg_node( alu, &temp );
 					
 					if ( ret == 0 )
@@ -1130,68 +1136,91 @@ int_t alu_reg_addition(
 						
 						if ( ret == 0 )
 						{
-							alu_reg_t _CMAN, _TMAN;
-							size_t bias, exp;
-							
-							alu_reg_init_unsigned( alu, _CMAN, nodes[0] );
-							alu_reg_init_unsigned( alu, _TMAN, nodes[1] );
-							
-							alu_reg_init_exponent( CPY, CEXP );
-							alu_reg_init_exponent( TMP, TEXP );
-							
-							alu_reg_init_mantissa( CPY, CMAN );
-							alu_reg_init_mantissa( TMP, TMAN );
-							
-							alu_reg_int2int( alu, _CMAN, CMAN );
-							alu_reg_int2int( alu, _TMAN, TMAN );
-							
-							(void)alu_reg_get_exponent( alu, CPY, &exp );
-							bias = alu_reg_get_exponent_bias( CPY );
-							
-							exp -= bias;
-							if ( (ssize_t)exp < 0 )
+							do
 							{
-								exp = -exp;
-							}
+								alu_reg_t _CMAN, _TMAN;
+								size_t bias, exp;
+								
+								alu_reg_init_unsigned( alu, _CMAN, nodes[0] );
+								alu_reg_init_unsigned( alu, _TMAN, nodes[1] );
+								
+								alu_reg_init_exponent( CPY, CEXP );
+								alu_reg_init_exponent( TMP, TEXP );
+								
+								alu_reg_init_mantissa( CPY, CMAN );
+								alu_reg_init_mantissa( TMP, TMAN );
+								
+								_CMAN.upto = CMAN.upto + 2;
+								_TMAN.upto = TMAN.upto + 2;
+								
+								alu_reg_int2int( alu, _CMAN, CMAN );
+								alu_reg_int2int( alu, _TMAN, TMAN );
+								
+								(void)alu_reg_get_exponent( alu, CPY, &exp );
+								bias = alu_reg_get_exponent_bias( CPY );
+								
+								if ( exp && exp != bias )
+								{
+									exp -= bias;
+									
+									n = alu_bit
+									(
+										(void*)alu_reg_data( alu, _CMAN )
+										, CMAN.upto
+									);
+									
+									*(n.ptr) |= n.mask;
+									
+									v = alu_bit
+									(
+										(void*)alu_reg_data( alu, _TMAN )
+										, TMAN.upto
+									);
+									
+									*(v.ptr) |= v.mask;
+								}
+#if 0
+								/* Not possible to get an EOVERFLOW from these */
+								alu_print_reg( alu, _CMAN, 0, 1 );
+								alu_print_reg( alu, _TMAN, 0, 1 );
+#endif
+								
+								ret = alu_reg_add( alu, _CMAN, _TMAN );
+								
+								if ( ret != 0 && ret != ENODATA )
+									break;
+								
+								n = alu_reg_end_bit( alu, _CMAN );
+								if ( n.bit || *(n.ptr) & n.mask )
+								{
+									exp = n.bit + bias;
 							
-							n = alu_bit
-							(
-								(void*)alu_reg_data( alu, _CMAN )
-								, exp
-							);
-							
-							*(n.ptr) |= n.mask;
-							
-							v = alu_bit
-							(
-								(void*)alu_reg_data( alu, _TMAN )
-								, exp
-							);
-							
-							*(v.ptr) |= v.mask;
-							
-							/* Not possible to get an EOVERFLOW from these */
-							ret = alu_reg_add( alu, _CMAN, _TMAN );
-							
-							switch ( ret )
-							{
-							case 0: case ENODATA: break;
-							default:
+									ret = alu_reg_set_exponent( alu, CPY, exp );
+								
+									if ( ret )
+										break;
+									
+									_CMAN.upto = n.bit - 1;
+									
+									pos = LOWEST( CMAN.upto, _CMAN.upto );
+									
+									_CMAN.from = _CMAN.upto - pos;
+									CMAN.from = CMAN.upto - pos;
+									(void)alu_reg_int2int( alu, CMAN, _CMAN );
+								}
+								
+								ret = alu_reg_mov( alu, NUM, CPY );
+								if ( ret )
+									break;
+								
 								alu_rem_reg_nodes( alu, nodes, 2 );
-								alu_error(ret);
-								return ret;
+								return EITHER( truncated, ERANGE, ret );
 							}
-							
-							n = alu_reg_end_bit( alu, _CMAN );
-							exp = bias + n.bit;
-						
-							ret = alu_reg_set_exponent( alu, CPY, exp );
-							
-							/* No chance of failure at this point */
-							(void)alu_reg_mov( alu, NUM, CPY );
+							while (0);
 							
 							alu_rem_reg_nodes( alu, nodes, 2 );
-							return EITHER( truncated, ERANGE, ret );
+							alu_error(ret);
+							return ret;
 						}
 					}
 				}
