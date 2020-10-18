@@ -1162,7 +1162,7 @@ int_t alu_reg_addition(
 							
 							*(n.ptr) |= n.mask;
 							
-							n = alu_bit
+							v = alu_bit
 							(
 								(void*)alu_reg_data( alu, _TMAN )
 								, exp
