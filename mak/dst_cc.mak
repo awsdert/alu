@@ -54,7 +54,7 @@ PFL_APP:=
 PFL_SFX:=
 endif
 
-ifeq '$(filter gede,$(PRJ_GOALS))' 'gede'
+ifneq '$(GOALS4GEDE)' ''
 DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d

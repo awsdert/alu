@@ -781,21 +781,23 @@ int_t alu_reg_cmp(
 		int ret, a, b;
 		alu_bit_t n, v;
 		size_t ndiff, vdiff;
+		void *N, *V;
 		
 		NUM.node %= alu_used(alu);
 		VAL.node %= alu_used(alu);
-		
-		ret = IFTRUE( !NUM.node || !VAL.node, EINVAL );
 			
-		if ( ret )
+		if ( !NUM.node || !VAL.node )
 		{
-			alu_error( ret );
+			alu_error( EDOM );
 			
 			if ( !NUM.node ) alu_puts( "NUM.node was 0" );
 			
 			if ( !VAL.node ) alu_puts( "VAL.node was 0" );
 			
-			return ret;
+			a = !!(NUM.node);
+			b = !!(VAL.node);
+			
+			return a - b;
 		}
 		
 		/* Check sign is same */
@@ -805,61 +807,78 @@ int_t alu_reg_cmp(
 		
 		ret = -(a - b);
 		
-		/* Get end bits */
-		
-		n = alu_reg_end_bit( alu, NUM );
-		v = alu_reg_end_bit( alu, VAL );
-		
-		alu_bit_inc(&n);
-		alu_bit_inc(&v);
-		
-		ndiff = IFTRUE( ret == 0, n.bit - NUM.from );
-		vdiff = IFTRUE( ret == 0, v.bit - VAL.from );
-		
-		ret = EITHER( ret == 0, (ndiff > vdiff) - (ndiff < vdiff), ret );
-		
-		/* Deal with different sized integers */
-		
-		vdiff = IFTRUE( ret == 0, vdiff );
-
-		while ( ndiff < vdiff )
+		if ( ret )
+			return ret;
+			
+		if ( alu_reg_floating( NUM ) )
 		{
-			vdiff--;
-			alu_bit_dec(&v);
+			if ( alu_reg_floating( VAL ) )
+			{
+				alu_reg_t NEXP, VEXP, NMAN, VMAN;
+				
+				alu_reg_init_exponent( NUM, NEXP );
+				alu_reg_init_exponent( VAL, VEXP );
+				
+				ret = alu_reg_cmp( alu, NEXP, VEXP );
+				
+				if ( ret )
+					return ret;
+				
+				alu_reg_init_mantissa( NUM, NMAN );
+				alu_reg_init_mantissa( VAL, VMAN );
+				
+				return alu_reg_cmp( alu, NMAN, VMAN );
+			}
 			
-			b = !!( *(v.ptr) & v.mask );
-			
-			ret = a - b;
-			
-			vdiff = IFTRUE( ret == 0, vdiff );
+			alu->block.fault = EINVAL;
+			alu_error( EINVAL );
+			return 0;
 		}
 		
-		ndiff = IFTRUE( ret == 0, ndiff );
+		/* Get end bits */
+		
+		N = alu_reg_data( alu, NUM );
+		V = alu_reg_data( alu, VAL );
+		
+		n = alu_bit( N, NUM.upto );
+		v = alu_bit( V, VAL.upto );
+		
+		ndiff = NUM.upto - NUM.from;
+		vdiff = VAL.upto - VAL.from;
+		
+		/* Deal with different sized integers */
+
+		while ( vdiff > ndiff )
+		{
+			alu_bit_dec(&v);
+			b = !!( *(v.ptr) & v.mask );
+			ret = a - b;
+			if ( ret )
+				return ret;
+			--vdiff;
+		}
 		
 		while ( ndiff > vdiff )
-		{
-			ndiff--;
+		{	
 			alu_bit_dec(&n);
-			
 			a = !!( *(n.ptr) & n.mask );
-			
 			ret = a - b;
-			
-			ndiff = IFTRUE( ret == 0, ndiff );
+			if ( ret )
+				return ret;
+			--ndiff;
 		}
 		
 		/* Finally compare what matches bit alignment */
 		while ( ndiff )
 		{
-			ndiff--;
 			alu_bit_dec(&n);
 			alu_bit_dec(&v);
-			
 			a = !!( *(n.ptr) & n.mask );
 			b = !!( *(v.ptr) & v.mask );
-			
 			ret = a - b;
-			ndiff = IFTRUE( ret == 0, ndiff );
+			if ( ret )
+				return ret;
+			--ndiff;
 		}
 
 		return ret;
@@ -1807,7 +1826,7 @@ int_t alu_reg_divide
 		SEG.upto = SEG.from = n.bit + 1;
 		n = alu_bit( N, NUM.from );
 		
-		for ( ; alu_reg_cmp( alu, REM, VAL ) >= 0; ++bits )
+		for ( ; SEG.from > REM.from; ++bits )
 		{
 			SEG.from--;
 			if ( alu_reg_cmp( alu, SEG, VAL ) >= 0 )
@@ -1823,8 +1842,8 @@ int_t alu_reg_divide
 			}
 		}
 		
-		if ( SEG.from > REM.from )
-			alu_reg__shl( alu, NUM, TMP, (SEG.from - REM.from) );
+		if ( bits )
+			alu_reg__shl( alu, NUM, TMP, bits );
 		
 		if ( nNeg != vNeg )
 			alu_reg_neg( alu, NUM );

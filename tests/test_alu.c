@@ -24,8 +24,11 @@ int reg_compare(
 		return ret;
 	}
 	
-	alu_reg_init( alu, NUM, nodes[0], info );
-	alu_reg_init( alu, VAL, nodes[1], info );
+	alu_reg_init_unsigned( alu, NUM, nodes[0] );
+	alu_reg_init_unsigned( alu, VAL, nodes[1] );
+	
+	NUM.info = info;
+	VAL.info = info;
 	
 	NUM.upto = VAL.upto = bitsof(intmax_t);
 	
@@ -75,9 +78,12 @@ int modify(
 		return ret;
 	}
 	
-	alu_reg_init( alu, NUM, nodes[0], info );
-	alu_reg_init( alu, VAL, nodes[1], info );
-	alu_reg_init( alu, TMP, nodes[2], 0 );
+	alu_reg_init_unsigned( alu, NUM, nodes[0] );
+	alu_reg_init_unsigned( alu, VAL, nodes[1] );
+	alu_reg_init_unsigned( alu, TMP, nodes[2] );
+	
+	NUM.info = info;
+	VAL.info = info;
 	
 	alu_int_set_raw( alu, NUM.node, _num );
 	alu_int_set_raw( alu, VAL.node, _val );
@@ -435,6 +441,7 @@ int mathmatical(
 	{
 		for ( i = 0; inc_ops[i]; ++i )
 		{
+			alu_printf( "Trying '%c", inc_ops[i] );
 			ret = modify( alu, num, val, info, print_anyways, inc_ops[i] );
 			
 			if ( ret != 0 )
@@ -449,6 +456,7 @@ int mathmatical(
 	{
 		for ( i = 0; dec_ops[i]; ++i )
 		{
+			alu_printf( "Trying '%c, both positive", dec_ops[i] );
 			ret = modify( alu, num, val, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 )
@@ -460,6 +468,7 @@ int mathmatical(
 			
 		for ( i = 0; dec_ops[i]; ++i )
 		{
+			alu_printf( "Trying '%c, negative num", inc_ops[i] );
 			ret = modify( alu, -num, val, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 )
@@ -471,6 +480,7 @@ int mathmatical(
 		
 		for ( i = 0; dec_ops[i]; ++i )
 		{
+			alu_printf( "Trying '%c, both negative", inc_ops[i] );
 			ret = modify( alu, -num, -val, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 )
@@ -482,6 +492,7 @@ int mathmatical(
 		
 		for ( i = 0; dec_ops[i]; ++i )
 		{
+			alu_printf( "Trying '%c, val is 0", inc_ops[i] );
 			ret = modify( alu, num, 0, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 )
@@ -571,7 +582,7 @@ int reg_print_value
 		return ret;
 	}
 	
-	alu_reg_init( alu, _tmp, tmp, 0 );
+	alu_reg_init_unsigned( alu, _tmp, tmp );
 	
 	ret = alu_lit2reg( alu, _src, _tmp, base );
 	
@@ -931,7 +942,7 @@ int main()
 		return EXIT_FAILURE;
 	}
 
-#if 0
+#if 1
 	ret = compare( alu, print_anyways );
 	
 	if ( ret != 0 )
