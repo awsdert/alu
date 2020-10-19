@@ -231,11 +231,16 @@ size_t alu_man_dig( size_t bits );
 		(EXP).from = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
 	} \
 	while (0)
-	
+
+size_t alup_get_exponent( alup_t SRC );
+size_t alup_get_exponent_bias( alup_t SRC );
+int_t alup_set_exponent( alup_t SRC, size_t exp );
+
 int_t alur_get_exponent( alu_t *alu, alur_t SRC, size_t *exp );
 size_t alur_get_exponent_bias( alur_t SRC );
+int_t alur_set_exponent( alu_t *alu, alur_t SRC, size_t exp );
 
-size_t alu_lowest_upto( alur_t num, alur_t val );
+size_t alu_lowest_upto( alur_t NUM, alur_t VAL );
 
 #define alu_Nsize( alu ) ((alu)->Nsize)
 #define alu_Nbits( alu ) (alu_Nsize(alu) * CHAR_BIT)
@@ -272,7 +277,7 @@ size_t alu_lowest_upto( alur_t num, alur_t val );
 #define alup_init___signed( alup, ptr, size ) \
 	do \
 	{ \
-		(alup).node = reg; \
+		(alup).data = ptr; \
 		(alup).info = ALU_INFO__SIGN; \
 		(alup).from = 0; \
 		(alup).upto = (size) * UNIC_CHAR_BIT; \
@@ -282,7 +287,7 @@ size_t alu_lowest_upto( alur_t num, alur_t val );
 #define alup_init_floating( alup, ptr, size ) \
 	do \
 	{ \
-		(alup).node = ptr; \
+		(alup).data = ptr; \
 		(alup).info = ALU_INFO_FLOAT | ALU_INFO__SIGN; \
 		(alup).from = 0; \
 		(alup).upto = (size) * UNIC_CHAR_BIT; \
@@ -396,20 +401,32 @@ bool_t alur_below0( alu_t *alu, alur_t REG );
 	} \
 	while ( 0 )
 int_t alu_setup_reg( alu_t *alu, uint_t want, size_t Nsize );
-void alu__print_reg
+
+void alup__print
+(
+	char *file
+	, uint_t line
+	, const char *func
+	, char *name
+	, alup_t _PTR
+	, bool print_info
+	, bool print_value
+);
+
+void alur__print
 (
 	char *file
 	, uint_t line
 	, const char *func
 	, char *name
 	, alu_t *alu
-	, alur_t reg
+	, alur_t REG
 	, bool print_info
 	, bool print_value
 );
 
-#define alu_print_reg( alu, reg, print_info, print_value ) \
-	alu__print_reg \
+#define alur_print( alu, reg, print_info, print_value ) \
+	alur__print \
 	( \
 		__FILE__ \
 		, __LINE__ \
@@ -438,7 +455,8 @@ int_t alu_get_reg_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
 	while ( 0 )
 int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count );
 
-alub_t alur_end_bit( alu_t *alu, alur_t num );
+alub_t alup_end_bit( alup_t _NUM );
+alub_t alur_end_bit( alu_t *alu, alur_t NUM );
 alub_t alu_end_bit( alu_t *alu, uint_t num );
 
 # define ALU_BASE_STR_0to9 "0123456789"
@@ -503,7 +521,7 @@ int_t alu_fpn2uint( alu_t *alu, alu_fpn_t *val );
 int_t alu_fpn2int( alu_t *alu, alu_fpn_t *val );
 
 
-int_t alur_cmp( alu_t *alu, alur_t num, alur_t val );
+int_t alur_cmp( alu_t *alu, alur_t NUM, alur_t VAL );
 int_t alu_cmp( alu_t *alu, uint_t num, uint_t val );
 
 /** @brief Copy to/from registers &/or addresses
@@ -521,9 +539,10 @@ int_t alu_cmp( alu_t *alu, uint_t num, uint_t val );
 **/
 bool alur_is_zero( alu_t *alu, alur_t reg, alub_t *end_bit );
 
+int_t alup_mov_int2int( alup_t _DST, alup_t _SRC );
 int_t alur_mov( alu_t *alu, alur_t dst, alur_t src );
 int_t alu_mov( alu_t *alu, uint_t num, uint_t val );
-int_t alur_set( alu_t *alu, alur_t num, bool fillwith );
+int_t alur_set( alu_t *alu, alur_t NUM, bool fillwith );
 int_t alu_set( alu_t *alu, uint_t num, bool fillwith );
 #define alur_clr( alu, num ) alur_set( alu, num, 0 )
 #define alur_set_max( alu, num ) alur_set( alu, num, 1 )
@@ -532,7 +551,7 @@ int_t alu_set( alu_t *alu, uint_t num, bool fillwith );
 int_t alur_set_raw
 (
 	alu_t *alu
-	, alur_t num
+	, alur_t NUM
 	, void *raw
 	, size_t size
 	, uint_t info
@@ -541,7 +560,7 @@ int_t alur_set_raw
 int_t alur_get_raw
 (
 	alu_t *alu
-	, alur_t num
+	, alur_t NUM
 	, void *raw
 	, size_t size
 );
@@ -555,16 +574,16 @@ int_t alup__shr( alup_t _NUM, void *_tmp, size_t by );
 int_t alup__rol( alup_t _NUM, void *_tmp, size_t by );
 int_t alup__ror( alup_t _NUM, void *_tmp, size_t by );
 
-int_t alur__shl( alu_t *alu, alur_t num, uint_t tmp, size_t by );
-int_t alur__shr( alu_t *alu, alur_t num, uint_t tmp, size_t by );
-int_t alur__rol( alu_t *alu, alur_t num, uint_t tmp, size_t by );
-int_t alur__ror( alu_t *alu, alur_t num, uint_t tmp, size_t by );
+int_t alur__shl( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
+int_t alur__shr( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
+int_t alur__rol( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
+int_t alur__ror( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
 
 int_t alur_divide
 (
 	alu_t *alu
-	, alur_t num
-	, alur_t val
+	, alur_t NUM
+	, alur_t VAL
 	, uint_t rem
 	, uint_t tmp
 );
@@ -572,21 +591,21 @@ int_t alur_divide
 typedef int_t (*func_alur_op1_t)
 (
 	alu_t* alu
-	, alur_t num
+	, alur_t NUM
 );
 
 typedef int_t (*func_alur_op2_t)
 (
 	alu_t* alu
-	, alur_t num
-	, alur_t val
+	, alur_t NUM
+	, alur_t VAL
 );
 
 typedef int_t (*func_alur_op4_t)
 (
 	alu_t* alu
-	, alur_t num
-	, alur_t val
+	, alur_t NUM
+	, alur_t VAL
 	, uint_t reg
 	, uint_t tmp
 );
@@ -594,7 +613,7 @@ typedef int_t (*func_alur_op4_t)
 typedef int_t (*func_alur__shift_t)
 (
 	alu_t* alu
-	, alur_t num
+	, alur_t NUM
 	, uint_t tmp
 	, size_t bits
 );
@@ -602,8 +621,8 @@ typedef int_t (*func_alur__shift_t)
 typedef int_t (*func_alur_shift_t)
 (
 	alu_t* alu
-	, alur_t num
-	, alur_t val
+	, alur_t NUM
+	, alur_t VAL
 	, uint_t tmp
 	, func_alur__shift_t _shift
 );
@@ -611,24 +630,26 @@ typedef int_t (*func_alur_shift_t)
 int_t alur__shift
 (
 	alu_t *alu
-	, alur_t num
-	, alur_t val
+	, alur_t NUM
+	, alur_t VAL
 	, uint_t tmp
 	, func_alur__shift_t _shift
 );
 int_t alur__rotate
 (
 	alu_t *alu
-	, alur_t num
-	, alur_t val
+	, alur_t NUM
+	, alur_t VAL
 	, uint_t tmp
 	, func_alur__shift_t _shift
 );
 
-int_t alur_not( alu_t *alu, alur_t num );
-int_t alur_and( alu_t *alu, alur_t num, alur_t val );
-int_t alur__or( alu_t *alu, alur_t num, alur_t val );
-int_t alur_xor( alu_t *alu, alur_t num, alur_t val );
+int_t alup_not( alup_t _NUM );
+
+int_t alur_not( alu_t *alu, alur_t NUM );
+int_t alur_and( alu_t *alu, alur_t NUM, alur_t VAL );
+int_t alur__or( alu_t *alu, alur_t NUM, alur_t VAL );
+int_t alur_xor( alu_t *alu, alur_t NUM, alur_t VAL );
 
 # define alur_shl( ALU, NUM, VAL, TMP ) \
 	alur__shift( ALU, NUM, VAL, TMP, alur__shl )
@@ -638,15 +659,17 @@ int_t alur_xor( alu_t *alu, alur_t num, alur_t val );
 	alur__rotate( ALU, NUM, VAL, TMP, alur__rol )
 # define alur_ror( ALU, NUM, VAL, TMP ) \
 	alur__rotate( ALU, NUM, VAL, TMP, alur__ror )
+
+int_t alup_neg( alup_t _NUM );
 	
-int_t alur_neg( alu_t *alu, alur_t num );
-int_t alur_inc( alu_t *alu, alur_t num );
-int_t alur_dec( alu_t *alu, alur_t num );
-int_t alur_add( alu_t *alu, alur_t num, alur_t val );
-int_t alur_sub( alu_t *alu, alur_t num, alur_t val );
-int_t alur_mul( alu_t *alu, alur_t num, alur_t val );
-int_t alur_div( alu_t *alu, alur_t num, alur_t val );
-int_t alur_rem( alu_t *alu, alur_t num, alur_t val );
+int_t alur_neg( alu_t *alu, alur_t NUM );
+int_t alur_inc( alu_t *alu, alur_t NUM );
+int_t alur_dec( alu_t *alu, alur_t NUM );
+int_t alur_add( alu_t *alu, alur_t NUM, alur_t VAL );
+int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL );
+int_t alur_mul( alu_t *alu, alur_t NUM, alur_t VAL );
+int_t alur_div( alu_t *alu, alur_t NUM, alur_t VAL );
+int_t alur_rem( alu_t *alu, alur_t NUM, alur_t VAL );
 
 int_t alu__op1
 (

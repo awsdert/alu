@@ -401,7 +401,7 @@ START_TEST( test_alu_op3 )
 #if 0
 		if ( expect != got )
 		{
-			alu_print_reg( "VAL", alu, VAL, 1, 1, 0 );
+			alur_print( "VAL", alu, VAL, 1, 1, 0 );
 		}
 #endif
 			
@@ -893,13 +893,13 @@ START_TEST( test_alur_set_floating )
 			, MAN.upto, MAN.from, MAN.upto - MAN.from
 		);
 		
-		alu_print_reg( alu, NUM, 0, 1 );
+		alur_print( alu, NUM, 0, 1 );
 		(void)memcpy( alur_data( alu, NUM ), &src_num, sizeof(double) );
-		alu_print_reg( alu, NUM, 0, 1 );
+		alur_print( alu, NUM, 0, 1 );
 		
-		alu_print_reg( alu, VAL, 0, 1 );
+		alur_print( alu, VAL, 0, 1 );
 		(void)memcpy( alur_data( alu, VAL ), &src_val, sizeof(double) );
-		alu_print_reg( alu, VAL, 0, 1 );
+		alur_print( alu, VAL, 0, 1 );
 		
 		ck_assert( 1 == 0 );
 	}
@@ -974,9 +974,9 @@ START_TEST( test_alur_add_floating )
 			, MAN.upto, MAN.from, MAN.upto - MAN.from
 		);
 		
-		alu_print_reg( alu, NUM, 0, 1 );
+		alur_print( alu, NUM, 0, 1 );
 		ret = alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-		alu_print_reg( alu, NUM, 0, 1 );
+		alur_print( alu, NUM, 0, 1 );
 		
 		ck_assert( 1 == 0 );
 	}

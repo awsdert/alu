@@ -2,7 +2,101 @@
 #include <string.h>
 #include <stdio.h>
 
-void alu__print_reg
+void alup__print
+(
+	char *file
+	, uint_t line
+	, const char *func
+	, char *pfx
+	, alup_t _PTR
+	, bool print_info
+	, bool print_value
+)
+{
+	alup_t _EXP;
+	
+	alur_init_exponent( _PTR, _EXP );
+
+	if ( print_info )
+	{
+		size_t exp_dig = alup_floating( _PTR ) ? _EXP.upto - _EXP.from : 0;
+		size_t man_dig = alup_floating( _PTR ) ? _EXP.from - _PTR.from : 0;
+		
+		alu__printf
+		(
+			"%s: part = %p, from = %zu, upto = %zu"
+			", signed = %c, floating = %c"
+			", exp_dig = %zu, man_dig = %zu"
+			, file
+			, line
+			, func
+			, pfx
+			, _PTR.data
+			, _PTR.from
+			, _PTR.upto
+			, '0' + alup___signed( _PTR )
+			, '0' + alup_floating( _PTR )
+			, exp_dig
+			, man_dig
+		);
+	}
+	
+	if ( print_value )
+	{
+		alub_t p = alub( _PTR.data, _PTR.upto );
+		
+		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
+		
+		if ( alup___signed( _PTR ) )
+		{
+			alub_dec(&p);
+			(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+			(void)fputc( ' ', stderr );
+		}
+		
+		if ( alup_floating( _PTR ) )
+		{
+			size_t exp;
+			alup_t _TMP;
+			char str[bitsof(size_t)] = {0};
+			
+			alup_init_unsigned( _TMP, &exp, sizeof(size_t) );
+			
+			(void)alup_mov_int2int( _TMP, _EXP );
+			
+			exp -= alup_get_exponent_bias(_PTR);
+			
+			sprintf( str, "%+05zd ", (ssize_t)exp );
+			
+			fputs( str, stderr );
+			
+			while ( p.bit > _EXP.from )
+			{
+				alub_dec(&p);
+				(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+			}
+			
+			(void)fputc( ' ', stderr );
+			while ( p.bit > _PTR.from )
+			{
+				alub_dec(&p);
+				(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+			}
+		}
+		else
+		{
+			while ( p.bit > _PTR.from )
+			{
+				alub_dec(&p);
+				(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+			}
+		}
+		
+		fputc( '\n', stderr );
+	}
+}
+
+void alur__print
 (
 	char *file
 	, uint_t line
@@ -14,98 +108,27 @@ void alu__print_reg
 	, bool print_value
 )
 {
-	void *R;
-	alub_t n;
-	alur_t EXP;
+	alup_t _PTR;
 	
 	REG.node %= alu_used( alu );
-	R = alur_data( alu, REG );
 	
-	alur_init_exponent( REG, EXP );
+	alup_init_register( alu, _PTR, REG );
 
 	if ( print_info )
-	{
-		size_t exp_dig = alur_floating( REG ) ? EXP.upto - EXP.from : 0;
-		size_t man_dig = alur_floating( REG ) ? EXP.from - REG.from : 0;
-		
+	{		
 		alu__printf
 		(
-			"%s: node = %u, part = %p, from = %zu, upto = %zu"
-			", active = %c, signed = %c, floating = %c"
-			", exp_dig = %zu, man_dig = %zu"
+			"%s: node = %u, active = %c"
 			, file
 			, line
 			, func
 			, pfx
 			, REG.node
-			, R
-			, REG.from
-			, REG.upto
 			, '0' + alur_get_active( alu, REG )
-			, '0' + alur___signed( REG )
-			, '0' + alur_floating( REG )
-			, exp_dig
-			, man_dig
 		);
 	}
 	
-	if ( print_value )
-	{	
-		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
-		
-		n = alub( R, REG.upto );
-		
-		if ( alur___signed( REG ) )
-		{
-			alub_dec(&n);
-			(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
-			(void)fputc( ' ', stderr );
-		}
-		
-		if ( alur_floating( REG ) )
-		{
-			size_t exp;
-			int_t ret = alur_get_exponent( alu, REG, &exp );
-			
-			if ( ret == 0 )
-			{
-				char str[bitsof(size_t)] = {0};
-				
-				exp -= alur_get_exponent_bias(REG);
-				
-				sprintf( str, "%+05zd ", (ssize_t)exp );
-				
-				fputs( str, stderr );
-			}
-			else
-			{
-				fputs( "???? ", stderr );
-			}
-			
-			while ( n.bit > EXP.from )
-			{
-				alub_dec(&n);
-				(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
-			}
-			
-			(void)fputc( ' ', stderr );
-			while ( n.bit > REG.from )
-			{
-				alub_dec(&n);
-				(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
-			}
-		}
-		else
-		{
-			while ( n.bit > REG.from )
-			{
-				alub_dec(&n);
-				(void)fputc( '0' + !!(*(n.ptr) & n.mask), stderr );
-			}
-		}
-		
-		fputc( '\n', stderr );
-	}
+	alup__print( file, line, func, pfx, _PTR, print_info, print_value );
 }
 
 int_t alu__err_null_ptr
