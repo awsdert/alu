@@ -1,75 +1,75 @@
 #include "alu.h"
 #include <string.h>
 
-alu_bit_t alu_bit( uintmax_t *ptr, size_t bit )
+alub_t alub( uintmax_t *ptr, size_t bit )
 {
-	alu_bit_t alu_bit = {0};
-	alu_bit.bit = bit;
-	alu_bit.pos = bit % bitsof(uintmax_t);
-	alu_bit.seg = bit / bitsof(uintmax_t);
-	alu_bit.ptr = ptr + (alu_bit.seg);
-	alu_bit.mask = UNIC_SIZE_C(1) << alu_bit.pos;
-	return alu_bit;
+	alub_t alub = {0};
+	alub.bit = bit;
+	alub.pos = bit % bitsof(uintmax_t);
+	alub.seg = bit / bitsof(uintmax_t);
+	alub.ptr = ptr + (alub.seg);
+	alub.mask = UNIC_SIZE_C(1) << alub.pos;
+	return alub;
 }
 
 bool alu_get_bit( uintmax_t *ptr, size_t bit )
 {
-	alu_bit_t b = alu_bit( ptr, bit );
+	alub_t b = alub( ptr, bit );
 	return !!(*(b.ptr) & b.mask);
 }
 
 void alu_set_bit( uintmax_t *ptr, size_t bit, bool val )
 {
-	alu_bit_t b = alu_bit( ptr, bit );
+	alub_t b = alub( ptr, bit );
 	*(b.ptr) &= ~(b.mask);
 	*(b.ptr) |= IFTRUE( val, b.mask );
 }
 
-void alu_bit_inc( alu_bit_t *alu_bit )
+void alub_inc( alub_t *alub )
 {
 	size_t i;
 	
-	if ( alu_bit )
+	if ( alub )
 	{
-		alu_bit->bit++;
-		alu_bit->mask <<= 1;
-		alu_bit->pos = alu_bit->bit % bitsof(uintmax_t);
-		i = alu_bit->bit / bitsof(uintmax_t);
-		alu_bit->ptr += (i - alu_bit->seg);
-		alu_bit->seg = i;
-		alu_bit->mask |= !(alu_bit->mask);
+		alub->bit++;
+		alub->mask <<= 1;
+		alub->pos = alub->bit % bitsof(uintmax_t);
+		i = alub->bit / bitsof(uintmax_t);
+		alub->ptr += (i - alub->seg);
+		alub->seg = i;
+		alub->mask |= !(alub->mask);
 	}
 }
 
-void alu_bit_dec( alu_bit_t *alu_bit )
+void alub_dec( alub_t *alub )
 {
 	size_t i;
 	
-	if ( alu_bit )
+	if ( alub )
 	{
-		alu_bit->bit--;
-		alu_bit->mask >>= 1;
-		alu_bit->pos = alu_bit->bit % bitsof(uintmax_t);
-		i = alu_bit->bit / bitsof(uintmax_t);
-		alu_bit->ptr -= (alu_bit->seg - i);
-		alu_bit->seg = i;
-		alu_bit->mask |= IFTRUE( !(alu_bit->mask), INTMAX_MIN );
+		alub->bit--;
+		alub->mask >>= 1;
+		alub->pos = alub->bit % bitsof(uintmax_t);
+		i = alub->bit / bitsof(uintmax_t);
+		alub->ptr -= (alub->seg - i);
+		alub->seg = i;
+		alub->mask |= IFTRUE( !(alub->mask), INTMAX_MIN );
 	}
 }
 
-void alu_print_bit( char *pfx, alu_bit_t alu_bit, bool dereference4value )
+void alu_print_bit( char *pfx, alub_t alub, bool dereference4value )
 {
-	char value = dereference4value ? ('0' + !!(*(alu_bit.ptr) & alu_bit.mask)) : '?';
+	char value = dereference4value ? ('0' + !!(*(alub.ptr) & alub.mask)) : '?';
 	if ( !pfx ) pfx = "?";
 	
 	fprintf( stderr,
 		"%s = %c, ptr = %p, mask = %016jX, pos = %zu, seg = %zu, bit = %zu\n"
 		, pfx
 		, value
-		, (void*)(alu_bit.ptr)
-		, alu_bit.mask
-		, alu_bit.pos
-		, alu_bit.seg
-		, alu_bit.bit
+		, (void*)(alub.ptr)
+		, alub.mask
+		, alub.pos
+		, alub.seg
+		, alub.bit
 	);
 }

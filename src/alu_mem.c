@@ -40,15 +40,7 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 			if ( want != mem->given )
 			{					
 				errno = 0;
-				block = mmap
-				(
-					NULL
-					, want
-					, PROT_READ | PROT_WRITE
-					, MAP_PRIVATE | MAP_ANON
-					, -1
-					, 0
-				);
+				block = calloc( want, 1 );
 				
 				ret = errno;
 				
@@ -58,7 +50,7 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 					{
 						size = LOWEST( want, mem->given );
 						memcpy( block, mem->block, size );
-						munmap( mem->block, mem->given );
+						free( mem->block );
 					}
 					
 					mem->given = want;
@@ -75,7 +67,7 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 		
 		if ( mem->block )
 		{
-			munmap( mem->block, mem->given );
+			free( mem->block );
 		}
 		
 		(void)memset( mem, 0, sizeof(alu_block_t) );

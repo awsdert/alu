@@ -99,6 +99,9 @@ check: build
 	
 %.gede: %
 	gede --args $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
+
+%.valgrind: %
+	valgrind $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 debug: build
 
