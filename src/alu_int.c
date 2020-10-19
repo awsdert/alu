@@ -27,12 +27,11 @@ int_t alu_int___shift
 	, func_alur__shift_t _shift
 )
 {
-	alur_t NUM, TMP;
+	alur_t NUM;
 	
 	alur_init___signed( alu, NUM, num );
-	alur_init_unsigned( alu, TMP, tmp );
 	
-	return _shift( alu, NUM, TMP, bits );
+	return _shift( alu, NUM, tmp, bits );
 }
 
 int_t alu_int__shift
@@ -45,13 +44,12 @@ int_t alu_int__shift
 	, func_alur_shift_t shift
 )
 {
-	alur_t NUM, VAL, TMP;
+	alur_t NUM, VAL;
 	
 	alur_init___signed( alu, NUM, num );
 	alur_init___signed( alu, VAL, val );
-	alur_init_unsigned( alu, TMP, tmp );
 	
-	return shift( alu, NUM, VAL, TMP, _shift );
+	return shift( alu, NUM, VAL, tmp, _shift );
 }
 
 int_t alu_str2int( alu_t *alu, alu_src_t src, alu_int_t dst, alu_base_t base )

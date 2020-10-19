@@ -550,10 +550,15 @@ int_t alur_get_raw
 int_t alu_set_raw( alu_t *alu, uint_t num, uintmax_t raw, uint_t info );
 int_t alu_get_raw( alu_t *alu, uint_t num, uintmax_t *raw );
 
-int_t alur__shl( alu_t *alu, alur_t num, alur_t tmp, size_t by );
-int_t alur__shr( alu_t *alu, alur_t num, alur_t tmp, size_t by );
-int_t alur__rol( alu_t *alu, alur_t num, alur_t tmp, size_t by );
-int_t alur__ror( alu_t *alu, alur_t num, alur_t tmp, size_t by );
+int_t alup__shl( alup_t _NUM, void *_tmp, size_t by );
+int_t alup__shr( alup_t _NUM, void *_tmp, size_t by );
+int_t alup__rol( alup_t _NUM, void *_tmp, size_t by );
+int_t alup__ror( alup_t _NUM, void *_tmp, size_t by );
+
+int_t alur__shl( alu_t *alu, alur_t num, uint_t tmp, size_t by );
+int_t alur__shr( alu_t *alu, alur_t num, uint_t tmp, size_t by );
+int_t alur__rol( alu_t *alu, alur_t num, uint_t tmp, size_t by );
+int_t alur__ror( alu_t *alu, alur_t num, uint_t tmp, size_t by );
 
 int_t alur_divide
 (
@@ -590,7 +595,7 @@ typedef int_t (*func_alur__shift_t)
 (
 	alu_t* alu
 	, alur_t num
-	, alur_t tmp
+	, uint_t tmp
 	, size_t bits
 );
 
@@ -599,7 +604,7 @@ typedef int_t (*func_alur_shift_t)
 	alu_t* alu
 	, alur_t num
 	, alur_t val
-	, alur_t tmp
+	, uint_t tmp
 	, func_alur__shift_t _shift
 );
 
@@ -608,7 +613,7 @@ int_t alur__shift
 	alu_t *alu
 	, alur_t num
 	, alur_t val
-	, alur_t tmp
+	, uint_t tmp
 	, func_alur__shift_t _shift
 );
 int_t alur__rotate
@@ -616,7 +621,7 @@ int_t alur__rotate
 	alu_t *alu
 	, alur_t num
 	, alur_t val
-	, alur_t tmp
+	, uint_t tmp
 	, func_alur__shift_t _shift
 );
 

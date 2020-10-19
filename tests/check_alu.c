@@ -362,7 +362,7 @@ START_TEST( test_alu_op3 )
 		, op3_v = _i % ops_loop_until
 		, got, got_n, got_v;
 	uint_t nodes[REG_COUNT] = {0}, num, val, tmp;
-	alur_t NUM, VAL, TMP;
+	alur_t NUM, VAL;
 	
 	ret = alu_get_reg_nodes( alu, nodes, REG_COUNT, 0 );
 	
@@ -377,9 +377,8 @@ START_TEST( test_alu_op3 )
 	
 	alur_init_unsigned( alu, NUM, num );
 	alur_init_unsigned( alu, VAL, val );
-	alur_init_unsigned( alu, TMP, tmp );
 	
-	NUM.upto = VAL.upto = TMP.upto = bitsof(uintmax_t);
+	NUM.upto = VAL.upto = bitsof(uintmax_t);
 	
 	op3_str = op3_str_array[op3_f];
 	op3_ret = op3_ret_array[op3_f];
@@ -396,7 +395,7 @@ START_TEST( test_alu_op3 )
 		alu_uint_set_raw( alu, val, op3_v );
 		alu_uint_get_raw( alu, val, &got_v );
 		
-		op3_reg( alu, NUM, VAL, TMP, op3__reg );
+		op3_reg( alu, NUM, VAL, tmp, op3__reg );
 		alur_get_raw( alu, NUM, &got, sizeof(uintmax_t) );
 		
 #if 0
