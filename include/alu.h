@@ -443,17 +443,17 @@ void alu_set_constants( alu_t *alu );
 int_t alu_update_bounds( alu_t *alu, uint_t reg );
 int_t alur_update_bounds( alu_t *alu, alur_t reg );
 
-uint_t alu_get_reg_node( alu_t *alu, size_t need );
-int_t alu_get_reg_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
+uint_t alur_get_node( alu_t *alu, size_t need );
+int_t alur_get_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
 
-#define alu_rem_reg_node( alu, reg ) \
+#define alur_rem_node( alu, reg ) \
 	do \
 	{ \
 		alu_clr_active( alu, *(reg) ); \
 		*(reg) = 0; \
 	} \
 	while ( 0 )
-int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count );
+int_t alur_rem_nodes( alu_t *alu, uint_t *nodes, int count );
 
 alub_t alup_end_bit( alup_t _NUM );
 alub_t alur_end_bit( alu_t *alu, alur_t NUM );
@@ -645,6 +645,9 @@ int_t alur__rotate
 );
 
 int_t alup_not( alup_t _NUM );
+int_t alup_and( alup_t NUM, alup_t VAL );
+int_t alup__or( alup_t NUM, alup_t VAL );
+int_t alup_xor( alup_t NUM, alup_t VAL );
 
 int_t alur_not( alu_t *alu, alur_t NUM );
 int_t alur_and( alu_t *alu, alur_t NUM, alur_t VAL );

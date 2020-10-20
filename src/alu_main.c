@@ -222,7 +222,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, size_t need )
 
 #include <assert.h>
 
-uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
+uint_t alur_get_node( alu_t *alu, size_t Nsize )
 {
 	if ( alu )
 	{
@@ -268,7 +268,7 @@ uint_t alu_get_reg_node( alu_t *alu, size_t Nsize )
 	return 0;
 }
 
-int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count )
+int_t alur_rem_nodes( alu_t *alu, uint_t *nodes, int count )
 {	
 	if ( alu )
 	{
@@ -276,7 +276,7 @@ int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count )
 		{		
 			for ( --count; count >= 0; --count )
 			{
-				alu_rem_reg_node( alu, nodes + count );
+				alur_rem_node( alu, nodes + count );
 			}
 			
 			return 0;
@@ -288,7 +288,7 @@ int_t alu_rem_reg_nodes( alu_t *alu, uint_t *nodes, int count )
 	return alu_err_null_ptr( "alu" );
 }
 
-int_t alu_get_reg_nodes( alu_t *alu, uint_t *nodes, uint_t count, size_t need )
+int_t alur_get_nodes( alu_t *alu, uint_t *nodes, uint_t count, size_t need )
 {
 	uint_t index;
 	
@@ -296,14 +296,14 @@ int_t alu_get_reg_nodes( alu_t *alu, uint_t *nodes, uint_t count, size_t need )
 	{
 		for ( index = 0; index < count; ++index )
 		{		
-			nodes[index] = alu_get_reg_node( alu, need );
+			nodes[index] = alur_get_node( alu, need );
 			count *= (nodes[index] != 0);
 		}
 		
 		if ( !count )
 		{
 			alu_error( alu_errno(alu) );
-			alu_rem_reg_nodes( alu, nodes, index );
+			alur_rem_nodes( alu, nodes, index );
 			return alu_errno(alu);
 		}
 		
@@ -387,7 +387,7 @@ int_t alu_str2reg
 	if ( !(base.base) || base.base > strlen(base_str) )
 		return ERANGE;
 		
-	ret = alu_get_reg_nodes( alu, nodes, ALU_BASE_COUNT, 0 );
+	ret = alur_get_nodes( alu, nodes, ALU_BASE_COUNT, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -477,7 +477,7 @@ int_t alu_str2reg
 	}
 	
 	fail:
-	alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
+	alur_rem_nodes( alu, nodes, ALU_BASE_COUNT );
 	
 	return ret;
 }
@@ -513,7 +513,7 @@ int_t alu_lit2reg
 	if ( *(src.nextpos) < 0 )
 		*(src.nextpos) = 0;
 	
-	ret = alu_get_reg_nodes( alu, nodes, ALU_LIT_COUNT, 0 );
+	ret = alur_get_nodes( alu, nodes, ALU_LIT_COUNT, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -970,7 +970,7 @@ int_t alu_lit2reg
 	}
 	
 	fail:
-	alu_rem_reg_nodes( alu, nodes, ALU_LIT_COUNT );
+	alur_rem_nodes( alu, nodes, ALU_LIT_COUNT );
 	
 	return 0;
 }
@@ -1002,7 +1002,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 		return ret;
 	}
 	
-	ret = alu_get_reg_nodes( alu, nodes, ALU_BASE_COUNT, 0 );
+	ret = alur_get_nodes( alu, nodes, ALU_BASE_COUNT, 0 );
 	
 	if ( ret == 0 )
 	{	
@@ -1071,7 +1071,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 		dst.flip( dst.dst );
 		
 		fail:
-		alu_rem_reg_nodes( alu, nodes, ALU_BASE_COUNT );
+		alur_rem_nodes( alu, nodes, ALU_BASE_COUNT );
 	}
 	else
 	{
