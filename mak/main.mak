@@ -13,7 +13,7 @@ include $(PRJ_MAK_DIR)/dst_cc.mak
 
 PRJ:=ALU
 PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)
-ALL_GOALS=bin_dir build check clean debug gede info lib_dir libalu_32dll
+ALL_GOALS=lint bin_dir build check clean debug gede info lib_dir libalu_32dll
 ALL_GOALS+= libalu_64dll libalu_dll libalu_so objects profile rebuild rebuildall
 ALL_GOALS+= run test
 
@@ -110,6 +110,9 @@ profile: build
 build: $(PRJ_DST_BIN)
 
 objects: $(PRJ_DST_OBJ)
+
+lint: $(PRJ_SRC_FILES) $(PRJ_CHK_FILES)
+	cppcheck --language=c --std=c89 --enable=warning,style --template=gcc $^
 
 bin_dir: $(PRJ_BIN_DIR)/
 lib_dir: $(PRJ_LIB_DIR)/

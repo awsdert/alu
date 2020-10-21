@@ -181,7 +181,7 @@ size_t alu_set_bounds( alu_t *alu, alur_t *REG, size_t from, size_t upto )
 	return upto;
 }
 
-int_t alu_setup_reg( alu_t *alu, uint_t want, size_t need )
+int_t alur_ensure( alu_t *alu, uint_t want, size_t need )
 {
 	if ( alu )
 	{
@@ -204,7 +204,7 @@ int_t alu_setup_reg( alu_t *alu, uint_t want, size_t need )
 		need = (need / sizeof(uintmax_t)) + !!(need % sizeof(uintmax_t));
 		need *= sizeof(uintmax_t);
 		
-		block = alu_vec_expand( alu, want, need );
+		block = aluv_expand( alu, want, need );
 		
 		if ( block )
 		{
@@ -239,7 +239,7 @@ uint_t alur_get_node( alu_t *alu, size_t Nsize )
 		Nsize = HIGHEST( Nsize, alu_Nsize( alu ) );
 		reg = HIGHEST( count, alu_upto( alu ) );
 		
-		alu_errno(alu) = alu_setup_reg( alu, reg, Nsize );
+		alu_errno(alu) = alur_ensure( alu, reg, Nsize );
 				
 		if ( alu->given >= count )
 		{		
@@ -768,7 +768,7 @@ int_t alu_lit2reg
 				{
 					break;
 				}
-				(void)alur_divide
+				(void)alur__div
 				(
 					alu
 					, ONE
@@ -823,7 +823,7 @@ int_t alu_lit2reg
 		if ( alur_is_zero( alu, ONE, &n ) )
 			goto set_nil;
 			
-		(void)alur_divide
+		(void)alur__div
 		(
 			alu
 			, DST
@@ -843,7 +843,7 @@ int_t alu_lit2reg
 		{
 			for
 			(
-				alur_mov( alu, VAL, DST )
+				alur_mov( alu, VAL, DST, nodes[ALU_LIT_TMP] )
 				; alur_cmp( alu, VAL, ONE ) > 0
 				; ++pos, alur__shr( alu, VAL, nodes[ALU_LIT_TMP], 1 )
 			);
@@ -852,7 +852,7 @@ int_t alu_lit2reg
 		{
 			for
 			(
-				alur_mov( alu, VAL, ONE )
+				alur_mov( alu, VAL, ONE, nodes[ALU_LIT_TMP] )
 				; alur_cmp( alu, VAL, DOT ) > 0
 				; --pos, alur__shr( alu, VAL, nodes[ALU_LIT_TMP], 1 )
 			);
@@ -864,7 +864,7 @@ int_t alu_lit2reg
 		}
 		
 		/* Set bias */
-		alur_mov( alu, DST, BIAS );
+		alur_mov( alu, DST, BIAS, nodes[ALU_LIT_TMP] );
 		alu_uint_set_raw( alu, VAL.node, man_dig );
 		
 		
@@ -877,8 +877,8 @@ int_t alu_lit2reg
 			alur_not( alu, DOT );
 			alur_and( alu, DOT, DST );
 			alur__shl( alu, ONE, nodes[ALU_LIT_TMP], pos );
-			alur_mov( alu, MAN, VAL );
-			alur_mov( alu, VAL, ONE );
+			alur_mov( alu, MAN, VAL, nodes[ALU_LIT_TMP] );
+			alur_mov( alu, VAL, ONE, nodes[ALU_LIT_TMP] );
 			alur__shr( alu, VAL, nodes[ALU_LIT_TMP], 1 );
 			
 			i = alur_cmp( alu, DOT, VAL );
@@ -902,8 +902,8 @@ int_t alu_lit2reg
 		}
 		else
 		{
-			(void)alur_mov( alu, MAN, DST );	
-			(void)alur_mov( alu, VAL, DOT );
+			(void)alur_mov( alu, MAN, DST, nodes[ALU_LIT_TMP] );	
+			(void)alur_mov( alu, VAL, DOT, nodes[ALU_LIT_TMP] );
 			
 			part = alur_data( alu, MAN );
 			n = alub( part, MAN.from );
@@ -928,7 +928,7 @@ int_t alu_lit2reg
 		/* TODO: Continue referencing code made in mitsy to build fpn */
 		
 		/* Construct FPN from modified values */
-		alur_mov( alu, DST, MAN );
+		alur_mov( alu, DST, MAN, nodes[ALU_LIT_TMP] );
 		
 		set_exp:
 		/* Align and append Exponent */
@@ -1012,7 +1012,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 		
 		neg = alur_below0( alu, SRC );
 		
-		alur_mov( alu, NUM, SRC );
+		alur_mov( alu, NUM, SRC, nodes[ALU_BASE_TMP] );
 		alu_set_raw( alu, VAL.node, base.base, 0 );
 		
 		if ( neg )
@@ -1020,7 +1020,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 
 		while ( alur_cmp( alu, NUM, VAL ) >= 0 )
 		{	
-			(void)alur_divide
+			(void)alur__div
 			(
 				alu
 				, NUM
@@ -1047,7 +1047,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 				digit = 0;
 			}
 			
-			alur_get_raw( alu, REM, &b, sizeof(size_t) );
+			alur_get_raw( alu, REM, &b, sizeof(size_t), 0 );
 			ret = dst.next( base_str[b], dst.dst );
 			
 			if ( ret != 0 )
@@ -1059,7 +1059,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 			++digit;
 		}
 		
-		alur_get_raw( alu, NUM, &b, sizeof(size_t) );
+		alur_get_raw( alu, NUM, &b, sizeof(size_t), 0 );
 		ret = dst.next( base_str[b], dst.dst );
 		
 		if ( ret != 0 )

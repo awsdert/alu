@@ -1,7 +1,7 @@
 #include "alu.h"
 #include <string.h>
 
-void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
+void* aluv( aluv_t *vec, uint_t want, size_t Nsize, int dir )
 {
 	uchar_t *dst, *src, *block;
 	size_t diff, desire;
@@ -18,12 +18,12 @@ void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 			
 			if ( Nsize == vec->Nsize )
 			{
-				block = alu_block( &(vec->block), desire, dir );
+				block = alum( &(vec->block), desire, dir );
 				goto done;
 			}
 			else if ( Nsize > vec->Nsize )
 			{
-				block = alu_block( &(vec->block), desire, dir );
+				block = alum( &(vec->block), desire, dir );
 				
 				if ( block )
 				{
@@ -58,7 +58,7 @@ void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 					(void)memmove( dst, src + diff, Nsize );
 				}
 				
-				block = alu_block( &(vec->block), desire, dir );
+				block = alum( &(vec->block), desire, dir );
 			}
 			
 			if ( block )
@@ -76,8 +76,8 @@ void* alu_vec( alu_vec_t *vec, uint_t want, size_t Nsize, int dir )
 			return NULL;
 		}
 		
-		alu_block_release( &(vec->block) );
-		(void)memset( vec, 0, sizeof(alu_vec_t) );
+		alum_release( &(vec->block) );
+		(void)memset( vec, 0, sizeof(aluv_t) );
 		return NULL;
 	}
 	

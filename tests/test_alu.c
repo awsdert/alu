@@ -94,77 +94,77 @@ int modify(
 	switch ( op )
 	{
 	case 'n':
-		sprintf( pfx, "-0x%016zX", _num );
+		sprintf( pfx, "-0x%016jX", (uintmax_t)_num );
 		expect = -expect;
 		ret = alu_reg_neg( alu, NUM );
 		break;
 	case '~':
-		sprintf( pfx, "~0x%016zX", _num );
+		sprintf( pfx, "~0x%016jX", (uintmax_t)_num );
 		expect = ~expect;
 		ret = alu_reg_not( alu, NUM );
 		break;
 	case '&':
-		sprintf( pfx, "0x%016zX & 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX & 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect &= _val;
 		ret = alu_reg_and( alu, NUM, VAL );
 		break;
 	case '|':
-		sprintf( pfx, "0x%016zX | 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX | 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect |= _val;
 		ret = alu_reg__or( alu, NUM, VAL );
 		break;
 	case '^':
-		sprintf( pfx, "0x%016zX ^ 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX ^ 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect ^= _val;
 		ret = alu_reg_xor( alu, NUM, VAL );
 		break;
 	case 'i':
-		sprintf( pfx, "0x%016zX++", _num );
+		sprintf( pfx, "0x%016jX++", (uintmax_t)_num );
 		expect++;
 		ret = alu_reg_inc( alu, NUM );
 		break;
 	case 'd':
-		sprintf( pfx, "0x%016zX--", _num );
+		sprintf( pfx, "0x%016jX--", (uintmax_t)_num );
 		expect--;
 		ret = alu_reg_dec( alu, NUM );
 		break;
 	case '+':
-		sprintf( pfx, "0x%016zX + 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX + 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect += _val;
 		ret = alu_reg_add( alu, NUM, VAL );
 		break;
 	case '-':
-		sprintf( pfx, "0x%016zX - 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX - 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect -= _val;
 		ret = alu_reg_sub( alu, NUM, VAL );
 		break;
 	case 'l':
-		sprintf( pfx, "0x%016zX <<< 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX <<< 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect = unic_rol( expect, _val );
 		ret = alu_reg_rol( alu, NUM, VAL, TMP );
 		break;
 	case '<':
-		sprintf( pfx, "0x%016zX << 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX << 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect <<= _val;
 		ret = alu_reg_shl( alu, NUM, VAL, TMP );
 		break;
 	case 'r':
-		sprintf( pfx, "0x%016zX >>> 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX >>> 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect = unic_ror( expect, _val );
 		ret = alu_reg_ror( alu, NUM, VAL, TMP );
 		break;
 	case '>':
-		sprintf( pfx, "0x%016zX >> 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX >> 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect >>= _val;
 		ret = alu_reg_shr( alu, NUM, VAL, TMP );
 		break;
 	case '*':
-		sprintf( pfx, "0x%016zX * 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX * 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect *= _val;
 		ret = alu_reg_mul( alu, NUM, VAL );
 		break;
 	case '/':
-		sprintf( pfx, "0x%016zX / 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX / 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		if ( _val )
 			expect /= _val;
 		else
@@ -172,7 +172,7 @@ int modify(
 		ret = alu_reg_div( alu, NUM, VAL );
 		break;
 	case '%':
-		sprintf( pfx, "0x%016zX %% 0x%016zX", _num, _val );
+		sprintf( pfx, "0x%016jX %% 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		if ( _val )
 			expect %= _val;
 		ret = alu_reg_rem( alu, NUM, VAL );
@@ -331,7 +331,7 @@ void print_limits()
 
 int compare( alu_t *alu, bool print_anyways )
 {
-	int ret = 0, a, b;
+	int ret, a, b;
 	(void)alu_puts( "Comparing values..." );
 	(void)alu_puts( "===========================================" );
 	
@@ -366,7 +366,7 @@ int bitwise
 	size_t i;
 	intmax_t num = 0xDEADC0DE, val;
 	uint_t info = ALU_INFO__SIGN;
-	char bit_ops[] = "~&|^", mov_ops[] = "<>", rot_ops[] = "lr";
+	char bit_ops[] = "~&|^";
 	
 	alu_puts( "Checking Bitwise Operations..." );
 	alu_puts( "===========================================" );
@@ -385,6 +385,8 @@ int bitwise
 	
 	if ( doShift )
 	{
+		char mov_ops[] = "<>";
+		
 		alu_puts( "Shifting values..." );
 		(void)alu_puts( "===========================================" );
 		
@@ -402,6 +404,8 @@ int bitwise
 	
 	if ( doRotate )
 	{	
+		char rot_ops[] = "lr";
+		
 		alu_puts( "Rotating values..." );
 		(void)alu_puts( "===========================================" );
 			
@@ -433,12 +437,13 @@ int mathmatical(
 	size_t i;
 	uint_t info = ALU_INFO__SIGN;
 	intmax_t num = 0xDEADC0DE, val;
-	char inc_ops[] = "i+*", dec_ops[] = "d-/%";
 	
 	val = 0xBAD;
 	
 	if ( doInc )
 	{
+		char inc_ops[] = "i+*";
+		
 		for ( i = 0; inc_ops[i]; ++i )
 		{
 			alu_printf( "Trying '%c", inc_ops[i] );
@@ -454,6 +459,8 @@ int mathmatical(
 	
 	if ( doDec )
 	{
+		char dec_ops[] = "d-/%";
+		
 		for ( i = 0; dec_ops[i]; ++i )
 		{
 			alu_printf( "Trying '%c, both positive", dec_ops[i] );
@@ -543,12 +550,12 @@ int func_wrChar32( char32_t src, alu_block_t *dst )
 
 void func_flipstr( alu_block_t *dst )
 {
-	char *str = dst->block, c;
+	char *str = dst->block;
 	size_t n, v;
 	
 	for ( n = 0, v = dst->taken - 1; n < v; ++n, --v )
 	{
-		c = str[n];
+		char c = str[n];
 		str[n] = str[v];
 		str[v] = c;
 	}

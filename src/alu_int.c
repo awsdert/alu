@@ -15,7 +15,7 @@ int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val )
 	
 	alur_init___signed( alu, NUM, num );
 	
-	return alur_get_raw( alu, NUM, val, sizeof(intmax_t) );
+	return alur_get_raw( alu, NUM, val, sizeof(intmax_t), ALU_INFO__SIGN );
 }
 
 int_t alu_int___shift

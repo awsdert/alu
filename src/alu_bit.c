@@ -12,13 +12,13 @@ alub_t alub( uintmax_t *ptr, size_t bit )
 	return alub;
 }
 
-bool alu_get_bit( uintmax_t *ptr, size_t bit )
+bool alub_get( uintmax_t *ptr, size_t bit )
 {
 	alub_t b = alub( ptr, bit );
 	return !!(*(b.ptr) & b.mask);
 }
 
-void alu_set_bit( uintmax_t *ptr, size_t bit, bool val )
+void alub_set( uintmax_t *ptr, size_t bit, bool val )
 {
 	alub_t b = alub( ptr, bit );
 	*(b.ptr) &= ~(b.mask);
@@ -27,26 +27,25 @@ void alu_set_bit( uintmax_t *ptr, size_t bit, bool val )
 
 void alub_inc( alub_t *alub )
 {
-	size_t i;
 	
 	if ( alub )
 	{
+		size_t i;
 		alub->bit++;
 		alub->mask <<= 1;
 		alub->pos = alub->bit % bitsof(uintmax_t);
 		i = alub->bit / bitsof(uintmax_t);
 		alub->ptr += (i - alub->seg);
 		alub->seg = i;
-		alub->mask |= !(alub->mask);
+		alub->mask |= IFTRUE( !(alub->mask), 1 );
 	}
 }
 
 void alub_dec( alub_t *alub )
-{
-	size_t i;
-	
+{	
 	if ( alub )
 	{
+		size_t i;
 		alub->bit--;
 		alub->mask >>= 1;
 		alub->pos = alub->bit % bitsof(uintmax_t);
@@ -57,7 +56,7 @@ void alub_dec( alub_t *alub )
 	}
 }
 
-void alu_print_bit( char *pfx, alub_t alub, bool dereference4value )
+void alub_print( char *pfx, alub_t alub, bool dereference4value )
 {
 	char value = dereference4value ? ('0' + !!(*(alub.ptr) & alub.mask)) : '?';
 	if ( !pfx ) pfx = "?";

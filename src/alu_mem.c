@@ -1,28 +1,24 @@
-#include "alu.h"
+#include "alu/alum.h"
 #include <stdlib.h>
 #include <string.h>
+
 #ifdef UNIC_SYS_WIN32
 #else
 #include <unistd.h>
 #include <sys/mman.h>
 #endif
 
-void* alu_block( alu_block_t *mem, size_t want, int_t dir )
-{
-	int ret = EINVAL;
-	uchar_t *block = NULL;
-	size_t size, pagesize;
-#ifdef UNIC_SYS_WIN32
-	SYSTEM_INFO si;
-#endif
-	
+void* alum( alum_t *mem, size_t want, int_t dir )
+{	
 	if ( mem )
 	{
 		mem->fault = 0;
 		
 		if ( want )
 		{
+			size_t size, pagesize;
 #ifdef UNIC_SYS_WIN32
+			SYSTEM_INFO si;
 			GetSystemInfo(&si);
 			pagesize = si.dwPageSize
 #else
@@ -38,7 +34,9 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 			want *= pagesize;
 			
 			if ( want != mem->given )
-			{					
+			{
+				int_t ret;
+				void *block;
 				errno = 0;
 				block = calloc( want, 1 );
 				
@@ -54,8 +52,9 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 					}
 					
 					mem->given = want;
+					mem->block = block;
 					mem->taken = LOWEST( want, mem->taken );
-					return (mem->block = block);
+					return block;
 				}
 				
 				mem->fault = ret;
@@ -70,7 +69,7 @@ void* alu_block( alu_block_t *mem, size_t want, int_t dir )
 			free( mem->block );
 		}
 		
-		(void)memset( mem, 0, sizeof(alu_block_t) );
+		(void)memset( mem, 0, sizeof(alum_t) );
 		return NULL;
 	}
 	
