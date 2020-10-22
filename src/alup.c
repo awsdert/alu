@@ -273,7 +273,7 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 	return 0;
 }
 
-int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC, void *_tmp )
+int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC )
 {
 	alup_t _MAN;
 	alub_t d, s;
@@ -420,7 +420,7 @@ int_t	alup_mov_flt2flt( alup_t _DST, alup_t _SRC )
 	return alup_mov_int2int(  _DMAN, _SMAN );
 }
 
-int_t	alup_mov( alup_t _DST, alup_t _SRC, void *_tmp )
+int_t	alup_mov( alup_t _DST, alup_t _SRC )
 {
 	if ( alup_floating( _DST ) )
 	{
@@ -431,7 +431,7 @@ int_t	alup_mov( alup_t _DST, alup_t _SRC, void *_tmp )
 	else
 	{
 		if ( alup_floating( _SRC ) )
-			return alup_mov_flt2int( _DST, _SRC, _tmp );
+			return alup_mov_flt2int( _DST, _SRC );
 		return alup_mov_int2int( _DST, _SRC );
 	}
 }

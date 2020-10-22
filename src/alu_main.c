@@ -843,7 +843,7 @@ int_t alu_lit2reg
 		{
 			for
 			(
-				alur_mov( alu, VAL, DST, nodes[ALU_LIT_TMP] )
+				alur_mov( alu, VAL, DST )
 				; alur_cmp( alu, VAL, ONE ) > 0
 				; ++pos, alur__shr( alu, VAL, 1 )
 			);
@@ -852,7 +852,7 @@ int_t alu_lit2reg
 		{
 			for
 			(
-				alur_mov( alu, VAL, ONE, nodes[ALU_LIT_TMP] )
+				alur_mov( alu, VAL, ONE )
 				; alur_cmp( alu, VAL, DOT ) > 0
 				; --pos, alur__shr( alu, VAL, 1 )
 			);
@@ -864,7 +864,7 @@ int_t alu_lit2reg
 		}
 		
 		/* Set bias */
-		alur_mov( alu, DST, BIAS, nodes[ALU_LIT_TMP] );
+		alur_mov( alu, DST, BIAS );
 		alu_uint_set_raw( alu, VAL.node, man_dig );
 		
 		
@@ -877,8 +877,8 @@ int_t alu_lit2reg
 			alur_not( alu, DOT );
 			alur_and( alu, DOT, DST );
 			alur__shl( alu, ONE, pos );
-			alur_mov( alu, MAN, VAL, nodes[ALU_LIT_TMP] );
-			alur_mov( alu, VAL, ONE, nodes[ALU_LIT_TMP] );
+			alur_mov( alu, MAN, VAL );
+			alur_mov( alu, VAL, ONE );
 			alur__shr( alu, VAL, 1 );
 			
 			i = alur_cmp( alu, DOT, VAL );
@@ -902,8 +902,8 @@ int_t alu_lit2reg
 		}
 		else
 		{
-			(void)alur_mov( alu, MAN, DST, nodes[ALU_LIT_TMP] );	
-			(void)alur_mov( alu, VAL, DOT, nodes[ALU_LIT_TMP] );
+			(void)alur_mov( alu, MAN, DST );	
+			(void)alur_mov( alu, VAL, DOT );
 			
 			part = alur_data( alu, MAN );
 			n = alub( part, MAN.from );
@@ -928,7 +928,7 @@ int_t alu_lit2reg
 		/* TODO: Continue referencing code made in mitsy to build fpn */
 		
 		/* Construct FPN from modified values */
-		alur_mov( alu, DST, MAN, nodes[ALU_LIT_TMP] );
+		alur_mov( alu, DST, MAN );
 		
 		set_exp:
 		/* Align and append Exponent */
@@ -1012,7 +1012,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 		
 		neg = alur_below0( alu, SRC );
 		
-		alur_mov( alu, NUM, SRC, nodes[ALU_BASE_TMP] );
+		alur_mov( alu, NUM, SRC );
 		alu_set_raw( alu, VAL.node, base.base, 0 );
 		
 		if ( neg )

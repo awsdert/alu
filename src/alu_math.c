@@ -211,12 +211,12 @@ int_t alur_get_raw
 	, uint_t info
 )
 {
-	int_t ret = 0;
-	uint_t tmp = alur_get_node( alu, size );
 		
-	if ( tmp )
+	if ( alu )
 	{
 		alup_t _DST, _SRC;
+		
+		size = HIGHEST( size, 1 );
 		
 		alup_init_register( alu, _SRC, SRC );
 		
@@ -230,18 +230,7 @@ int_t alur_get_raw
 			_DST.info = info;
 		}
 		
-		ret = alup_mov( _DST, _SRC, alu_data( alu, tmp ) );
-		
-		alur_rem_node( alu, &tmp );
-		
-		return ret;
-	}
-	
-	if ( alu )
-	{
-		ret = alu_error(ret);
-		alu_error( ret );
-		return ret;
+		return alup_mov( _DST, _SRC );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -266,17 +255,12 @@ int_t alur_set_raw
 	, size_t size
 	, uint_t info
 )
-{
-	int_t ret;
-	uint_t tmp = 0;
-	
-	size = HIGHEST( size, 1 );
-	
-	tmp = alur_get_node( alu, size );
-	
-	if ( tmp )
+{	
+	if ( alu )
 	{
 		alup_t _DST, _SRC;
+		
+		size = HIGHEST( size, 1 );
 		
 		alup_init_register( alu, _DST, DST );
 		
@@ -290,18 +274,7 @@ int_t alur_set_raw
 			_SRC.info = info;
 		}
 		
-		ret = alup_mov( _DST, _SRC, alu_data( alu, tmp ) );
-		
-		alur_rem_node( alu, &tmp );
-		
-		return ret;
-	}
-	
-	if ( alu )
-	{
-		ret = alu_errno(alu);
-		alu_error( ret );
-		return ret;
+		return alup_mov( _DST, _SRC );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -314,86 +287,7 @@ int_t alu_set_raw( alu_t *alu, uint_t num, uintmax_t raw, uint_t info )
 	return alur_set_raw( alu, NUM, &raw, sizeof(uintmax_t), info );
 }
 
-int_t alur_mov_int2int( alu_t *alu, alur_t DST, alur_t SRC )
-{
-	if ( alu )
-	{
-		int_t ret;
-		alup_t _DST, _SRC;
-		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		ret = alu->block.fault = alup_mov_int2int( _DST, _SRC );
-		if ( ret == 0 || ret == EOVERFLOW )
-			return 0;
-		return ret;
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
-int alur_mov_int2flt( alu_t *alu, alur_t DST, alur_t SRC )
-{	
-	if ( alu )
-	{
-		alup_t _DST, _SRC;
-		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov_int2flt( _DST, _SRC );
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
-int alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC, uint_t tmp )
-{	
-	if ( alu )
-	{
-		alup_t _DST, _SRC;
-		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov_flt2int( _DST, _SRC, alu_data( alu, tmp ) );
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
-int alur_mov_flt2flt( alu_t *alu, alur_t DST, alur_t SRC )
-{
-	if ( alu )
-	{
-		alup_t _DST, _SRC;
-		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov_flt2flt( _DST, _SRC );
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
-int_t	alur_mov( alu_t *alu, alur_t DST, alur_t SRC, uint_t tmp )
-{
-	if ( alu )
-	{
-		alup_t _DST, _SRC;
-		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov( _DST, _SRC, alu_data( alu, tmp ) );
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
-int_t	alu_mov( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
+int_t	alu_mov( alu_t *alu, uint_t num, uint_t val )
 {
 	if ( alu )
 	{
@@ -402,7 +296,7 @@ int_t	alu_mov( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
 		alur_init_unsigned( alu, NUM, num );
 		alur_init_unsigned( alu, VAL, val );
 		
-		return alur_mov( alu, NUM, VAL, tmp );
+		return alur_mov( alu, NUM, VAL );
 	}
 	
 	return alu_err_null_ptr("alu");

@@ -20,6 +20,85 @@ alub_t alur_end_bit( alu_t *alu, alur_t NUM )
 	}
 }
 
+int_t alur_mov_int2int( alu_t *alu, alur_t DST, alur_t SRC )
+{
+	if ( alu )
+	{
+		int_t ret;
+		alup_t _DST, _SRC;
+		
+		alup_init_register( alu, _DST, DST );
+		alup_init_register( alu, _SRC, SRC );
+		
+		ret = alu->block.fault = alup_mov_int2int( _DST, _SRC );
+		if ( ret == 0 || ret == EOVERFLOW )
+			return 0;
+		return ret;
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int alur_mov_int2flt( alu_t *alu, alur_t DST, alur_t SRC )
+{	
+	if ( alu )
+	{
+		alup_t _DST, _SRC;
+		
+		alup_init_register( alu, _DST, DST );
+		alup_init_register( alu, _SRC, SRC );
+		
+		return alup_mov_int2flt( _DST, _SRC );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC )
+{	
+	if ( alu )
+	{
+		alup_t _DST, _SRC;
+		
+		alup_init_register( alu, _DST, DST );
+		alup_init_register( alu, _SRC, SRC );
+		
+		return alup_mov_flt2int( _DST, _SRC );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int alur_mov_flt2flt( alu_t *alu, alur_t DST, alur_t SRC )
+{
+	if ( alu )
+	{
+		alup_t _DST, _SRC;
+		
+		alup_init_register( alu, _DST, DST );
+		alup_init_register( alu, _SRC, SRC );
+		
+		return alup_mov_flt2flt( _DST, _SRC );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
+int_t	alur_mov( alu_t *alu, alur_t DST, alur_t SRC )
+{
+	if ( alu )
+	{
+		alup_t _DST, _SRC;
+		
+		alup_init_register( alu, _DST, DST );
+		alup_init_register( alu, _SRC, SRC );
+		
+		return alup_mov( _DST, _SRC );
+	}
+	
+	return alu_err_null_ptr("alu");
+}
+
 int_t alur_cmp(
 	alu_t *alu
 	, alur_t NUM
@@ -181,7 +260,7 @@ int_t alur_match_exponents( alu_t *alu, uint_t num, uint_t val )
 	return alu_err_null_ptr("alu");
 }
 
-int_t alur_addition(
+int_t alur__add(
 	alu_t *alu
 	, alur_t NUM
 	, alur_t VAL
@@ -222,82 +301,43 @@ int_t alur_addition(
 		
 		if ( alur_floating( NUM ) || alur_floating( VAL ) )
 		{
-			uint_t temp = alur_get_node( alu, 0 );
-		
-			if ( ret == 0 )
-			{
-				alup_t _CPY, _TMP, _CMAN, _TMAN;
-				size_t exp;//, cexp, texp;//, bias;
-				bool_t truncated = false;
-				void *_tmp = alu_data( alu, temp );
-				
-				alup_init_floating( _CPY, alu_data(alu, cpy), alu_Nsize(alu) );
-				alup_init_floating( _TMP, alu_data(alu, tmp), alu_Nsize(alu) );
-				
-				alup_init_mantissa( _CPY, _CMAN );
-				alup_init_mantissa( _TMP, _TMAN );
-				
-				if ( alur_floating( NUM ) )
-				{
-					alup_mov_flt2flt( _CPY, _NUM );
-				}
-				else
-				{
-					alup_mov_int2flt( _CPY, _NUM );
-				}
-				
-				if ( alur_floating( VAL ) )
-				{
-					alup_mov_flt2flt( _TMP, _VAL );
-				}
-				else
-				{
-					alup_mov_int2flt( _TMP, _VAL );
-				}
-				
-				//cexp = alup_get_exponent( _CPY );
-				//texp = alup_get_exponent( _TMP );
-				//bias = alup_get_exponent_bias( _CPY );
-				
-				ret = alup_match_exponents
-				(
-					_CPY.data
-					, _TMP.data
-					, alu_Nsize(alu)
-				);
-				
-				truncated = (ret == ERANGE);
-				
-				exp = alup_get_exponent( _CPY );
-				
-				ret = alup__add_int2int( _CMAN, _TMAN );
-				
-				if ( ret == EOVERFLOW ) ++exp;
-				
-				(void)alup_set_exponent( _CPY, exp );
-				
-				if ( alur_floating( _NUM ) )
-				{
-					ret = alup_mov_flt2flt(  _NUM, _CPY );
-				}
-				else
-				{
-					ret = alup_mov_flt2int(  _NUM, _CPY, _tmp );
-				}
-				
-				alur_rem_node( alu, &temp );
-				
-				if ( ret )
-				{
-					alu_error(ret);
-					return ret;
-				}
-				
-				return IFTRUE( truncated, ERANGE );
-			}
+			alup_t _CPY, _TMP, _CMAN, _TMAN;
+			size_t exp;//, cexp, texp;//, bias;
+			bool_t truncated = false;
 			
-			alu_error(ret);
-			return ret;
+			alup_init_floating( _CPY, alu_data(alu, cpy), alu_Nsize(alu) );
+			alup_init_floating( _TMP, alu_data(alu, tmp), alu_Nsize(alu) );
+			
+			alup_init_mantissa( _CPY, _CMAN );
+			alup_init_mantissa( _TMP, _TMAN );
+			
+			alup_mov( _CPY, _NUM );
+			alup_mov( _TMP, _VAL );
+			
+			//cexp = alup_get_exponent( _CPY );
+			//texp = alup_get_exponent( _TMP );
+			//bias = alup_get_exponent_bias( _CPY );
+			
+			ret = alup_match_exponents
+			(
+				_CPY.data
+				, _TMP.data
+				, alu_Nsize(alu)
+			);
+			
+			truncated = (ret == ERANGE);
+			
+			exp = alup_get_exponent( _CPY );
+			
+			ret = alup__add_int2int( _CMAN, _TMAN );
+			
+			if ( ret == EOVERFLOW ) ++exp;
+			
+			(void)alup_set_exponent( _CPY, exp );
+			
+			ret = alup_mov( _NUM, _CPY );
+			
+			return IFTRUE( truncated || ret == ERANGE, ERANGE );
 		}
 		return alup__add_int2int( _NUM, _VAL );
 	}
@@ -316,7 +356,7 @@ int_t alur_add(
 	
 	if ( ret == 0 )
 	{
-		ret = alur_addition( alu, NUM, VAL, nodes[0], nodes[1] );
+		ret = alur__add( alu, NUM, VAL, nodes[0], nodes[1] );
 		alur_rem_nodes( alu, nodes, 2 );
 		
 		switch (ret)
@@ -603,7 +643,7 @@ int_t alur_rem
 		{
 		case 0: case ENODATA: case EOVERFLOW:
 			tmpret = ret;
-			ret = alur_mov( alu, NUM, REM, nodes[1] );
+			ret = alur_mov( alu, NUM, REM );
 			if ( ret == 0 )
 				ret = tmpret;
 			break;

@@ -167,7 +167,7 @@ int_t alu_cmp( alu_t *alu, uint_t num, uint_t val );
 
 bool alur_is_zero( alu_t *alu, alur_t reg, alub_t *end_bit );
 
-int_t alu_mov( alu_t *alu, uint_t num, uint_t val, uint_t tmp );
+int_t alu_mov( alu_t *alu, uint_t num, uint_t val );
 int_t alu_set( alu_t *alu, uint_t num, bool fillwith );
 #define alu_set_nil( alu, num ) alu_set( alu, num, 0 )
 #define alu_set_max( alu, num ) alu_set( alu, num, 1 )

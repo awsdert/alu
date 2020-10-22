@@ -153,8 +153,8 @@ int_t alur_cmp( alu_t *alu, alur_t NUM, alur_t VAL );
 int_t alur_mov_int2int( alu_t *alu, alur_t DST, alur_t SRC );
 int_t alur_mov_int2flt( alu_t *alu, alur_t DST, alur_t SRC );
 int_t alur_mov_flt2flt( alu_t *alu, alur_t DST, alur_t SRC );
-int_t alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC, uint_t tmp );
-int_t alur_mov( alu_t *alu, alur_t DST, alur_t SRC, uint_t tmp );
+int_t alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC );
+int_t alur_mov( alu_t *alu, alur_t DST, alur_t SRC );
 
 int_t alur__shl( alu_t *alu, alur_t NUM, size_t by );
 int_t alur__shr( alu_t *alu, alur_t NUM, size_t by );

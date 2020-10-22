@@ -100,8 +100,8 @@ int_t	alup_set( alup_t _DST, bool fillwith );
 int_t	alup_mov_int2int( alup_t _DST, alup_t _SRC );
 int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC );
 int_t	alup_mov_flt2flt( alup_t _DST, alup_t _SRC );
-int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC, void *_tmp );
-int_t	alup_mov( alup_t _DST, alup_t _SRC, void *_tmp );
+int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC );
+int_t	alup_mov( alup_t _DST, alup_t _SRC );
 
 int_t	alup_cmp_int2int( alup_t _NUM, alup_t _VAL );
 int_t	alup_cmp( alup_t _NUM, alup_t _VAL );
