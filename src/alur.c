@@ -529,94 +529,19 @@ int_t alur_neg( alu_t *alu, alur_t NUM )
 int_t alur__div( alu_t *alu, alur_t NUM, alur_t VAL, uint_t rem, uint_t tmp )
 {	
 	if ( alu )
-	{	
-		int ret;
-		alur_t SEG, REM;
-		alub_t n;
-		size_t bits = 0;
-		bool nNeg, vNeg;
-		void *N;
+	{
+		alup_t _NUM, _VAL;
 		
-		NUM.node %= alu_used( alu );
-		VAL.node %= alu_used( alu );
+		alup_init_register( alu, _NUM, NUM );
+		alup_init_register( alu, _VAL, VAL );
 		
-		rem %= alu_used( alu );
-		tmp %= alu_used( alu );
-		
-		ret = IFTRUE( !NUM.node || !VAL.node || !rem || !tmp, EDOM );
-		
-		if ( ret )
-		{
-			alu_error( ret );
-			
-			if ( !NUM.node )
-				alu_puts("NUM.node was 0");
-				
-			if ( !VAL.node )
-				alu_puts("VAL.node was 0");
-				
-			if ( !rem )
-				alu_puts("rem was 0");
-				
-			if ( !tmp )
-				alu_puts("tmp was 0");
-			
-			return ret;
-		}
-		
-		nNeg = alur_below0( alu, NUM );
-		vNeg = alur_below0( alu, VAL );
-		
-		if ( nNeg )
-			alur_neg( alu, NUM );
-		
-		if ( vNeg )
-			alur_neg( alu, VAL );
-			
-		alur_init_unsigned( alu, REM, rem );
-		REM.info = NUM.info;
-		
-		(void)alur_mov_int2int( alu, REM, NUM );
-		(void)alur_clr( alu, NUM );
-		
-		N = alur_data( alu, NUM );
-		
-		SEG = REM;
-		
-		n = alur_end_bit( alu, REM );
-		SEG.upto = SEG.from = n.bit + 1;
-		n = alub( N, NUM.from );
-		
-		while ( SEG.from > REM.from )
-		{
-			++bits;
-			SEG.from--;
-			if ( alur_cmp( alu, SEG, VAL ) >= 0 )
-			{
-				ret = alur_sub( alu, SEG, VAL );
-				
-				if ( ret == ENODATA )
-					break;
-				
-				alur__shl( alu, NUM, bits );
-				*(n.ptr) |= n.mask;
-				bits = 0;
-			}
-		}
-		
-		if ( bits )
-			alur__shl( alu, NUM, bits );
-		
-		if ( nNeg != vNeg )
-			alur_neg( alu, NUM );
-		
-		if ( nNeg )
-			alur_neg( alu, REM );
-		
-		if ( vNeg )
-			alur_neg( alu, VAL );
-		
-		return ret;
+		return alup__div
+		(
+			_NUM
+			, _VAL
+			, alu_data( alu, rem )
+			, alu_data( alu, tmp )
+		);
 	}
 	
 	return alu_err_null_ptr("alu");

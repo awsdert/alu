@@ -474,7 +474,7 @@ int mathmatical(
 			
 		for ( i = 0; dec_ops[i]; ++i )
 		{
-			alu_printf( "Trying '%c, negative num", inc_ops[i] );
+			alu_printf( "Trying '%c', negative num", dec_ops[i] );
 			ret = modify( alu, -num, val, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 && ret != EOVERFLOW )
@@ -486,7 +486,7 @@ int mathmatical(
 		
 		for ( i = 0; dec_ops[i]; ++i )
 		{
-			alu_printf( "Trying '%c, both negative", inc_ops[i] );
+			alu_printf( "Trying '%c', both negative", dec_ops[i] );
 			ret = modify( alu, -num, -val, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 && ret != EOVERFLOW )
@@ -498,7 +498,7 @@ int mathmatical(
 		
 		for ( i = 0; dec_ops[i]; ++i )
 		{
-			alu_printf( "Trying '%c, val is 0", inc_ops[i] );
+			alu_printf( "Trying '%c', val is 0", dec_ops[i] );
 			ret = modify( alu, num, 0, info, print_anyways, dec_ops[i] );
 			
 			if ( ret != 0 && ret != EOVERFLOW )
@@ -971,7 +971,7 @@ int main()
 #if 1
 	ret = mathmatical( alu, false, true, print_anyways );
 	
-	if ( ret != 0 )
+	if ( ret != 0 && ret != EOVERFLOW )
 	{
 		alu_error( ret );
 		goto fail;

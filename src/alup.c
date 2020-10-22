@@ -1127,3 +1127,100 @@ int_t alup__mul_int2int
 	alu_error( ret );
 	return ret;
 }
+
+int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
+{	
+
+	int ret;
+	alup_t _SEG, _REM;
+	alub_t n;
+	bool_t nNeg, vNeg;
+	size_t bits, diff, size;
+	
+	if ( !_NUM.data || !_VAL.data || !_rem || !_tmp )
+	{
+		ret = EINVAL;
+		
+		alu_error( ret );
+		
+		if ( !_NUM.data ) alu_puts("NUM.data was NULL!");
+			
+		if ( !_VAL.data ) alu_puts("VAL.data was NULL!");
+			
+		if ( !_rem ) alu_puts("_rem was NULL!");
+			
+		if ( !_tmp ) alu_puts("_tmp was NULL!");
+		
+		return ret;
+	}
+	
+	ret = 0;
+	nNeg = alup_below0( _NUM );
+	vNeg = alup_below0( _VAL );
+	
+	if ( nNeg )
+		alup_neg( _NUM );
+	
+	if ( vNeg )
+		alup_neg( _VAL );
+	
+	bits = 0;
+	diff = _NUM.upto - _NUM.from;
+	size = (diff / UNIC_CHAR_BIT) + !!(diff % UNIC_CHAR_BIT);
+	
+	alup_init_unsigned( _REM, _rem, size );
+	_REM.info = _NUM.info;
+	
+	(void)alup_mov_int2int( _REM, _NUM );
+	(void)alup_set( _NUM, 0 );
+	
+	_SEG = _REM;
+	_SEG.info = 0;
+	
+	n = alup_end_bit( _REM );
+	_SEG.upto = _SEG.from = n.bit + 1;
+	n = alub( _NUM.data, _NUM.from );
+	
+	while ( _SEG.from > _REM.from )
+	{
+		++bits;
+		_SEG.from--;
+		if ( alup_cmp_int2int( _SEG, _VAL ) >= 0 )
+		{
+			ret = alup__sub_int2int( _SEG, _VAL );
+			
+			if ( ret == ENODATA )
+				break;
+			
+			alup__shl( _NUM, bits );
+			*(n.ptr) |= n.mask;
+			bits = 0;
+		}
+	}
+	
+	if ( bits )
+		alup__shl( _NUM, bits );
+		
+	if ( nNeg != vNeg )
+		alup_neg( _NUM );
+	
+	if ( nNeg )
+		alup_neg( _REM );
+	
+	if ( vNeg )
+		alup_neg( _VAL );
+	
+	return ret;
+}
+
+int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
+{
+	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
+	{
+		int_t ret = ENOSYS;
+		alu_error(ret);
+		return ret;
+	}
+	
+	return alup__div_int2int( _NUM, _VAL, _rem, _tmp );
+}
