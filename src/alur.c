@@ -302,7 +302,7 @@ int_t alur__add(
 		if ( alur_floating( NUM ) || alur_floating( VAL ) )
 		{
 			alup_t _CPY, _TMP, _CMAN, _TMAN;
-			size_t exp;//, cexp, texp;//, bias;
+			size_t exp, cexp, texp;
 			bool_t truncated = false;
 			
 			alup_init_floating( _CPY, alu_data(alu, cpy), alu_Nsize(alu) );
@@ -314,9 +314,8 @@ int_t alur__add(
 			alup_mov( _CPY, _NUM );
 			alup_mov( _TMP, _VAL );
 			
-			//cexp = alup_get_exponent( _CPY );
-			//texp = alup_get_exponent( _TMP );
-			//bias = alup_get_exponent_bias( _CPY );
+			cexp = alup_get_exponent( _CPY );
+			texp = alup_get_exponent( _TMP );
 			
 			ret = alup_match_exponents
 			(
@@ -331,7 +330,10 @@ int_t alur__add(
 			
 			ret = alup__add_int2int( _CMAN, _TMAN );
 			
-			if ( ret == EOVERFLOW ) ++exp;
+			if ( cexp || texp )
+			{
+				if ( (cexp == texp) || ret == EOVERFLOW ) ++exp;
+			}
 			
 			(void)alup_set_exponent( _CPY, exp );
 			
@@ -361,7 +363,10 @@ int_t alur_add(
 		
 		switch (ret)
 		{
-		case 0: case ENODATA: case EOVERFLOW: break;
+		case 0: case ENODATA: case EOVERFLOW: case ERANGE:
+			alu->block.fault = ret;
+			ret = 0;
+			break;
 		default:
 			alu_error(ret);
 		}
