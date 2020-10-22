@@ -168,50 +168,6 @@ int_t alu__op4
 	return alu_err_null_ptr("alu");
 }
 
-int_t alu__shift
-(
-	alu_t *alu
-	, uint_t num
-	, uint_t val
-	, uint_t tmp
-	, func_alur__shift_t _shift
-	, func_alur_shift_t shift
-)
-{	
-	if ( alu )
-	{
-		alur_t NUM, VAL;
-		
-		alur_init_unsigned( alu, NUM, num );
-		alur_init_unsigned( alu, VAL, val );
-		
-		return shift( alu, NUM, VAL, tmp, _shift );
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
-int_t alu___shift
-(
-	alu_t *alu
-	, uint_t num
-	, uint_t tmp
-	, size_t bits
-	, func_alur__shift_t _shift
-)
-{	
-	if ( alu )
-	{
-		alur_t NUM;
-		
-		alur_init_unsigned( alu, NUM, num );
-		
-		return _shift( alu, NUM, tmp, bits );
-	}
-	
-	return alu_err_null_ptr("alu");
-}
-
 int_t alur_set( alu_t *alu, alur_t NUM, bool fillwith )
 {
 	if ( alu )

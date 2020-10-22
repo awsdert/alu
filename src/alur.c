@@ -164,7 +164,7 @@ int_t alur_dec( alu_t *alu, alur_t NUM )
 	return EITHER( NUM.upto, EOVERFLOW, 0 );
 }
 
-int_t alur_match_exponents( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
+int_t alur_match_exponents( alu_t *alu, uint_t num, uint_t val )
 {
 	if ( alu )
 	{		
@@ -172,7 +172,6 @@ int_t alur_match_exponents( alu_t *alu, uint_t num, uint_t val, uint_t tmp )
 		(
 			alu_data( alu, num )
 			, alu_data( alu, val )
-			, alu_data( alu, tmp )
 			, alu_Nsize( alu )
 		);
 		
@@ -264,7 +263,6 @@ int_t alur_addition(
 				(
 					_CPY.data
 					, _TMP.data
-					, _tmp
 					, alu_Nsize(alu)
 				);
 				
@@ -352,7 +350,7 @@ int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL )
 	return alu_err_null_ptr("alu");
 }
 
-int_t alur__shl( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
+int_t alur__shl( alu_t *alu, alur_t NUM, size_t by )
 {	
 	if ( alu )
 	{
@@ -360,13 +358,13 @@ int_t alur__shl( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
 		
 		alup_init_register( alu, _NUM, NUM );
 		
-		return alup__shl( _NUM, alu_data( alu, tmp ), by );
+		return alup__shl( _NUM, by );
 	}
 	
 	return alu_err_null_ptr("alu");
 }
 
-int_t alur__shr( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
+int_t alur__shr( alu_t *alu, alur_t NUM, size_t by )
 {	
 	if ( alu )
 	{
@@ -374,7 +372,7 @@ int_t alur__shr( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
 		
 		alup_init_register( alu, _NUM, NUM );
 		
-		return alup__shr( _NUM, alu_data( alu, tmp ), by );
+		return alup__shr( _NUM, by );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -385,7 +383,6 @@ int_t alur__shift
 	alu_t *alu
 	, alur_t NUM
 	, alur_t VAL
-	, uint_t tmp
 	, func_alur__shift_t _shift
 )
 {
@@ -431,11 +428,11 @@ int_t alur__shift
 		if ( cmp < 0 )
 		{
 			alup_mov_int2int( _TMP, _VAL );
-			ret = _shift( alu, NUM, tmp, by );
+			ret = _shift( alu, NUM, by );
 		}
 		else
 		{
-			ret = _shift( alu, NUM, tmp, -1 );
+			ret = _shift( alu, NUM, -1 );
 		}
 		
 		return ret;
@@ -456,76 +453,35 @@ int_t alur__mul
 {
 	if ( alu )
 	{
-		int ret;
-		alur_t CPY;
+		alup_t _NUM, _VAL;
+			
+		alup_init_register( alu, _NUM, NUM );
+		alup_init_register( alu, _VAL, VAL );
 		
-		if ( alur_floating(VAL) )
+		if ( alur_floating(VAL) || alur_floating(NUM) )
 		{
 			/* Not yet supported */
+			alup_t _CPY, _TMP;
+			
+			alup_init_floating( _CPY, alu_data( alu, cpy ), alu_Nsize( alu ) );
+			alup_init_floating( _TMP, alu_data( alu, tmp ), alu_Nsize( alu ) );
+			
+			if ( alur_floating(NUM) )
+				alup_mov_flt2flt( _CPY, _NUM );
+			else
+				alup_mov_int2flt( _CPY, _NUM );
+				
+			if ( alur_floating(VAL) )
+				alup_mov_flt2flt( _TMP, _VAL );
+			else
+				alup_mov_int2flt( _TMP, _VAL );
+			
 			return ENOSYS;
 		}
-		
-		if ( alur_floating(NUM) )
+		else
 		{
-			/* Not yet supported */
-			return ENOSYS;
+			return alup__mul_int2int( _NUM, _VAL, alu_data( alu, cpy ) );
 		}
-		
-		cpy %= alu_used( alu );
-		alur_init_unsigned( alu, CPY, cpy );
-		CPY.info = NUM.info;
-		
-		ret = alur_mov( alu, CPY, NUM, tmp );
-		
-		if ( ret == 0 )
-		{
-			bool carry = false, caught;
-			alub_t v;
-			size_t p;
-			void *V;
-			
-			NUM.node %= alu_used( alu );
-			VAL.node %= alu_used( alu );
-			
-			tmp %= alu_used( alu );
-			
-			ret = IFTRUE( !NUM.node || !VAL.node, EINVAL );
-			
-			if ( ret )
-			{
-				alu_error( ret );
-				return ret;
-			}
-			
-			alur_clr( alu, NUM );
-			
-			V = alur_data( alu, VAL );
-			v = alub( V, VAL.from );
-			
-			for ( p = v.bit; v.bit < VAL.upto; alub_inc(&v) )
-			{
-				if ( *(v.ptr) & v.mask )
-				{	
-					(void)alur__shl( alu, CPY, tmp, v.bit - p );
-					ret = alur_add( alu, NUM, CPY );
-					p = v.bit;
-					
-					carry = (carry | (ret == EOVERFLOW));
-					caught = ((ret == EOVERFLOW) | (ret == ENODATA) | (ret == 0));
-					
-					if ( !caught )
-					{
-						alu_error( ret );
-						return ret;
-					}
-				}
-			}
-		
-			return carry ? EOVERFLOW : 0;
-		}
-		
-		alu_error( ret );
-		return ret;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -642,14 +598,14 @@ int_t alur__div( alu_t *alu, alur_t NUM, alur_t VAL, uint_t rem, uint_t tmp )
 				if ( ret == ENODATA )
 					break;
 				
-				alur__shl( alu, NUM, tmp, bits );
+				alur__shl( alu, NUM, bits );
 				*(n.ptr) |= n.mask;
 				bits = 0;
 			}
 		}
 		
 		if ( bits )
-			alur__shl( alu, NUM, tmp, bits );
+			alur__shl( alu, NUM, bits );
 		
 		if ( nNeg != vNeg )
 			alur_neg( alu, NUM );
@@ -703,6 +659,7 @@ int_t alur_rem
 	
 	if ( ret == 0 )
 	{
+		int tmpret;
 		alur_t REM;
 		
 		if ( NUM.info & ALU_INFO_FLOAT )
@@ -720,7 +677,7 @@ int_t alur_rem
 		switch ( ret )
 		{
 		case 0: case ENODATA: case EOVERFLOW:
-			int_t tmpret = ret;
+			tmpret = ret;
 			ret = alur_mov( alu, NUM, REM, nodes[1] );
 			if ( ret == 0 )
 				ret = tmpret;
@@ -789,7 +746,7 @@ int_t alur__rotate
 	, alur_t NUM
 	, alur_t VAL
 	, uint_t tmp
-	, func_alur__shift_t _shift
+	, func_alur__rotate_t _rotate
 )
 {
 	int_t ret;
@@ -834,11 +791,11 @@ int_t alur__rotate
 		if ( cmp < 0 )
 		{
 			alup_mov_int2int( _TMP, _VAL );
-			ret = _shift( alu, NUM, tmp, by );
+			ret = _rotate( alu, NUM, tmp, by );
 		}
 		else
 		{
-			ret = _shift( alu, NUM, tmp, -1 );
+			ret = _rotate( alu, NUM, tmp, -1 );
 		}
 		
 		return ret;

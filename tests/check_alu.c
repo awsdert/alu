@@ -103,39 +103,45 @@ func_alur_op1_t op1_reg = NULL, op1_reg_array[] =
 	, NULL
 };
 
-func_op3_str op3_str = NULL, op3_str_array[] =
+func_op3_str op3_str = NULL
+, op3_str_shift_array[] =
 {
 	op3_str_shl
 	, op3_str_shr
-	, op3_str_rol
+	, NULL
+}
+, op3_str_rotate_array[] =
+{
+	op3_str_rol
 	, op3_str_ror
 	, NULL
 };
 
-func_op3_ret op3_ret = NULL, op3_ret_array[] =
+func_op3_ret op3_ret = NULL
+, op3_ret_shift_array[] =
 {
 	op3_ret_shl
 	, op3_ret_shr
-	, op3_ret_rol
+	, NULL
+}
+, op3_ret_rotate_array[] =
+{
+	op3_ret_rol
 	, op3_ret_ror
 	, NULL
 };
 
-func_alur__shift_t op3__reg = NULL, op3__reg_array[] =
+func_alur__shift_t op3_reg_shift = NULL, op3_reg_shift_array[] =
 {
 	alur__shl
 	, alur__shr
-	, alur__rol
-	, alur__ror
 	, NULL
 };
 
-func_alur_shift_t op3_reg = NULL, op3_reg_array[] =
+func_alur__rotate_t op3_reg_rotate = NULL, op3_reg_rotate_array[] =
 {
-	alur__shift
-	, alur__shift
-	, alur__rotate
-	, alur__rotate
+	alur__rol
+	, alur__ror
 	, NULL
 };
 
@@ -313,7 +319,7 @@ START_TEST( test_alu_op1 )
 	uint_t num = alur_get_node( alu, 0 );
 	alur_t NUM;
 	uintmax_t
-		, op1_f = _i / ops_loop_until
+		op1_f = _i / ops_loop_until
 		, op1_n = _i % ops_loop_until
 		, got, got_n;
 	
@@ -353,7 +359,7 @@ START_TEST( test_alu_op1 )
 }
 END_TEST
 
-START_TEST( test_alu_op3 )
+START_TEST( test_alu_op3_shift )
 {
 	int ret;
 	uintmax_t
@@ -379,10 +385,9 @@ START_TEST( test_alu_op3 )
 	
 	NUM.upto = VAL.upto = bitsof(uintmax_t);
 	
-	op3_str = op3_str_array[op3_f];
-	op3_ret = op3_ret_array[op3_f];
-	op3_reg = op3_reg_array[op3_f];
-	op3__reg = op3__reg_array[op3_f];
+	op3_str = op3_str_shift_array[op3_f];
+	op3_ret = op3_ret_shift_array[op3_f];
+	op3_reg_shift = op3_reg_shift_array[op3_f];
 	
 	if ( op3_str )
 	{
@@ -394,7 +399,76 @@ START_TEST( test_alu_op3 )
 		alu_uint_set_raw( alu, val, op3_v );
 		alu_uint_get_raw( alu, val, &got_v );
 		
-		op3_reg( alu, NUM, VAL, tmp, op3__reg );
+		alur__shift( alu, NUM, VAL, op3_reg_shift );
+		alur_get_raw( alu, NUM, &got, sizeof(uintmax_t), 0 );
+		
+#if 0
+		if ( expect != got )
+		{
+			alur_print( "VAL", alu, VAL, 1, 1, 0 );
+		}
+#endif
+			
+		ck_assert_msg
+		(
+			expect == got
+			, "Expected %jX %s %jX = %jX, Got %jX %s %jX = %jX"
+			, op3_n
+			, op3_str()
+			, op3_v
+			, expect
+			, got_n
+			, op3_str()
+			, got_v
+			, got
+		);
+	}
+	
+	alur_rem_nodes( alu, nodes, REG_COUNT );
+}
+END_TEST
+
+START_TEST( test_alu_op3_rotate )
+{
+	int ret;
+	uintmax_t
+		op3_f = _i / ops_loop_until
+		, op3_v = _i % ops_loop_until
+		, got, got_n, got_v;
+	uint_t nodes[REG_COUNT] = {0}, num, val, tmp;
+	alur_t NUM, VAL;
+	
+	ret = alur_get_nodes( alu, nodes, REG_COUNT, 0 );
+	
+	num = nodes[0];
+	val = nodes[1];
+	tmp = nodes[2];
+	
+	ck_assert( ret == 0 );
+	ck_assert( num != 0 );
+	ck_assert( val != 0 );
+	ck_assert( tmp != 0 );
+	
+	alur_init_unsigned( alu, NUM, num );
+	alur_init_unsigned( alu, VAL, val );
+	
+	NUM.upto = VAL.upto = bitsof(uintmax_t);
+	
+	op3_str = op3_str_rotate_array[op3_f];
+	op3_ret = op3_ret_rotate_array[op3_f];
+	op3_reg_rotate = op3_reg_rotate_array[op3_f];
+	
+	if ( op3_str )
+	{
+		uintmax_t op3_n = 0xDEADC0DE, expect = op3_ret( op3_n, op3_v );
+		
+		alu_uint_set_raw( alu, num, op3_n );
+		alu_uint_get_raw( alu, num, &got_n );
+		
+		alu_uint_set_raw( alu, val, op3_v );
+		alu_uint_get_raw( alu, val, &got_v );
+		
+		alur__rotate( alu, NUM, VAL, tmp, op3_reg_rotate );
 		alur_get_raw( alu, NUM, &got, sizeof(uintmax_t), 0 );
 		
 #if 0
@@ -429,7 +503,7 @@ START_TEST( test_alu_op2 )
 	uint_t nodes[REG_COUNT] = {0}, num, val;
 	alur_t NUM, VAL;
 	uintmax_t
-		, op2_f = _i / ops_loop_until
+		op2_f = _i / ops_loop_until
 		, op2_v = _i % ops_loop_until
 		, got, got_n, got_v;
 	
@@ -1015,8 +1089,11 @@ Suite * alu_suite(void)
 	for ( f = 0; op2_str_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op2, 0, f * ops_loop_until );
 
-	for ( f = 0; op3_str_array[f]; ++f );
-	tcase_add_loop_test( tc_core, test_alu_op3, 0, f * ops_loop_until );
+	for ( f = 0; op3_str_shift_array[f]; ++f );
+	tcase_add_loop_test( tc_core, test_alu_op3_shift, 0, f * ops_loop_until );
+	
+	for ( f = 0; op3_str_rotate_array[f]; ++f );
+	tcase_add_loop_test( tc_core, test_alu_op3_rotate, 0, f * ops_loop_until );
 	
 	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
 	tcase_add_loop_test( tc_core, test_alur_add_floating, 0, DBL_MANT_DIG );

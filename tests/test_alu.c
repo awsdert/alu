@@ -14,9 +14,9 @@ int reg_compare(
 {
 	int ret = 0, cmp = 0, expect = 0;
 	uint_t nodes[2] = {0};
-	alu_reg_t NUM, VAL;
+	alur_t NUM, VAL;
 	
-	ret = alu_get_reg_nodes( alu, nodes, 2, 0 );
+	ret = alur_get_nodes( alu, nodes, 2, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -24,8 +24,8 @@ int reg_compare(
 		return ret;
 	}
 	
-	alu_reg_init_unsigned( alu, NUM, nodes[0] );
-	alu_reg_init_unsigned( alu, VAL, nodes[1] );
+	alur_init_unsigned( alu, NUM, nodes[0] );
+	alur_init_unsigned( alu, VAL, nodes[1] );
 	
 	NUM.info = info;
 	VAL.info = info;
@@ -38,7 +38,7 @@ int reg_compare(
 	expect = EITHER( _num > _val, 1, expect );
 	expect = EITHER( _num < _val, -1, expect );
 
-	cmp = alu_reg_cmp( alu, NUM, VAL );
+	cmp = alur_cmp( alu, NUM, VAL );
 	
 	if ( expect != cmp || print_anyways )
 	{
@@ -46,11 +46,11 @@ int reg_compare(
 			"0x%016zX vs 0x%016zX Expected %i, Got %i\n",
 			_num, _val, expect, cmp
 		);
-		alu_print_reg( alu, NUM, false, true );
-		alu_print_reg( alu, VAL, false, true );
+		alur_print( alu, NUM, false, true );
+		alur_print( alu, VAL, false, true );
 	}
 	
-	alu_rem_reg_nodes( alu, nodes, 2 );
+	alur_rem_nodes( alu, nodes, 2 );
 	
 	return ret;
 }
@@ -65,12 +65,12 @@ int modify(
 )
 {
 	int ret = 0;
-	uint_t nodes[3] = {0};
-	alu_reg_t NUM, VAL, TMP;
+	uint_t nodes[3] = {0}, tmp;
+	alur_t NUM, VAL;
 	intmax_t expect = 0;
 	char pfx[sizeof(size_t) * CHAR_BIT] = {0};
 	
-	ret = alu_get_reg_nodes( alu, nodes, 3, 0 );
+	ret = alur_get_nodes( alu, nodes, 3, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -78,9 +78,9 @@ int modify(
 		return ret;
 	}
 	
-	alu_reg_init_unsigned( alu, NUM, nodes[0] );
-	alu_reg_init_unsigned( alu, VAL, nodes[1] );
-	alu_reg_init_unsigned( alu, TMP, nodes[2] );
+	alur_init_unsigned( alu, NUM, nodes[0] );
+	alur_init_unsigned( alu, VAL, nodes[1] );
+	tmp = nodes[2];
 	
 	NUM.info = info;
 	VAL.info = info;
@@ -88,7 +88,7 @@ int modify(
 	alu_int_set_raw( alu, NUM.node, _num );
 	alu_int_set_raw( alu, VAL.node, _val );
 	
-	NUM.upto = VAL.upto = TMP.upto = bitsof(intmax_t);
+	NUM.upto = VAL.upto = bitsof(intmax_t);
 	
 	expect = _num;
 	switch ( op )
@@ -96,72 +96,72 @@ int modify(
 	case 'n':
 		sprintf( pfx, "-0x%016jX", (uintmax_t)_num );
 		expect = -expect;
-		ret = alu_reg_neg( alu, NUM );
+		ret = alur_neg( alu, NUM );
 		break;
 	case '~':
 		sprintf( pfx, "~0x%016jX", (uintmax_t)_num );
 		expect = ~expect;
-		ret = alu_reg_not( alu, NUM );
+		ret = alur_not( alu, NUM );
 		break;
 	case '&':
 		sprintf( pfx, "0x%016jX & 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect &= _val;
-		ret = alu_reg_and( alu, NUM, VAL );
+		ret = alur_and( alu, NUM, VAL );
 		break;
 	case '|':
 		sprintf( pfx, "0x%016jX | 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect |= _val;
-		ret = alu_reg__or( alu, NUM, VAL );
+		ret = alur__or( alu, NUM, VAL );
 		break;
 	case '^':
 		sprintf( pfx, "0x%016jX ^ 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect ^= _val;
-		ret = alu_reg_xor( alu, NUM, VAL );
+		ret = alur_xor( alu, NUM, VAL );
 		break;
 	case 'i':
 		sprintf( pfx, "0x%016jX++", (uintmax_t)_num );
 		expect++;
-		ret = alu_reg_inc( alu, NUM );
+		ret = alur_inc( alu, NUM );
 		break;
 	case 'd':
 		sprintf( pfx, "0x%016jX--", (uintmax_t)_num );
 		expect--;
-		ret = alu_reg_dec( alu, NUM );
+		ret = alur_dec( alu, NUM );
 		break;
 	case '+':
 		sprintf( pfx, "0x%016jX + 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect += _val;
-		ret = alu_reg_add( alu, NUM, VAL );
+		ret = alur_add( alu, NUM, VAL );
 		break;
 	case '-':
 		sprintf( pfx, "0x%016jX - 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect -= _val;
-		ret = alu_reg_sub( alu, NUM, VAL );
+		ret = alur_sub( alu, NUM, VAL );
 		break;
 	case 'l':
 		sprintf( pfx, "0x%016jX <<< 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect = unic_rol( expect, _val );
-		ret = alu_reg_rol( alu, NUM, VAL, TMP );
+		ret = alur_rol( alu, NUM, VAL, tmp );
 		break;
 	case '<':
 		sprintf( pfx, "0x%016jX << 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect <<= _val;
-		ret = alu_reg_shl( alu, NUM, VAL, TMP );
+		ret = alur_shl( alu, NUM, VAL );
 		break;
 	case 'r':
 		sprintf( pfx, "0x%016jX >>> 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect = unic_ror( expect, _val );
-		ret = alu_reg_ror( alu, NUM, VAL, TMP );
+		ret = alur_ror( alu, NUM, VAL, tmp );
 		break;
 	case '>':
 		sprintf( pfx, "0x%016jX >> 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect >>= _val;
-		ret = alu_reg_shr( alu, NUM, VAL, TMP );
+		ret = alur_shr( alu, NUM, VAL );
 		break;
 	case '*':
 		sprintf( pfx, "0x%016jX * 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		expect *= _val;
-		ret = alu_reg_mul( alu, NUM, VAL );
+		ret = alur_mul( alu, NUM, VAL );
 		break;
 	case '/':
 		sprintf( pfx, "0x%016jX / 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
@@ -169,13 +169,13 @@ int modify(
 			expect /= _val;
 		else
 			expect = 0;
-		ret = alu_reg_div( alu, NUM, VAL );
+		ret = alur_div( alu, NUM, VAL );
 		break;
 	case '%':
 		sprintf( pfx, "0x%016jX %% 0x%016jX", (uintmax_t)_num, (uintmax_t)_val );
 		if ( _val )
 			expect %= _val;
-		ret = alu_reg_rem( alu, NUM, VAL );
+		ret = alur_rem( alu, NUM, VAL );
 		break;
 	default: ret = ENOSYS;
 	}
@@ -197,13 +197,13 @@ int modify(
 			"%s, Expected 0x%016jX, Got 0x%016jX, op = '%c'\n",
 			pfx, expect, _num, op
 		);
-		alu_print_reg( alu, NUM, false, true );
-		alu_print_reg( alu, VAL, false, true );
+		alur_print( alu, NUM, false, true );
+		alur_print( alu, VAL, false, true );
 	}
 	
 	fail:
 	
-	alu_rem_reg_nodes( alu, nodes, 3 );
+	alur_rem_nodes( alu, nodes, 3 );
 	
 	return ret;
 }
@@ -437,13 +437,12 @@ int mathmatical(
 	size_t i;
 	uint_t info = ALU_INFO__SIGN;
 	intmax_t num = 0xDEADC0DE, val;
+	char inc_ops[] = "i+*";
 	
 	val = 0xBAD;
 	
 	if ( doInc )
-	{
-		char inc_ops[] = "i+*";
-		
+	{		
 		for ( i = 0; inc_ops[i]; ++i )
 		{
 			alu_printf( "Trying '%c", inc_ops[i] );
@@ -466,7 +465,7 @@ int mathmatical(
 			alu_printf( "Trying '%c, both positive", dec_ops[i] );
 			ret = modify( alu, num, val, info, print_anyways, dec_ops[i] );
 			
-			if ( ret != 0 )
+			if ( ret != 0 && ret != EOVERFLOW )
 			{
 				alu_error( ret );
 				return ret;
@@ -478,7 +477,7 @@ int mathmatical(
 			alu_printf( "Trying '%c, negative num", inc_ops[i] );
 			ret = modify( alu, -num, val, info, print_anyways, dec_ops[i] );
 			
-			if ( ret != 0 )
+			if ( ret != 0 && ret != EOVERFLOW )
 			{
 				alu_error( ret );
 				return ret;
@@ -490,7 +489,7 @@ int mathmatical(
 			alu_printf( "Trying '%c, both negative", inc_ops[i] );
 			ret = modify( alu, -num, -val, info, print_anyways, dec_ops[i] );
 			
-			if ( ret != 0 )
+			if ( ret != 0 && ret != EOVERFLOW )
 			{
 				alu_error( ret );
 				return ret;
@@ -502,7 +501,7 @@ int mathmatical(
 			alu_printf( "Trying '%c, val is 0", inc_ops[i] );
 			ret = modify( alu, num, 0, info, print_anyways, dec_ops[i] );
 			
-			if ( ret != 0 )
+			if ( ret != 0 && ret != EOVERFLOW )
 			{
 				alu_error( ret );
 				return ret;
@@ -513,7 +512,7 @@ int mathmatical(
 	return ret;
 }
 
-int func_rdChar32( char32_t *dst, alu_block_t *src, long *nextpos )
+int func_rdChar32( char32_t *dst, alum_t *src, long *nextpos )
 {
 	char *str = src->block;
 	if ( (size_t)(*nextpos) < src->taken )
@@ -526,12 +525,12 @@ int func_rdChar32( char32_t *dst, alu_block_t *src, long *nextpos )
 	return EOF;
 }
 
-int func_wrChar32( char32_t src, alu_block_t *dst )
+int func_wrChar32( char32_t src, alum_t *dst )
 {
 	char *str;
 	if ( dst->taken >= dst->given )
 	{
-		str = alu_block_expand( dst, dst->taken + 50 );
+		str = alum_expand( dst, dst->taken + 50 );
 		if ( !str )
 		{
 			int ret = dst->fault;
@@ -548,7 +547,7 @@ int func_wrChar32( char32_t src, alu_block_t *dst )
 	return 0;
 }
 
-void func_flipstr( alu_block_t *dst )
+void func_flipstr( alum_t *dst )
 {
 	char *str = dst->block;
 	size_t n, v;
@@ -571,14 +570,14 @@ int reg_print_value
 )
 {
 	int ret;
-	uint_t tmp = alu_get_reg_node( alu, 0 );
-	alu_reg_t _tmp = {0};
-	alu_block_t *__src = _src.src, *__dst = _dst.dst;
+	uint_t tmp = alur_get_node( alu, 0 );
+	alur_t _tmp = {0};
+	alum_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
 	if ( print_anyways )
 	{
-		alu_puts( "Testing alu_lit2reg() & alu_reg2str()" );
+		alu_puts( "Testing alu_lit2reg() & alur2str()" );
 		alu_puts( "-------------------------------------" );
 	}
 	
@@ -589,7 +588,7 @@ int reg_print_value
 		return ret;
 	}
 	
-	alu_reg_init_unsigned( alu, _tmp, tmp );
+	alur_init_unsigned( alu, _tmp, tmp );
 	
 	ret = alu_lit2reg( alu, _src, _tmp, base );
 	
@@ -609,7 +608,7 @@ int reg_print_value
 	
 	__dst->taken = 0;
 	(void)memset( __dst->block, 0, __dst->given );
-	ret = alu_reg2str( alu, _dst, _tmp, base );
+	ret = alur2str( alu, _dst, _tmp, base );
 	
 	if ( ret != 0 )
 		alu_error( ret );
@@ -619,7 +618,7 @@ int reg_print_value
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	fail:
-	alu_rem_reg_node( alu, &tmp );
+	alur_rem_node( alu, &tmp );
 	return ret;
 }
 
@@ -633,8 +632,8 @@ int uint_print_value
 )
 {
 	int ret;
-	alu_uint_t tmp = alu_get_reg_node( alu, 0 );
-	alu_block_t *__src = _src.src, *__dst = _dst.dst;
+	alu_uint_t tmp = alur_get_node( alu, 0 );
+	alum_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
 	if ( print_anyways )
@@ -669,7 +668,7 @@ int uint_print_value
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	fail:
-	alu_rem_reg_node( alu, &tmp );
+	alur_rem_node( alu, &tmp );
 	return ret;
 }
 
@@ -683,8 +682,8 @@ int int_print_value
 )
 {
 	int ret;
-	alu_int_t tmp = alu_get_reg_node( alu, 0 );
-	alu_block_t *__src = _src.src, *__dst = _dst.dst;
+	alu_int_t tmp = alur_get_node( alu, 0 );
+	alum_t *__src = _src.src, *__dst = _dst.dst;
 	char *src = __src->block, *dst = NULL;
 	
 	if ( print_anyways )
@@ -720,7 +719,7 @@ int int_print_value
 		(void)alu_printf( "Expected = '%s', Got = '%s'", src, dst );
 	
 	fail:
-	alu_rem_reg_node( alu, &tmp );
+	alur_rem_node( alu, &tmp );
 	return ret;
 }
 
@@ -823,7 +822,7 @@ int print_value( alu_t *alu, bool print_anyways )
 	alu_src_t _src = {NULL};
 	alu_dst_t _dst = {NULL};
 	alu_base_t base = {0};
-	alu_block_t __src = {0}, __dst = {0};
+	alum_t __src = {0}, __dst = {0};
 	char *src, *dst;
 	long nextpos;
 	
@@ -855,7 +854,7 @@ int print_value( alu_t *alu, bool print_anyways )
 		__src.block = src;
 		__src.given = __src.taken = strlen(src);
 		
-		dst = alu_block_expand( &__dst, __src.given * 2 );
+		dst = alum_expand( &__dst, __src.given * 2 );
 		if ( !dst )
 		{
 			ret = __dst.fault;
@@ -905,7 +904,7 @@ int print_value( alu_t *alu, bool print_anyways )
 		__src.block = src;
 		__src.given = __src.taken = strlen(src);
 		
-		dst = alu_block_expand( &__dst, __src.given * 2 );
+		dst = alum_expand( &__dst, __src.given * 2 );
 		
 		if ( !dst )
 		{
@@ -924,7 +923,7 @@ int print_value( alu_t *alu, bool print_anyways )
 	}
 	
 	fail:
-	alu_block_release( &__dst );
+	alum_release( &__dst );
 	return ret;
 }
 
@@ -941,7 +940,7 @@ int main()
 	//print_limits();
 
 	alu_printf( "Pre-allocating %u ALU registers...", preallocate );
-	ret = alu_setup_reg( alu, preallocate, 0 );
+	ret = alur_ensure( alu, preallocate, 0 );
 	
 	if ( ret != 0 )
 	{
@@ -962,7 +961,7 @@ int main()
 #if 1
 	ret = bitwise( alu, true, true, print_anyways );
 	
-	if ( ret != 0 )
+	if ( ret != 0 && ret != EOVERFLOW )
 	{
 		alu_error( ret );
 		goto fail;
@@ -998,7 +997,7 @@ int main()
 		
 	fail:
 	
-	(void)alu_vec_shrink( alu, 0, 0 );
+	(void)aluv_shrink( alu, 0, 0 );
 	(void)memset( alu, 0, sizeof(alu_t) );
 	
 	return (ret == 0) ? EXIT_SUCCESS : EXIT_FAILURE;

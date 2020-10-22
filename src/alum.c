@@ -14,6 +14,9 @@ void* alum( alum_t *mem, size_t want, int_t dir )
 	{
 		mem->fault = 0;
 		
+		want = EITHER( dir > 0, HIGHEST( mem->given, want ), want );
+		want = EITHER( dir < 0, LOWEST( mem->given, want ), want );
+		
 		if ( want )
 		{
 			size_t size, pagesize;
@@ -24,9 +27,6 @@ void* alum( alum_t *mem, size_t want, int_t dir )
 #else
 			pagesize = sysconf(_SC_PAGESIZE);
 #endif
-			
-			want = EITHER( dir > 0, HIGHEST( mem->given, want ), want );
-			want = EITHER( dir < 0, LOWEST( mem->given, want ), want );
 			
 			size = want % pagesize;
 			want /= pagesize;

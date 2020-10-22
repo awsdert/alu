@@ -690,7 +690,7 @@ int_t alu_lit2reg
 		
 		/* Setup bias for exponent */
 		alur_set_max( alu, BIAS );
-		alur__shr( alu, BIAS, nodes[ALU_LIT_TMP], 1 );
+		alur__shr( alu, BIAS, 1 );
 		
 		/* Set '0.1' */
 		alu_uint_set_raw( alu, ONE.node, _one );
@@ -845,7 +845,7 @@ int_t alu_lit2reg
 			(
 				alur_mov( alu, VAL, DST, nodes[ALU_LIT_TMP] )
 				; alur_cmp( alu, VAL, ONE ) > 0
-				; ++pos, alur__shr( alu, VAL, nodes[ALU_LIT_TMP], 1 )
+				; ++pos, alur__shr( alu, VAL, 1 )
 			);
 		}
 		else
@@ -854,7 +854,7 @@ int_t alu_lit2reg
 			(
 				alur_mov( alu, VAL, ONE, nodes[ALU_LIT_TMP] )
 				; alur_cmp( alu, VAL, DOT ) > 0
-				; --pos, alur__shr( alu, VAL, nodes[ALU_LIT_TMP], 1 )
+				; --pos, alur__shr( alu, VAL, 1 )
 			);
 			
 			if ( alur_cmp( alu, VAL, DOT ) == 0 )
@@ -873,13 +873,13 @@ int_t alu_lit2reg
 		{
 			pos -= man_dig;
 			alur_set_max( alu, DOT );
-			alur__shl( alu, DOT, nodes[ALU_LIT_TMP], pos );
+			alur__shl( alu, DOT, pos );
 			alur_not( alu, DOT );
 			alur_and( alu, DOT, DST );
-			alur__shl( alu, ONE, nodes[ALU_LIT_TMP], pos );
+			alur__shl( alu, ONE, pos );
 			alur_mov( alu, MAN, VAL, nodes[ALU_LIT_TMP] );
 			alur_mov( alu, VAL, ONE, nodes[ALU_LIT_TMP] );
-			alur__shr( alu, VAL, nodes[ALU_LIT_TMP], 1 );
+			alur__shr( alu, VAL, 1 );
 			
 			i = alur_cmp( alu, DOT, VAL );
 			
@@ -915,14 +915,14 @@ int_t alu_lit2reg
 				if ( alur_cmp( alu, VAL, ONE ) >= 0 )
 				{
 					(void)alur_sub( alu, VAL, ONE );
-					(void)alur__shl( alu, MAN, nodes[ALU_LIT_TMP], bits );
+					(void)alur__shl( alu, MAN, bits );
 					*(n.ptr) |= n.mask;
 					bits = 0;
 				}
 			}
 			
 			if ( bits )
-				(void)alur__shl( alu, MAN, nodes[ALU_LIT_TMP], bits );
+				(void)alur__shl( alu, MAN, bits );
 		}
 		
 		/* TODO: Continue referencing code made in mitsy to build fpn */
@@ -933,14 +933,14 @@ int_t alu_lit2reg
 		set_exp:
 		/* Align and append Exponent */
 		(void)alu_set_bounds( alu, &EXP, 0, -1 );
-		alur__shl( alu, EXP, nodes[ALU_LIT_TMP], man_dig );
+		alur__shl( alu, EXP, man_dig );
 		alur__or( alu, DST, EXP );
 		
 		set_sign:
 		if ( neg )
 		{
 			alu_uint_set_raw( alu, ONE.node, _one );
-			alur__shl( alu, ONE, nodes[ALU_LIT_TMP], exp_dig + man_dig );
+			alur__shl( alu, ONE, exp_dig + man_dig );
 			alur__or( alu, DST, ONE );
 		}
 	}

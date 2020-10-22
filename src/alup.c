@@ -335,16 +335,16 @@ int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC, void *_tmp )
 	/* Put in the assumed bit and move it to correct location */
 	d = alub( _DST.data, _DST.from );
 	*(d.ptr) |= d.mask;
-	(void)alup__shl( _DST, _tmp, sman_dig );
+	(void)alup__shl( _DST, sman_dig );
 	
 	/* Put in rest of mantissa */
 	(void)alup__or( _DST, _MAN );
 	
 	/* Align to correct position now that full integer is there */
 	if ( exp <= sman_dig )
-		return alup__shr( _DST, _tmp, sman_dig - exp );
+		return alup__shr( _DST, sman_dig - exp );
 	
-	(void)alup__shl( _DST, _tmp, exp );
+	(void)alup__shl( _DST, exp );
 	return 0;
 }
 
@@ -539,7 +539,7 @@ int_t alup_inc( alup_t _NUM )
 	return EITHER( is1, EOVERFLOW, 0 );
 }
 
-int_t alup_match_exponents( void *_num, void *_val, void *_tmp, size_t size )
+int_t alup_match_exponents( void *_num, void *_val, size_t size )
 {
 	int_t ret;
 	alup_t _NUM, _VAL, _DST, _MAN = {0};
@@ -572,7 +572,7 @@ int_t alup_match_exponents( void *_num, void *_val, void *_tmp, size_t size )
 		/* Match exponent and align mantissa */
 		(void)alup_set_exponent( _DST, exp );
 		
-		ret = alup__shr( _MAN, _tmp, diff );
+		ret = alup__shr( _MAN, diff );
 		
 		truncated = (ret == ERANGE);
 	
@@ -727,7 +727,7 @@ int_t alup__sub_int2int( alup_t _NUM, alup_t _VAL )
 	);
 }
 
-int_t alup__shl( alup_t _NUM, void* _tmp, size_t by )
+int_t alup__shl( alup_t _NUM, size_t by )
 {	
 	int_t ret = 0;
 	
@@ -743,49 +743,40 @@ int_t alup__shl( alup_t _NUM, void* _tmp, size_t by )
 			
 			alup_init_exponent( _NUM, _EXP );
 			alup_init_unsigned( _TMP, &by, sizeof(size_t) );
+			
 			return alup__add_int2int( _EXP, _TMP );
 		}
 		
 		diff = _NUM.upto - _NUM.from;
 		
 		if ( by >= diff )
-			return alup_mov_int2int( _NUM, _TMP );
+			return alup_set( _NUM, 0 );
 		else
 		{
-			alub_t n, v;
-			size_t size = (diff / UNIC_CHAR_BIT) + !!(diff % UNIC_CHAR_BIT);
-			
-			alup_init_unsigned( _TMP, _tmp, size );
-			
-			/* We have the ptr so might as well */
-			ret = alup_mov_int2int( _TMP, _NUM );
-			
-			if ( ret )
-			{
-				alu_error(ret);
-				return ret;
-			}
-			
-			n = alub( _NUM.data, _NUM.from );
-			v = alub( _tmp, 0 );
+			alub_t d = alub( _NUM.data, _NUM.upto ), s = d;
 			
 			while ( by )
 			{
 				--by;
+				alub_dec(&s);
 				
-				ret = EITHER( *(n.ptr) & n.mask, ERANGE, ret );
-				
-				*(n.ptr) &= ~(n.mask);
-				alub_inc(&n);
+				ret = IFTRUE( ret || *(s.ptr) & s.mask, ERANGE );
 			}
 			
-			while ( n.bit < _NUM.upto )
+			while ( s.bit > _NUM.from )
 			{
-				*(n.ptr) &= ~(n.mask);
-				*(n.ptr) |= IFTRUE( *(v.ptr) & v.mask, n.mask );
+				alub_dec(&s);
+				alub_dec(&d);
 				
-				alub_inc(&n);
-				alub_inc(&v);
+				*(d.ptr) &= ~(d.mask);
+				*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
+			}
+			
+			while ( d.bit > _NUM.from )
+			{
+				alub_dec(&d);
+				
+				*(d.ptr) &= ~(d.mask);
 			}
 		}
 	}
@@ -793,7 +784,7 @@ int_t alup__shl( alup_t _NUM, void* _tmp, size_t by )
 	return ret;
 }
 
-int_t alup__shr( alup_t _NUM, void *_tmp, size_t by )
+int_t alup__shr( alup_t _NUM, size_t by )
 {	
 	int_t ret = 0;
 	
@@ -813,49 +804,32 @@ int_t alup__shr( alup_t _NUM, void *_tmp, size_t by )
 		}
 		else
 		{
-			alub_t n, v;
 			bool_t neg = alup_below0( _NUM );
-			size_t diff = _NUM.upto - _NUM.from;
-			size_t size = (diff / UNIC_CHAR_BIT) + !!(diff % UNIC_CHAR_BIT);
-		
-			if ( by >= diff )
-			{
-				alup_set( _NUM, neg );
-				return 0;
-			}
-			
-			alup_init_unsigned( _TMP, _tmp, size );
-			
-			/* We have the ptr so might as well */
-			ret = alup_mov_int2int( _TMP, _NUM );
-			
-			if ( ret )
-			{
-				alu_error(ret);
-				return ret;
-			}
-			
-			n = alub( _NUM.data, _NUM.upto );
-			v = alub( _tmp, diff );
+			alub_t d = alub( _NUM.data, _NUM.from ), s = d;
 			
 			while ( by )
 			{
 				--by;
-				alub_dec(&n);
 				
-				ret = EITHER( *(n.ptr) & n.mask, ERANGE, ret );
+				ret = IFTRUE( ret || *(s.ptr) & s.mask, ERANGE );
 				
-				*(n.ptr) &= ~(n.mask);
-				*(n.ptr) |= IFTRUE( neg, n.mask );
+				alub_inc(&s);
+			}		
+			while ( s.bit < _NUM.upto )
+			{
+				*(d.ptr) &= ~(d.mask);
+				*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
+				
+				alub_inc(&s);
+				alub_inc(&d);
 			}
 			
-			while ( n.bit > _NUM.from )
-			{
-				alub_dec(&n);
-				alub_dec(&v);
+			while ( d.bit < _NUM.upto )
+			{	
+				*(d.ptr) &= ~(d.mask);
+				*(d.ptr) |= IFTRUE( neg, d.mask );
 				
-				*(n.ptr) &= ~(n.mask);
-				*(n.ptr) |= IFTRUE( *(v.ptr) & v.mask, n.mask );
+				alub_inc(&d);
 			}
 		}
 	}
@@ -1097,4 +1071,59 @@ int_t alup_xor( alup_t _NUM, alup_t _VAL )
 	}
 	
 	return alu_err_null_ptr("alu");
+}
+
+int_t alup__mul_int2int
+(
+	alup_t _NUM
+	, alup_t _VAL
+	, void *_cpy
+)
+{
+	int ret;
+	alup_t _CPY;
+	size_t
+		diff = _NUM.upto - _NUM.from
+		, size = (diff / UNIC_CHAR_BIT) + !!(diff % UNIC_CHAR_BIT)
+	;
+	
+	alup_init_unsigned( _CPY, _cpy, size );
+	_CPY.info = _NUM.info;
+	
+	ret = alup_mov_int2int( _CPY, _NUM );
+	
+	if ( ret == 0 )
+	{
+		bool carry = false, caught;
+		alub_t v;
+		size_t p;
+		
+		alup_set( _NUM, 0 );
+		
+		v = alub( _VAL.data, _VAL.from );
+		
+		for ( p = v.bit; v.bit < _VAL.upto; alub_inc(&v) )
+		{
+			if ( *(v.ptr) & v.mask )
+			{	
+				(void)alup__shl( _CPY, v.bit - p );
+				ret = alup__add_int2int( _NUM, _CPY );
+				p = v.bit;
+				
+				carry = (carry | (ret == EOVERFLOW));
+				caught = ((ret == EOVERFLOW) | (ret == ENODATA) | (ret == 0));
+				
+				if ( !caught )
+				{
+					alu_error( ret );
+					return ret;
+				}
+			}
+		}
+	
+		return carry ? EOVERFLOW : 0;
+	}
+	
+	alu_error( ret );
+	return ret;
 }

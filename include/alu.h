@@ -210,8 +210,7 @@ int_t alu__shift
 	, uint_t num
 	, uint_t val
 	, uint_t tmp
-	, func_alur__shift_t _shift
-	, func_alur_shift_t shift
+	, func_alur__rotate_t _rotate
 );
 
 int_t alu___shift
@@ -341,21 +340,19 @@ int_t alu_int_get_raw( alu_t *alu, alu_int_t num, intmax_t *val );
 #define alu__int_op4( alu, num, val, reg, tmp, op4 ) \
 	alu__op4( alu, num, val, reg, tmp, 0, op4 )
 
-int_t alu_int__shift
+int_t alu_int__rotate
 (
 	alu_t *alu
 	, alu_int_t num
 	, alu_int_t val
 	, alu_int_t tmp
-	, func_alur__shift_t _shift
-	, func_alur_shift_t shift
+	, func_alur__rotate_t _rotate
 );
 
-int_t alu_int___shift
+int_t alu_int__shift
 (
 	alu_t *alu
 	, alu_int_t num
-	, alu_int_t tmp
 	, size_t bits
 	, func_alur__shift_t _shift
 );

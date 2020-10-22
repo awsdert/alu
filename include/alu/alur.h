@@ -156,8 +156,8 @@ int_t alur_mov_flt2flt( alu_t *alu, alur_t DST, alur_t SRC );
 int_t alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC, uint_t tmp );
 int_t alur_mov( alu_t *alu, alur_t DST, alur_t SRC, uint_t tmp );
 
-int_t alur__shl( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
-int_t alur__shr( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
+int_t alur__shl( alu_t *alu, alur_t NUM, size_t by );
+int_t alur__shr( alu_t *alu, alur_t NUM, size_t by );
 int_t alur__rol( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
 int_t alur__ror( alu_t *alu, alur_t NUM, uint_t tmp, size_t by );
 
@@ -206,17 +206,7 @@ typedef int_t (*func_alur__shift_t)
 (
 	alu_t* alu
 	, alur_t NUM
-	, uint_t tmp
 	, size_t bits
-);
-
-typedef int_t (*func_alur_shift_t)
-(
-	alu_t* alu
-	, alur_t NUM
-	, alur_t VAL
-	, uint_t tmp
-	, func_alur__shift_t _shift
 );
 
 int_t alur__shift
@@ -224,22 +214,30 @@ int_t alur__shift
 	alu_t *alu
 	, alur_t NUM
 	, alur_t VAL
-	, uint_t tmp
 	, func_alur__shift_t _shift
 );
+
+typedef int_t (*func_alur__rotate_t)
+(
+	alu_t* alu
+	, alur_t NUM
+	, uint_t tmp
+	, size_t bits
+);
+
 int_t alur__rotate
 (
 	alu_t *alu
 	, alur_t NUM
 	, alur_t VAL
 	, uint_t tmp
-	, func_alur__shift_t _shift
+	, func_alur__rotate_t _rotate
 );
 
-# define alur_shl( ALU, NUM, VAL, TMP ) \
-	alur__shift( ALU, NUM, VAL, TMP, alur__shl )
-# define alur_shr( ALU, NUM, VAL, TMP ) \
-	alur__shift( ALU, NUM, VAL, TMP, alur__shr )
+# define alur_shl( ALU, NUM, VAL ) \
+	alur__shift( ALU, NUM, VAL, alur__shl )
+# define alur_shr( ALU, NUM, VAL ) \
+	alur__shift( ALU, NUM, VAL, alur__shr )
 # define alur_rol( ALU, NUM, VAL, TMP ) \
 	alur__rotate( ALU, NUM, VAL, TMP, alur__rol )
 # define alur_ror( ALU, NUM, VAL, TMP ) \
