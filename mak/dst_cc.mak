@@ -45,7 +45,7 @@ PFL_SFX:=_p
 endif
 
 ifeq '$(filter debug,$(PRJ_GOALS))' 'debug'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
@@ -55,7 +55,7 @@ PFL_SFX:=
 endif
 
 ifneq '$(GOALS4GEDE)' ''
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
@@ -65,7 +65,7 @@ PFL_SFX:=
 endif
 
 ifneq '$(GOALS4VALGRIND)' ''
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling
@@ -75,7 +75,7 @@ PFL_SFX:=
 endif
 
 ifeq '$(filter check,$(PRJ_GOALS))' 'check'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0 $(F_santize-address)
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
 # Debugging takes precedence over profiling

@@ -650,14 +650,49 @@ int_t alup__add_int2int( alup_t _NUM, alup_t _VAL )
 	);
 }
 
-int_t alup__add( alup_t _NUM, alup_t _VAL, void *_tmp1, void *_tmp2, void *_tmp3 )
-{	
+int_t alup__add( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
+{
+	int ret;
+	
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
-		/* Don't yet have a way to do this with just 2 temporary variables */
-		int_t ret = ENOSYS;
-		alu_error(ret);
-		return ret;
+		alup_t _CPY, _TMP, _CMAN, _TMAN;
+		size_t exp, cexp, texp;
+		size_t
+			bits = HIGHEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from )
+			, size = (bits / UNIC_CHAR_BIT) + !!(bits % UNIC_CHAR_BIT);
+		bool_t truncated = false;
+		
+		alup_init_floating( _CPY, _cpy, size );
+		alup_init_floating( _TMP, _tmp, size );
+		
+		alup_init_mantissa( _CPY, _CMAN );
+		alup_init_mantissa( _TMP, _TMAN );
+		
+		alup_mov( _CPY, _NUM );
+		alup_mov( _TMP, _VAL );
+		
+		cexp = alup_get_exponent( _CPY );
+		texp = alup_get_exponent( _TMP );
+		
+		ret = alup_match_exponents( _CPY.data, _TMP.data, size );
+		
+		truncated = (ret == ERANGE);
+		
+		exp = alup_get_exponent( _CPY );
+		
+		ret = alup__add_int2int( _CMAN, _TMAN );
+		
+		if ( cexp || texp )
+		{
+			if ( cexp == texp || ret == EOVERFLOW ) ++exp;
+		}
+		
+		(void)alup_set_exponent( _CPY, exp );
+		
+		ret = alup_mov( _NUM, _CPY );
+		
+		return IFTRUE( truncated || ret == ERANGE, ERANGE );
 	}
 	
 	return alup__add_int2int( _NUM, _VAL );
@@ -725,6 +760,54 @@ int_t alup__sub_int2int( alup_t _NUM, alup_t _VAL )
 			, ENODATA
 		)
 	);
+}
+
+int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
+{
+	int ret;
+	
+	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
+	{
+		alup_t _CPY, _TMP, _CMAN, _TMAN;
+		size_t exp, cexp, texp;
+		size_t
+			bits = HIGHEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from )
+			, size = (bits / UNIC_CHAR_BIT) + !!(bits % UNIC_CHAR_BIT);
+		bool_t truncated = false;
+		
+		alup_init_floating( _CPY, _cpy, size );
+		alup_init_floating( _TMP, _tmp, size );
+		
+		alup_init_mantissa( _CPY, _CMAN );
+		alup_init_mantissa( _TMP, _TMAN );
+		
+		alup_mov( _CPY, _NUM );
+		alup_mov( _TMP, _VAL );
+		
+		cexp = alup_get_exponent( _CPY );
+		texp = alup_get_exponent( _TMP );
+		
+		ret = alup_match_exponents( _CPY.data, _TMP.data, size );
+		
+		truncated = (ret == ERANGE);
+		
+		exp = alup_get_exponent( _CPY );
+		
+		ret = alup__sub_int2int( _CMAN, _TMAN );
+		
+		if ( cexp || texp )
+		{
+			if ( ret == EOVERFLOW && cexp > texp ) --exp;
+		}
+		
+		(void)alup_set_exponent( _CPY, exp );
+		
+		ret = alup_mov( _NUM, _CPY );
+		
+		return IFTRUE( truncated || ret == ERANGE, ERANGE );
+	}
+	
+	return alup__sub_int2int( _NUM, _VAL );
 }
 
 int_t alup__shl( alup_t _NUM, size_t by )

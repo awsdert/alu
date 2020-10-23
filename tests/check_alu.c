@@ -1056,6 +1056,83 @@ START_TEST( test_alur_add_floating )
 }
 END_TEST
 
+START_TEST( test_alur_sub_floating )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	uint_t nodes[2], num, val;
+	ullong_t _num = _i, _val = 1;
+	int ret = alur_get_nodes( alu, nodes, 2, 0 );
+	double src_num = _num, src_val = _val, got_num, got_val;
+	alur_t NUM, VAL;
+	void *N, *V;
+	
+	ck_assert( ret == 0 );
+	
+	num = nodes[0];
+	val = nodes[1];
+	
+	alur_init_floating( alu, NUM, num );
+	alur_init_floating( alu, VAL, val );
+	
+	NUM.upto = VAL.upto = bitsof(double);
+	
+	/* Set values */
+	
+	ret = alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+	ck_assert( ret == 0 );
+	
+	ret = alur_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
+	ck_assert( ret == 0 );
+	
+	/* Get values */
+	
+	ret = alur_get_raw( alu, NUM, &got_num, sizeof(double), ALU_INFO_FLOAT );
+	ck_assert( ret == 0 );
+	
+	ret = alur_get_raw( alu, VAL, &got_val, sizeof(double), ALU_INFO_FLOAT );
+	ck_assert( ret == 0 );
+	
+	N = alur_data( alu, NUM );
+	V = alur_data( alu, VAL );
+	
+	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
+	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
+	
+	src_num -= src_val;
+	(void)alur_sub( alu, NUM, VAL );
+	
+	N = alur_data( alu, NUM );
+	
+	if ( memcmp( N, &src_num, sizeof(double) ) != 0 )
+	{
+		alur_t EXP, MAN;
+		
+		alur_init_exponent( NUM, EXP );
+		alur_init_mantissa( NUM, MAN );
+		
+		alu_printf
+		(
+			"_num = %llu, _val = %llu, "
+			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
+			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
+			, _num
+			, _val
+			, EXP.upto, EXP.from, EXP.upto - EXP.from
+			, MAN.upto, MAN.from, MAN.upto - MAN.from
+		);
+		
+		alur_print( alu, NUM, 0, 1 );
+		(void)alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
+		alur_print( alu, NUM, 0, 1 );
+		
+		ck_assert( 1 == 0 );
+	}
+	
+	alur_rem_nodes( alu, nodes, 2 );
+}
+END_TEST
+
 /* Modified copy & paste of code given in check's guide */
 Suite * alu_suite(void)
 {
@@ -1097,6 +1174,7 @@ Suite * alu_suite(void)
 	
 	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
 	tcase_add_loop_test( tc_core, test_alur_add_floating, 0, DBL_MANT_DIG );
+	tcase_add_loop_test( tc_core, test_alur_sub_floating, 0, DBL_MANT_DIG );
 	
 	tcase_add_test( tc_core, test_alur2str );
 	tcase_add_test( tc_core, test_aluv_release );

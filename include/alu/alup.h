@@ -122,10 +122,10 @@ int_t	alup_dec( alup_t _NUM );
 int_t	alup_match_exponents( void *_num, void *_val, size_t size );
 
 int_t	alup__add_int2int( alup_t _NUM, alup_t _VAL );
-int_t	alup__add( alup_t NUM, alup_t VAL, void *_tmp1, void *_tmp2, void *_tmp3 );
+int_t	alup__add( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
 
 int_t	alup__sub_int2int( alup_t _NUM, alup_t _VAL );
-int_t	alup__sub( alup_t NUM, alup_t VAL, void *_tmp1, void *_tmp2, void *_tmp3 );
+int_t	alup__sub( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
 
 int_t	alup__mul_int2int( alup_t NUM, alup_t VAL, void *_cpy );
 int_t	alup__mul( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );

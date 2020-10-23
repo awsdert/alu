@@ -299,49 +299,7 @@ int_t alur__add(
 		alup_init_register( alu, _NUM, NUM );
 		alup_init_register( alu, _VAL, VAL );
 		
-		if ( alur_floating( NUM ) || alur_floating( VAL ) )
-		{
-			alup_t _CPY, _TMP, _CMAN, _TMAN;
-			size_t exp, cexp, texp;
-			bool_t truncated = false;
-			
-			alup_init_floating( _CPY, alu_data(alu, cpy), alu_Nsize(alu) );
-			alup_init_floating( _TMP, alu_data(alu, tmp), alu_Nsize(alu) );
-			
-			alup_init_mantissa( _CPY, _CMAN );
-			alup_init_mantissa( _TMP, _TMAN );
-			
-			alup_mov( _CPY, _NUM );
-			alup_mov( _TMP, _VAL );
-			
-			cexp = alup_get_exponent( _CPY );
-			texp = alup_get_exponent( _TMP );
-			
-			ret = alup_match_exponents
-			(
-				_CPY.data
-				, _TMP.data
-				, alu_Nsize(alu)
-			);
-			
-			truncated = (ret == ERANGE);
-			
-			exp = alup_get_exponent( _CPY );
-			
-			ret = alup__add_int2int( _CMAN, _TMAN );
-			
-			if ( cexp || texp )
-			{
-				if ( (cexp == texp) || ret == EOVERFLOW ) ++exp;
-			}
-			
-			(void)alup_set_exponent( _CPY, exp );
-			
-			ret = alup_mov( _NUM, _CPY );
-			
-			return IFTRUE( truncated || ret == ERANGE, ERANGE );
-		}
-		return alup__add_int2int( _NUM, _VAL );
+		return alup__add( _NUM, _VAL, alu_data(alu,cpy), alu_data(alu,tmp) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -379,9 +337,8 @@ int_t alur_add(
 	return ret;
 }
 
-
-int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL )
-{	
+int_t alur__sub( alu_t *alu, alur_t NUM, alur_t VAL, uint_t cpy, uint_t tmp )
+{
 	if ( alu )
 	{
 		alup_t _NUM, _VAL;
@@ -389,10 +346,28 @@ int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL )
 		alup_init_register( alu, _NUM, NUM );
 		alup_init_register( alu, _VAL, VAL );
 		
-		return alup__sub_int2int( _NUM, _VAL );
+		return alup__sub( _NUM, _VAL, alu_data(alu, cpy), alu_data(alu, tmp) );
 	}
 	
 	return alu_err_null_ptr("alu");
+}
+
+int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL )
+{	
+	uint_t nodes[2];
+	int_t ret = alur_get_nodes( alu, nodes, 2, 0 );
+	
+	if ( ret == 0 )
+	{	
+		ret = alur__sub( alu, NUM, VAL, nodes[0], nodes[2] );
+		
+		alur_rem_nodes( alu, nodes, 2 );
+		
+		return ret;
+	}
+	
+	alu_error(ret);
+	return ret;
 }
 
 int_t alur__shl( alu_t *alu, alur_t NUM, size_t by )
