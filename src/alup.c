@@ -685,7 +685,17 @@ int_t alup__add( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		if ( cexp || texp )
 		{
-			if ( cexp == texp || ret == EOVERFLOW ) ++exp;
+			if ( ret == EOVERFLOW || cexp == texp )
+			{
+				size_t both = 1 + (ret == EOVERFLOW && cexp == texp);
+				alub_t c = alub( _CMAN.data, _CMAN.upto - 1 );
+				
+				++exp;
+				alup__shr( _CMAN, 1 );
+				
+				*(c.ptr) &= ~(c.mask);
+				*(c.ptr) |= IFTRUE( both == 2, c.mask );
+			}
 		}
 		
 		(void)alup_set_exponent( _CPY, exp );
@@ -797,7 +807,17 @@ int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		if ( cexp || texp )
 		{
-			if ( ret == EOVERFLOW && cexp > texp ) --exp;
+			if ( ret == EOVERFLOW && cexp > texp )
+			{	
+				//size_t both = 1 + (ret == EOVERFLOW && cexp == texp);
+				//alub_t c = alub( _CMAN.data, _CMAN.upto - 1 );
+				
+				--exp;
+				//alup__shl( _CMAN, 1 );
+				
+				//*(c.ptr) &= ~(c.mask);
+				//*(c.ptr) |= IFTRUE( both == 2, c.mask );
+			}
 		}
 		
 		(void)alup_set_exponent( _CPY, exp );
