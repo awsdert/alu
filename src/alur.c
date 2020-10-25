@@ -359,7 +359,7 @@ int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL )
 	
 	if ( ret == 0 )
 	{	
-		ret = alur__sub( alu, NUM, VAL, nodes[0], nodes[2] );
+		ret = alur__sub( alu, NUM, VAL, nodes[0], nodes[1] );
 		
 		alur_rem_nodes( alu, nodes, 2 );
 		

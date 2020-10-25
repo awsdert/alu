@@ -1156,6 +1156,63 @@ START_TEST( test_alur_add_floating_randomized )
 }
 END_TEST
 
+START_TEST( test_alup_sub_floating )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	ullong_t _num = _i, _val = 1;
+	double
+		src_num = _num
+		, src_val = _val
+		, got_num = _num
+		, got_val = _val
+		, tmp_num
+		, tmp_val;
+	alup_t _NUM, _VAL;
+	
+	alup_init_floating( _NUM, &got_num, sizeof(double) );
+	alup_init_floating( _VAL, &got_val, sizeof(double) );
+	
+	src_num -= src_val;
+	(void)alup__sub( _NUM, _VAL, &tmp_num, &tmp_val );
+	
+	if ( memcmp( &got_num, &src_num, sizeof(double) ) != 0 )
+	{
+		alup_t _EXP, _MAN;
+		
+		alup_init_exponent( _NUM, _EXP );
+		alup_init_mantissa( _NUM, _MAN );
+		
+		alu_printf
+		(
+			"_num = %llu, _val = %llu, "
+			"(_EXP.upto = %zu) - (_EXP.from = %zu) = %zu, "
+			"(_MAN.upto = %zu) - (_MAN.from = %zu) = %zu"
+			, _num
+			, _val
+			, _EXP.upto, _EXP.from, _EXP.upto - _EXP.from
+			, _MAN.upto, _MAN.from, _MAN.upto - _MAN.from
+		);
+		
+		alup_print( _NUM, 0, 1 );
+		got_num = src_num;
+		alup_print( _NUM, 0, 1 );
+		
+		got_num = _num;
+		
+		alup_print( _VAL, 0, 1 );
+		alup_print( _NUM, 0, 1 );
+		
+		alup_match_exponents( _NUM.data, _VAL.data, sizeof(double) );
+		
+		alup_print( _VAL, 0, 1 );
+		alup_print( _NUM, 0, 1 );
+		
+		ck_assert( 1 == 0 );
+	}
+}
+END_TEST
+
 START_TEST( test_alur_sub_floating )
 {
 	ck_assert( alu_upto(alu) > 0 );
@@ -1290,7 +1347,8 @@ Suite * alu_suite(void)
 	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
 	tcase_add_loop_test( tc_core, test_alur_add_floating, 0, DBL_MANT_DIG );
 	tcase_add_loop_test( tc_core, test_alur_add_floating_randomized, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alur_sub_floating, 0, DBL_MANT_DIG );
+	tcase_add_loop_test( tc_core, test_alup_sub_floating, 0, DBL_MANT_DIG );
+	//tcase_add_loop_test( tc_core, test_alur_sub_floating, 0, DBL_MANT_DIG );
 	
 	tcase_add_test( tc_core, test_alur2str );
 	tcase_add_test( tc_core, test_aluv_release );
