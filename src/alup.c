@@ -807,17 +807,39 @@ int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		if ( cexp || texp )
 		{
-			if ( ret == EOVERFLOW && cexp > texp )
+			size_t bias = alup_get_exponent_bias( _CPY );
+			
+			if ( ret == EOVERFLOW || cexp == texp )
 			{	
 				//size_t both = 1 + (ret == EOVERFLOW && cexp == texp);
 				//alub_t c = alub( _CMAN.data, _CMAN.upto - 1 );
 				
 				--exp;
-				//alup__shl( _CMAN, 1 );
+				alup__shl( _CMAN, 1 );
 				
 				//*(c.ptr) &= ~(c.mask);
 				//*(c.ptr) |= IFTRUE( both == 2, c.mask );
 			}
+			
+			if ( cexp == texp )
+			{
+				alup_set( _TMP, 0 );
+				
+				_TMP.info = 0;
+				
+				if ( alup_cmp_int2int( _CMAN, _TMP ) == 0 )
+				{
+					if ( ret != EOVERFLOW )
+						exp  = 0;
+				}
+			}
+			
+			alub_set
+			(
+				_CPY.data
+				, _CPY.upto - 1
+				, (cexp >= bias && cexp < texp) || (!cexp && texp >= bias)
+			);
 		}
 		
 		(void)alup_set_exponent( _CPY, exp );
