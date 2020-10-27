@@ -108,8 +108,12 @@ int_t	alup_cmp( alup_t _NUM, alup_t _VAL );
 
 int_t	alup__shl( alup_t _NUM, size_t by );
 int_t	alup__shr( alup_t _NUM, size_t by );
+int_t	alup__rol_int2int( alup_t _NUM, size_t by );
 int_t	alup__rol( alup_t _NUM, void *_tmp, size_t by );
+int_t	alup__ror_int2int( alup_t _NUM, size_t by );
 int_t	alup__ror( alup_t _NUM, void *_tmp, size_t by );
+
+int_t	alup_rol( alup_t NUM, alup_t VAL, void *_tmp );
 
 int_t	alup_not( alup_t _NUM );
 int_t	alup_and( alup_t NUM, alup_t VAL );
@@ -129,6 +133,7 @@ int_t	alup__sub( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
 
 int_t	alup__mul_int2int( alup_t NUM, alup_t VAL, void *_cpy );
 int_t	alup__mul( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
+int_t	alup__div_int2int( alup_t NUM, alup_t VAL, void *_cpy );
 int_t	alup__div( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
 
 #endif

@@ -56,9 +56,17 @@ uintmax_t op3_ret_shl( uintmax_t a, uintmax_t b ) { return a << b; }
 const char* op3_str_shr() { return ">>"; }
 uintmax_t op3_ret_shr( uintmax_t a, uintmax_t b ) { return a >> b; }
 const char* op3_str_rol() { return "<<<"; }
-uintmax_t op3_ret_rol( uintmax_t a, uintmax_t b ) { return unic_rol( a, b ); }
+uintmax_t op3_ret_rol( uintmax_t a, uintmax_t b )
+{
+	b %= bitsof(uintmax_t);
+	return unic_rol( a, b );
+}
 const char* op3_str_ror() { return ">>>"; }
-uintmax_t op3_ret_ror( uintmax_t a, uintmax_t b ) { return unic_ror( a, b ); }
+uintmax_t op3_ret_ror( uintmax_t a, uintmax_t b )
+{
+	b %= bitsof(uintmax_t);
+	return unic_ror( a, b );
+}
 
 const char* op2_str_add() { return "+"; }
 uintmax_t op2_ret_add( uintmax_t a, uintmax_t b ) { return a + b; }
@@ -426,6 +434,65 @@ START_TEST( test_alu_op3_shift )
 	}
 	
 	alur_rem_nodes( alu, nodes, REG_COUNT );
+}
+END_TEST
+
+START_TEST( test_alup__rol_int2int )
+{
+	ushort_t src_num = 0xC0DE, src_val = _i
+		, dst_num = src_num, dst_val = src_val % bitsof(ushort_t)
+		, got_num = src_num, got_val = src_val;
+	alup_t _GOT_NUM;
+	
+	alup_init_unsigned( _GOT_NUM, &got_num, sizeof(ushort_t) );
+	
+	dst_num = unic_rol( dst_num, dst_val );
+	alup__rol_int2int( _GOT_NUM, got_val );
+	
+	if ( got_num != dst_num )
+	{
+		alup_t _DST_NUM, _SRC_NUM;
+		
+		alup_init_unsigned( _SRC_NUM, &src_num, sizeof(ushort_t) );
+		alup_init_unsigned( _DST_NUM, &dst_num, sizeof(ushort_t) );
+		
+		alu_printf( "src_val = %u", src_val );
+		alup_print( _SRC_NUM, 0, 1 );
+		alup_print( _DST_NUM, 0, 1 );
+		alup_print( _GOT_NUM, 0, 1 );
+	}
+	
+	ck_assert( got_num == dst_num );
+}
+END_TEST
+
+START_TEST( test_alup__ror_int2int )
+{
+	ushort_t src_num = 0xC0DE
+		, val = _i  % bitsof(ushort_t)
+		, dst_num = src_num
+		, got_num = src_num;
+	alup_t _GOT_NUM;
+	
+	alup_init_unsigned( _GOT_NUM, &got_num, sizeof(ushort_t) );
+	
+	dst_num = unic_ror( dst_num, val );
+	alup__ror_int2int( _GOT_NUM, _i );
+	
+	if ( got_num != dst_num )
+	{
+		alup_t _DST_NUM, _SRC_NUM;
+		
+		alup_init_unsigned( _SRC_NUM, &src_num, sizeof(ushort_t) );
+		alup_init_unsigned( _DST_NUM, &dst_num, sizeof(ushort_t) );
+		
+		alu_printf( "_i = %u", _i );
+		alup_print( _SRC_NUM, 0, 1 );
+		alup_print( _DST_NUM, 0, 1 );
+		alup_print( _GOT_NUM, 0, 1 );
+	}
+	
+	ck_assert( got_num == dst_num );
 }
 END_TEST
 
@@ -1343,6 +1410,8 @@ Suite * alu_suite(void)
 	
 	for ( f = 0; op3_str_rotate_array[f]; ++f );
 	tcase_add_loop_test( tc_core, test_alu_op3_rotate, 0, f * ops_loop_until );
+	tcase_add_loop_test( tc_core, test_alup__rol_int2int, 1, bitsof(ushort_t)-1 );
+	tcase_add_loop_test( tc_core, test_alup__ror_int2int, 1, bitsof(ushort_t)-1 );
 	
 	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
 	tcase_add_loop_test( tc_core, test_alur_add_floating, 0, DBL_MANT_DIG );

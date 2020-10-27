@@ -33,6 +33,8 @@
  * also use | to use result in same value in the case A == B */
 # define LOWEST( A, B )  ( ((A) * ((A) <= (B))) | ((B) * ((B) <= (A))) )
 # define HIGHEST( A, B ) ( ((A) * ((A) >= (B))) | ((B) * ((B) >= (A))) )
+# define BITS2SIZE( BITS ) \
+	(((BITS) / UNIC_CHAR_BIT) + !!((BITS) % UNIC_CHAR_BIT))
 
 #define IFTRUE( CMP, VAL ) ( !!(CMP) * (VAL) )
 
