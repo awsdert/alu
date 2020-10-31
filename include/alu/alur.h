@@ -105,14 +105,13 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 #define alu_Nsize( alu ) ((alu)->Nsize)
 #define alu_Nbits( alu ) (alu_Nsize(alu) * CHAR_BIT)
 #define alu_nodes( alu ) ((uchar_t*)((alu)->block.block))
-#define alu_node( alu, node ) (alu_nodes(alu) + ((node) * alu_Nsize(alu)))
-#define alu_data( alu, node ) ((void*)(alu_node( alu, node )))
-#define alu_valid( alu ) alu_data( alu, 0 )
+#define alu_Ndata( alu, node ) (alu_nodes(alu) + ((node) * alu_Nsize(alu)))
+#define alu_valid( alu ) alu_Ndata( alu, 0 )
 #define alu_upto( alu ) ((alu)->given)
 #define alu_used( alu ) ((alu)->taken)
 #define alu_errno( alu ) ((alu)->block.fault)
 
-#define alur_data( alu, alur ) alu_data( alu, (alur).node )
+#define alur_data( alu, alur ) alu_Ndata( alu, (alur).node )
 
 #define alu_get_active( alu, reg ) alub_get( (void*)alu_valid(alu), reg )
 #define alu_clr_active( alu, reg ) alub_set( (void*)alu_valid(alu), reg, 0 )

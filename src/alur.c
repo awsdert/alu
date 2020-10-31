@@ -249,8 +249,8 @@ int_t alur_match_exponents( alu_t *alu, uint_t num, uint_t val )
 	{		
 		alu->block.fault = alup_match_exponents
 		(
-			alu_data( alu, num )
-			, alu_data( alu, val )
+			alu_Ndata( alu, num )
+			, alu_Ndata( alu, val )
 			, alu_Nsize( alu )
 		);
 		
@@ -299,7 +299,7 @@ int_t alur__add(
 		alup_init_register( alu, _NUM, NUM );
 		alup_init_register( alu, _VAL, VAL );
 		
-		return alup__add( _NUM, _VAL, alu_data(alu,cpy), alu_data(alu,tmp) );
+		return alup__add( _NUM, _VAL, alu_Ndata(alu,cpy), alu_Ndata(alu,tmp) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -346,7 +346,7 @@ int_t alur__sub( alu_t *alu, alur_t NUM, alur_t VAL, uint_t cpy, uint_t tmp )
 		alup_init_register( alu, _NUM, NUM );
 		alup_init_register( alu, _VAL, VAL );
 		
-		return alup__sub( _NUM, _VAL, alu_data(alu, cpy), alu_data(alu, tmp) );
+		return alup__sub( _NUM, _VAL, alu_Ndata(alu, cpy), alu_Ndata(alu, tmp) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -483,8 +483,8 @@ int_t alur__mul
 			/* Not yet supported */
 			alup_t _CPY, _TMP;
 			
-			alup_init_floating( _CPY, alu_data( alu, cpy ), alu_Nsize( alu ) );
-			alup_init_floating( _TMP, alu_data( alu, tmp ), alu_Nsize( alu ) );
+			alup_init_floating( _CPY, alu_Ndata( alu, cpy ), alu_Nsize( alu ) );
+			alup_init_floating( _TMP, alu_Ndata( alu, tmp ), alu_Nsize( alu ) );
 			
 			if ( alur_floating(NUM) )
 				alup_mov_flt2flt( _CPY, _NUM );
@@ -500,7 +500,7 @@ int_t alur__mul
 		}
 		else
 		{
-			return alup__mul_int2int( _NUM, _VAL, alu_data( alu, cpy ) );
+			return alup__mul_int2int( _NUM, _VAL, alu_Ndata( alu, cpy ) );
 		}
 	}
 	
@@ -559,8 +559,8 @@ int_t alur__div( alu_t *alu, alur_t NUM, alur_t VAL, uint_t rem, uint_t tmp )
 		(
 			_NUM
 			, _VAL
-			, alu_data( alu, rem )
-			, alu_data( alu, tmp )
+			, alu_Ndata( alu, rem )
+			, alu_Ndata( alu, tmp )
 		);
 	}
 	
@@ -663,7 +663,7 @@ int_t alur__rol( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
 		
 			alup_init_register( alu, _NUM, NUM );
 			
-			alup__rol( _NUM, alu_data( alu, tmp ), by );
+			alup__rol( _NUM, alu_Ndata( alu, tmp ), by );
 			return 0;
 		}
 	}
@@ -679,7 +679,7 @@ int_t alur__ror( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
 		
 		alup_init_register( alu, _NUM, NUM );
 		
-		return alup__ror( _NUM, alu_data( alu, tmp ), by );
+		return alup__ror( _NUM, alu_Ndata( alu, tmp ), by );
 	}
 	
 	return alu_err_null_ptr("alu");

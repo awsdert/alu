@@ -245,7 +245,7 @@ uint_t alur_get_node( alu_t *alu, size_t Nsize )
 		{		
 			alu->taken = count;
 			
-			(void)memset( alu_data( alu, index ), 0, alu->Nsize );
+			(void)memset( alu_Ndata( alu, index ), 0, alu->Nsize );
 			
 			alu_set_active( alu, index );
 			
@@ -325,7 +325,7 @@ void alu_set_constants( alu_t *alu )
 	
 	for ( r = 1, alub_inc(&c); r < used; ++r, alub_inc(&c) )
 	{
-		uchar_t *part = alu_data( alu, r );
+		uchar_t *part = alu_Ndata( alu, r );
 		
 		*(c.ptr) |= c.mask;
 		
