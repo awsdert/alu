@@ -1448,16 +1448,23 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		alup_init_mantissa( _DST, _DMAN );
 		alup_init_mantissa( _SRC, _SMAN );
 		
-#if 0
 		dbits = _DMAN.upto - _DMAN.from;
 		sbits = _SMAN.upto - _SMAN.from;
 		bits = LOWEST( dbits, sbits );
 		
-		_DMAN.from = _DMAN.upto - EITHER( dexp > 0 && dexp < bits, dexp, bits );
-		_SMAN.from = _SMAN.upto - EITHER( sexp > 0 && sexp < bits, sexp, bits );
-#endif
+		_DMAN.from = _DMAN.upto - EITHER( dexp >= 0 && dexp < bits, dexp, bits );
+		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < bits, sexp, bits );
+		
+		alub_set( _DMAN.data, _DMAN.upto, 1 );
+		alub_set( _SMAN.data, _SMAN.upto, 1 );
+		_DMAN.upto++;
+		_SMAN.upto++;
 		
 		ret = alup__mul_int2int( _DMAN, _SMAN, _cpy );
+		
+		_DMAN.upto--;
+		_SMAN.upto--;
+		
 		/* Multiplication prep may have changed this value, ensure is what it
 		 * started as before using it any more */
 		_DMAN.from = _DST.from;
@@ -1584,7 +1591,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		int_t ret;
-		alub_t sign;
+		alub_t b;
 		alup_t _DST, _SRC, _DMAN, _SMAN;
 		ssize_t dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
@@ -1616,11 +1623,11 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 			alup_mov( _SRC, _VAL );
 		}
 		
-		sign = alub( _DST.data, _DST.upto - 1 );
+		b = alub( _DST.data, _DST.upto - 1 );
 		dneg = alup_below0( _DST );
 		sneg = alup_below0( _SRC );
-		*(sign.ptr) &= ~(sign.mask);
-		*(sign.ptr) |= IFTRUE( dneg != sneg, sign.mask );
+		*(b.ptr) &= ~(b.mask);
+		*(b.ptr) |= IFTRUE( dneg != sneg, b.mask );
 		
 		dexp = alup_get_exponent( _DST );
 		sexp = alup_get_exponent( _SRC );
@@ -1645,10 +1652,19 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		sbits = _SMAN.upto - _SMAN.from;
 		bits = LOWEST( dbits, sbits );
 		
-		_DMAN.from = _DMAN.upto - EITHER( dexp > 0 && dexp < bits, dexp, bits );
-		_SMAN.from = _SMAN.upto - EITHER( sexp > 0 && sexp < bits, sexp, bits );
+		_DMAN.from = _DMAN.upto - EITHER( dexp >= 0 && dexp < bits, dexp, bits );
+		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < bits, sexp, bits );
+		
+		alub_set( _DMAN.data, _DMAN.upto, 1 );
+		alub_set( _SMAN.data, _SMAN.upto, 1 );
+		_DMAN.upto++;
+		_SMAN.upto++;
 		
 		ret = alup__div_int2int( _DMAN, _SMAN, _rem );
+		
+		_DMAN.upto--;
+		_SMAN.upto--;
+		
 		/* Multiplication prep may have changed this value, ensure is what it
 		 * started as before using it any more */
 		_DMAN.from = _DST.from;
@@ -1657,10 +1673,12 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		{
 			dexp++;
 			alup__shr( _DMAN, 1 );
+			b = alub( _DMAN.data, _DMAN.upto - 1 );
+			*(b.ptr) |= b.mask;
 		}
 		
 		dexp -= sexp;
-		if ( dexp < -dbias )
+		if ( dexp > dbias )
 		{
 			alup_t _EXP;
 			
