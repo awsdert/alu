@@ -1427,27 +1427,29 @@ START_TEST( test_alup_div_floating )
 	ck_assert( alu_upto(alu) > 0 );
 	
 	ullong_t _num = _i, _val = 3;
-	double
-		src_num = _num
+	double tmp_num, tmp_val
+		, src_num = _num
 		, src_val = _val
 		, got_num = _num
 		, got_val = _val
-		, tmp_num
-		, tmp_val;
-	alup_t _GOT_NUM, _GOT_VAL;
+		, expect = _num
+		, result = _num;
+	alup_t _RESULT, _GOT_VAL;
 	
-	alup_init_floating( _GOT_NUM, &got_num, sizeof(double) );
+	alup_init_floating( _RESULT, &result, sizeof(double) );
 	alup_init_floating( _GOT_VAL, &got_val, sizeof(double) );
 	
-	src_num /= src_val;
-	(void)alup__div( _GOT_NUM, _GOT_VAL, &tmp_num, &tmp_val );
+	expect /= src_val;
+	(void)alup__div( _RESULT, _GOT_VAL, &tmp_num, &tmp_val );
 	
-	if ( memcmp( &got_num, &src_num, sizeof(double) ) != 0 )
+	if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
 	{
-		alup_t _EXP, _MAN, _SRC_NUM, _NUM;
+		alup_t _EXP, _MAN, _EXPECT, _GOT_NUM, _SRC_NUM, _SRC_VAL;
 		
-		alup_init_unsigned( _NUM, &_num, sizeof(ullong_t) );
+		alup_init_floating( _EXPECT, &expect, sizeof(double) );
 		alup_init_floating( _SRC_NUM, &src_num, sizeof(double) );
+		alup_init_floating( _SRC_VAL, &src_val, sizeof(double) );
+		alup_init_floating( _GOT_NUM, &got_num, sizeof(double) );
 		alup_init_exponent( _GOT_NUM, _EXP );
 		alup_init_mantissa( _GOT_NUM, _MAN );
 		
@@ -1462,13 +1464,15 @@ START_TEST( test_alup_div_floating )
 			, _MAN.upto, _MAN.from, _MAN.upto - _MAN.from
 		);
 		
+		alup_print( _EXPECT, 0, 1 );
+		alup_print( _RESULT, 0, 1 );
 		alup_print( _GOT_NUM, 0, 1 );
 		alup_print( _SRC_NUM, 0, 1 );
 		alup_print( _GOT_VAL, 0, 1 );
-		alup_print( _NUM, 0, 1 );
+		alup_print( _SRC_VAL, 0, 1 );
 	}
 	
-	ck_assert( memcmp( &got_num, &src_num, sizeof(double) ) == 0 );
+	ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
 }
 END_TEST
 
