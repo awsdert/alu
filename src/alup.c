@@ -11,7 +11,29 @@ bool_t alup_below0( alup_t _PTR )
 	return false;
 }
 
-alub_t alup_end_bit( alup_t _SRC )
+alub_t alup_first_one( alup_t _SRC )
+{
+	alub_t s = {0};
+	
+	if ( _SRC.data )
+	{
+		size_t b;
+		
+		s = alub( _SRC.data, _SRC.from );
+		
+		do
+		{
+			b = EITHER( *(s.ptr) & s.mask, _SRC.upto, s.bit );
+			alub_inc(&s);
+		}
+		while ( b < _SRC.upto );
+		
+	}
+	
+	return s;
+}
+
+alub_t alup_final_one( alup_t _SRC )
 {
 	alub_t s = {0};
 	
@@ -211,7 +233,7 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 		alup_neg( _SRC );
 	}
 	
-	s = alup_end_bit( _SRC );
+	s = alup_final_one( _SRC );
 	b = s.bit - _SRC.from;
 	
 	/* +0 should look like an integer 0 */
@@ -307,7 +329,7 @@ int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC )
 	
 	if ( Inf || exp >= dlength )
 	{
-		s = alup_end_bit( _MAN );
+		s = alup_final_one( _MAN );
 		
 		/* NaN cannot be recorded by an integer, use 0 instead */
 		if ( Inf && *(s.ptr) & s.mask )
@@ -1050,7 +1072,7 @@ int_t alup__rol( alup_t _NUM, void *_tmp, size_t by )
 			_TMP.from = 0;
 			(void)alup__rol_int2int( _TMP, by );
 			
-			t = alup_end_bit( _TMP );
+			t = alup_final_one( _TMP );
 			
 			/* Set Sign */
 			
@@ -1159,7 +1181,7 @@ int_t alup__ror( alup_t _NUM, void *_tmp, size_t by )
 			_TMP.from = 0;
 			(void)alup__ror_int2int( _TMP, by );
 			
-			t = alup_end_bit( _TMP );
+			t = alup_final_one( _TMP );
 			
 			/* Set Sign */
 			
@@ -1544,7 +1566,7 @@ int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem )
 	_SEG = _REM;
 	_SEG.info = 0;
 	
-	n = alup_end_bit( _REM );
+	n = alup_final_one( _REM );
 	_SEG.upto = _SEG.from = n.bit + 1;
 	n = alub( _NUM.data, _NUM.from );
 	
@@ -1583,7 +1605,7 @@ int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem )
 	if ( vNeg )
 		alup_neg( _VAL );
 		
-	n = alup_end_bit( _REM );
+	n = alup_final_one( _REM );
 	
 	return EITHER( ret, ret, IFTRUE( *(n.ptr) & n.mask, EOVERFLOW ) );
 }
@@ -1667,7 +1689,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		/* We mangled this so restore it now */
 		alup_set_exponent( _SRC, sexp + sbias );
 
-#if 1
+#if 0
 		if ( ret == EOVERFLOW )
 		{
 			dexp--;
@@ -1687,9 +1709,12 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		}
 		else if ( exp <= (ssize_t)(_DMAN.upto - _DMAN.from) )
 		{
-			alub_t e = alup_end_bit( _DMAN );
-			ssize_t pos = (_DMAN.upto - e.bit) - 1;
-			bool_t round = 0;
+			/* Normalise */
+			alub_t
+				final = alup_final_one( _DMAN )
+				, first = alup_first_one( _DMAN );
+			ssize_t pos = (_DMAN.upto - final.bit) - 1;
+			bool_t round = (first.bit - _DST.from < exp_len);
 			
 			if ( pos >= (exp_len-1) )
 			{
@@ -1700,17 +1725,23 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 			else
 			{
 				alu_puts("Route 2.2");
-				alup__shr( _DMAN, (exp_len - pos) - 1 );
+				
+				alup__shr( _DMAN, (exp_len - pos) - 2 );
+				
 				if ( round )
 				{
+					--exp;
 					alup_inc( _DMAN );
 				}
+				
+				alup__shr( _DMAN, 1 );
 			}
 			alup_set_exponent( _DST, exp + dbias );
 		}	
 		else
 		{
 			alu_puts("Route 3");
+			alup__shr( _DMAN, (exp_len - 1) );
 			alup_set_exponent( _DST, exp + dbias );
 		}
 		

@@ -302,7 +302,7 @@ int_t	alu_mov( alu_t *alu, uint_t num, uint_t val )
 	return alu_err_null_ptr("alu");
 }
 
-alub_t	alu_end_bit( alu_t *alu, uint_t num )
+alub_t	alu_final_one( alu_t *alu, uint_t num )
 {
 	alub_t n = {0};
 	
@@ -310,7 +310,7 @@ alub_t	alu_end_bit( alu_t *alu, uint_t num )
 	{
 		alur_t NUM;
 		alur_init_unsigned( alu, NUM, num );
-		return alur_end_bit( alu, NUM );
+		return alur_final_one( alu, NUM );
 	}
 	
 	(void)alu_err_null_ptr("alu");

@@ -91,7 +91,7 @@ void alup__print
 	while (0)
 
 bool_t	alup_below0( alup_t _PTR );
-alub_t	alup_end_bit( alup_t _NUM );
+alub_t	alup_final_one( alup_t _NUM );
 size_t	alup_get_exponent( alup_t SRC );
 size_t	alup_get_exponent_bias( alup_t SRC );
 int_t	alup_set_exponent( alup_t SRC, size_t exp );

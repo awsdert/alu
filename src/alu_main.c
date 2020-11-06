@@ -482,10 +482,10 @@ int_t alu_str2reg
 	return ret;
 }
 
-bool alur_is_zero( alu_t *alu, alur_t reg, alub_t *end_bit )
+bool alur_is_zero( alu_t *alu, alur_t reg, alub_t *final_one )
 {
-	alub_t n = alur_end_bit( alu, reg );
-	if ( end_bit ) *end_bit = n;
+	alub_t n = alur_final_one( alu, reg );
+	if ( final_one ) *final_one = n;
 	return !(*(n.ptr) & n.mask);
 }
 

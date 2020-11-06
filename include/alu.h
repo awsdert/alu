@@ -100,7 +100,7 @@ int_t alu_rem_flag( alu_t *alu, alur_t *reg, uint_t info );
 
 void alu_set_constants( alu_t *alu );
 
-alub_t alu_end_bit( alu_t *alu, uint_t num );
+alub_t alu_final_one( alu_t *alu, uint_t num );
 
 # define ALU_BASE_STR_0to9 "0123456789"
 # define ALU_BASE_STR_atoz "abcdefghijklmnopqrstuvwxyz"
@@ -165,7 +165,7 @@ int_t alu_fpn2int( alu_t *alu, alu_fpn_t *val );
 
 int_t alu_cmp( alu_t *alu, uint_t num, uint_t val );
 
-bool alur_is_zero( alu_t *alu, alur_t reg, alub_t *end_bit );
+bool alur_is_zero( alu_t *alu, alur_t reg, alub_t *final_one );
 
 int_t alu_mov( alu_t *alu, uint_t num, uint_t val );
 int_t alu_set( alu_t *alu, uint_t num, bool fillwith );

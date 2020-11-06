@@ -1,6 +1,6 @@
 #include <alu/alur.h>
 
-alub_t alur_end_bit( alu_t *alu, alur_t NUM )
+alub_t alur_final_one( alu_t *alu, alur_t NUM )
 {
 	if ( alu )
 	{
@@ -8,7 +8,7 @@ alub_t alur_end_bit( alu_t *alu, alur_t NUM )
 		
 		alup_init_register( alu, _NUM, NUM );
 		
-		return alup_end_bit( _NUM );
+		return alup_final_one( _NUM );
 	}
 	else
 	{

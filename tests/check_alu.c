@@ -784,7 +784,7 @@ START_TEST( test_alu_uint_set_raw )
 }
 END_TEST
 
-START_TEST( test_alur_end_bit )
+START_TEST( test_alur_final_one )
 {
 	uint_t num = alur_get_node( alu, 0 );
 	size_t bit = 0;
@@ -807,7 +807,7 @@ START_TEST( test_alur_end_bit )
 		
 		alu_set_raw( alu, num, v.mask, 0 );
 		
-		n = alur_end_bit( alu, NUM );
+		n = alur_final_one( alu, NUM );
 		
 		ck_assert_msg
 		(
@@ -1500,7 +1500,7 @@ Suite * alu_suite(void)
 	tcase_add_loop_test( tc_core, test_alur_set_raw, 0, ops_loop_until );
 	tcase_add_loop_test( tc_core, test_alu_uint_set_raw, 0, ops_loop_until );
 
-	tcase_add_test( tc_core, test_alur_end_bit );
+	tcase_add_test( tc_core, test_alur_final_one );
 	tcase_add_loop_test( tc_core, test_alur_cmp, 0, ops_loop_until );
 
 	for ( f = 0; op1_str_array[f]; ++f );

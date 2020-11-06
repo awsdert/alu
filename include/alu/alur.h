@@ -132,7 +132,7 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 	while (0)
 
 bool_t	alur_below0( alu_t *alu, alur_t REG );
-alub_t	alur_end_bit( alu_t *alu, alur_t NUM );
+alub_t	alur_final_one( alu_t *alu, alur_t NUM );
 int_t	alur_set( alu_t *alu, alur_t NUM, bool fillwith );
 int_t	alur_get_exponent( alu_t *alu, alur_t SRC, size_t *exp );
 size_t	alur_get_exponent_bias( alur_t SRC );
