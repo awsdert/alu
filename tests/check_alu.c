@@ -1455,21 +1455,21 @@ START_TEST( test_alup_div_floating )
 		
 		alu_printf
 		(
-			"_num = %llu, _val = %llu, "
-			"(_EXP.upto = %zu) - (_EXP.from = %zu) = %zu, "
-			"(_MAN.upto = %zu) - (_MAN.from = %zu) = %zu"
+			"_num = %llu, _val = %llu, exp length = %zu, man length = %zu"
 			, _num
 			, _val
-			, _EXP.upto, _EXP.from, _EXP.upto - _EXP.from
-			, _MAN.upto, _MAN.from, _MAN.upto - _MAN.from
+			, _EXP.upto - _EXP.from
+			, _MAN.upto - _MAN.from
 		);
 		
 		alup_print( _EXPECT, 0, 1 );
 		alup_print( _RESULT, 0, 1 );
+#if 0
 		alup_print( _GOT_NUM, 0, 1 );
 		alup_print( _SRC_NUM, 0, 1 );
 		alup_print( _GOT_VAL, 0, 1 );
 		alup_print( _SRC_VAL, 0, 1 );
+#endif
 	}
 	
 	ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );

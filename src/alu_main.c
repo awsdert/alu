@@ -45,13 +45,13 @@ void alup__print
 	{
 		alub_t p = alub( _PTR.data, _PTR.upto );
 		
-		fprintf( stderr, "%s:%u: %s() %s = ", file, line, func, pfx );
+		fprintf( aluout, "%s:%u: %s() %s = ", file, line, func, pfx );
 		
 		if ( alup___signed( _PTR ) )
 		{
 			alub_dec(&p);
-			(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
-			(void)fputc( ' ', stderr );
+			(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
+			(void)fputc( ' ', aluout );
 		}
 		
 		if ( alup_floating( _PTR ) )
@@ -68,19 +68,19 @@ void alup__print
 			
 			sprintf( str, "%+05zd ", (ssize_t)exp );
 			
-			fputs( str, stderr );
+			fputs( str, aluout );
 			
 			while ( p.bit > _EXP.from )
 			{
 				alub_dec(&p);
-				(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+				(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
 			}
 			
-			(void)fputc( ' ', stderr );
+			(void)fputc( ' ', aluout );
 			while ( p.bit > _PTR.from )
 			{
 				alub_dec(&p);
-				(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+				(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
 			}
 		}
 		else
@@ -88,11 +88,11 @@ void alup__print
 			while ( p.bit > _PTR.from )
 			{
 				alub_dec(&p);
-				(void)fputc( '0' + !!(*(p.ptr) & p.mask), stderr );
+				(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
 			}
 		}
 		
-		fputc( '\n', stderr );
+		fputc( '\n', aluout );
 	}
 }
 

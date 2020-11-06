@@ -61,7 +61,7 @@ void alub_print( char *pfx, alub_t alub, bool dereference4value )
 	char value = dereference4value ? ('0' + !!(*(alub.ptr) & alub.mask)) : '?';
 	if ( !pfx ) pfx = "?";
 	
-	fprintf( stderr,
+	fprintf( aluout,
 		"%s = %c, ptr = %p, mask = %016jX, pos = %zu, seg = %zu, bit = %zu\n"
 		, pfx
 		, value

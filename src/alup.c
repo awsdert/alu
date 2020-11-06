@@ -1594,7 +1594,8 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 	{
 		int_t ret;
 		alup_t _DST, _SRC, _DMAN, _SMAN;
-		ssize_t dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
+		size_t exp_len, man_len;
+		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
 		
 		/* Ensure dealing with just floats, impossible for both to take _tmp
@@ -1651,17 +1652,17 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		sbits = _SMAN.upto - _SMAN.from;
 		bits = LOWEST( dbits, sbits );
 		
+		exp_len = (_DST.upto - _DMAN.upto) - 1;
+		man_len = (_DMAN.upto - _DST.from);
 		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < bits, sexp, bits );
 		
-		alub_set( _DMAN.data, _DMAN.upto, 1 );
 		alub_set( _SMAN.data, _SMAN.upto, 1 );
-		_DMAN.upto++;
+		_DMAN.upto = _DST.upto - 1;
 		_SMAN.upto++;
 		
+		alup__shl( _DMAN, exp_len - 1 );
+		alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
 		ret = alup__div_int2int( _DMAN, _SMAN, _rem );
-		
-		_DMAN.upto--;
-		_SMAN.upto--;
 		
 		/* We mangled this so restore it now */
 		alup_set_exponent( _SRC, sexp + sbias );
@@ -1675,16 +1676,42 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		}
 #endif
 		
-		dexp -= sexp;
-		if ( dexp > dbias )
+		exp = dexp - sexp;
+		if ( exp > dbias )
 		{	
+			alu_puts("Route 1");
 			/* Set infinity */
-			alup_set_exponent( _DST, (dbias << 1) | 1 );
+			_DMAN.upto = (_DST.upto - exp_len) - 1;
 			alup_set( _DMAN, 0 );
+			alup_set_exponent( _DST, (dbias << 1) | 1 );
 		}
+		else if ( exp <= (ssize_t)(_DMAN.upto - _DMAN.from) )
+		{
+			alub_t e = alup_end_bit( _DMAN );
+			ssize_t pos = (_DMAN.upto - e.bit) - 1;
+			bool_t round = 0;
+			
+			if ( pos >= (exp_len-1) )
+			{
+				alu_puts("Route 2.1");
+				alup__shr( _DMAN, (exp_len - 1) );
+				//alup__shr( _DMAN, ((_DMAN.upto - _DST.from) - pos) );
+			}
+			else
+			{
+				alu_puts("Route 2.2");
+				alup__shr( _DMAN, (exp_len - pos) - 1 );
+				if ( round )
+				{
+					alup_inc( _DMAN );
+				}
+			}
+			alup_set_exponent( _DST, exp + dbias );
+		}	
 		else
 		{
-			alup_set_exponent( _DST, dexp + dbias );
+			alu_puts("Route 3");
+			alup_set_exponent( _DST, exp + dbias );
 		}
 		
 		if ( alup_floating( _NUM ) )

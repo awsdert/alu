@@ -10,10 +10,14 @@
 # include <unic/limits.h>
 # include <unic/stdint.h>
 
+#ifndef aluout
+#define aluout stdout
+#endif
+
 # define alu__printf( FORMAT, THEFILE, THELINE, THEFUNC, ... ) \
 	fprintf \
 	( \
-		stderr, "%s:%u: %s() " FORMAT "\n" \
+		aluout, "%s:%u: %s() " FORMAT "\n" \
 		, THEFILE, THELINE, THEFUNC, __VA_ARGS__ \
 	)
 
