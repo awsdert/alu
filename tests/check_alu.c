@@ -1464,7 +1464,7 @@ START_TEST( test_alup_div_floating )
 		
 		alup_print( _EXPECT, 0, 1 );
 		alup_print( _RESULT, 0, 1 );
-#if 0
+#if 1
 		alup_print( _GOT_NUM, 0, 1 );
 		alup_print( _SRC_NUM, 0, 1 );
 		alup_print( _GOT_VAL, 0, 1 );

@@ -1699,6 +1699,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 #endif
 		
 		exp = dexp - sexp;
+		
 		if ( exp > dbias )
 		{	
 			alu_puts("Route 1");
@@ -1710,27 +1711,26 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		else if ( exp <= (ssize_t)(_DMAN.upto - _DMAN.from) )
 		{
 			/* Normalise */
-			alub_t
-				final = alup_final_one( _DMAN )
+			alub_t final = alup_final_one( _DMAN )
 				, first = alup_first_one( _DMAN );
-			ssize_t pos = (_DMAN.upto - final.bit) - 1;
+			ssize_t pos = (_DMAN.upto - final.bit) - 1, add = 0;
 			bool_t round = (first.bit - _DST.from < exp_len);
 			
 			if ( pos >= (exp_len-1) )
 			{
-				alu_puts("Route 2.1");
+				//alu_puts("Route 2.1");
 				alup__shr( _DMAN, (exp_len - 1) );
 				//alup__shr( _DMAN, ((_DMAN.upto - _DST.from) - pos) );
 			}
 			else
 			{
-				alu_puts("Route 2.2");
+				//alu_puts("Route 2.2");
 				
 				alup__shr( _DMAN, (exp_len - pos) - 2 );
+				exp -= (pos-1);
 				
 				if ( round )
 				{
-					--exp;
 					alup_inc( _DMAN );
 				}
 				
@@ -1740,7 +1740,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		}	
 		else
 		{
-			alu_puts("Route 3");
+			//alu_puts("Route 3");
 			alup__shr( _DMAN, (exp_len - 1) );
 			alup_set_exponent( _DST, exp + dbias );
 		}
