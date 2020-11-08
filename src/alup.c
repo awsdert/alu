@@ -1417,7 +1417,8 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
 		ssize_t ddiff = 0, sdiff = 0;
-		alub_t final;
+		size_t man_upto;
+		alub_t final, prior;
 		
 		/* Ensure dealing with just floats, impossible for both to take _tmp
 		 * given the above if statment */
@@ -1471,37 +1472,32 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		alup_init_mantissa( _DST, _DMAN );
 		alup_init_mantissa( _SRC, _SMAN );
 		
-		alub_set( _DMAN.data, _DMAN.upto, 1 );
-		alub_set( _SMAN.data, _SMAN.upto, 1 );
-		_DMAN.upto = _DST.upto;
-		_SMAN.upto++;
-		
 		dbits = _DMAN.upto - _DMAN.from;
 		sbits = _SMAN.upto - _SMAN.from;
 		bits = LOWEST( dbits, sbits );
 		
 		ddiff = EITHER( dexp >= 0 && dexp < dbits, dexp, dbits );
 		sdiff = EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
-		final = alub( _DST.data, _DST.upto - 1 );
-		*(final.ptr) &= ~(final.mask);
+		prior = alub( _DST.data, _DST.upto - 1 );
+		*(prior.ptr) &= ~(prior.mask);
 		alup_set_exponent( _DST, 0 );
 		
-		_SMAN.from = _SMAN.upto - sdiff;
+		alub_set( _DST.data, _DMAN.upto, 1 );
+		alub_set( _SRC.data, _SMAN.upto, 1 );
 		
-		if ( ddiff != dbits )
-		{
-			alup__shr( _DMAN, dbits - ddiff );
-			final = alup_final_one( _DMAN );
-		}
+		man_upto = _DMAN.upto;
+		
+		_SMAN.from = _SMAN.upto - sdiff;
+		_DMAN.upto = _DST.upto;
+		_SMAN.upto++;
+		
+		alup__shr( _DMAN, dbits - ddiff );
+		prior = alup_final_one( _DMAN );
 		
 		ret = alup__mul_int2int( _DMAN, _SMAN, _cpy );
 		
 		/* We mangled this so restore it now */
 		alup_set_exponent( _SRC, sexp + sbias );
-		
-		/* Multiplication prep may have changed this value, ensure is what it
-		 * started as before using it any more */
-		_DMAN.from = _DST.from;
 		
 		if ( exp >= dbias )
 		{	
@@ -1513,22 +1509,23 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		}
 		else
 		{	
-			alub_t new_final = alup_final_one( _DMAN );
+			final = alup_final_one( _DMAN );
+			_DMAN.upto = man_upto;
 			
-			if ( new_final.bit > final.bit )
+			if ( final.bit >= prior.bit )
 			{
 				/* Normalise */
-				size_t mov = _DMAN.upto - new_final.bit;
-				size_t add = new_final.bit - final.bit;
+				size_t mov = _DMAN.upto - final.bit;
+				size_t add = final.bit - prior.bit;
 				
-				exp += add;
+				exp = dexp + add;
 				alup__shl( _DMAN, mov );
 			}
 			else if ( ret == EOVERFLOW )
 			{
 				exp++;
 				alup__shr( _DMAN, 1 );
-				alub_set( _DMAN.data, _DMAN.upto - 2, 1 );
+				alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
 			}
 			
 			alup_set_exponent( _DST, exp + dbias );
