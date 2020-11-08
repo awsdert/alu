@@ -1414,8 +1414,10 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 	{
 		int_t ret;
 		alup_t _DST, _SRC, _DMAN, _SMAN;
-		ssize_t dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
+		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
+		ssize_t ddiff = 0, sdiff = 0;
+		alub_t final;
 		
 		/* Ensure dealing with just floats, impossible for both to take _tmp
 		 * given the above if statment */
@@ -1446,7 +1448,6 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		dneg = alup_below0( _DST );
 		sneg = alup_below0( _SRC );
-		alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
 		
 		dexp = alup_get_exponent( _DST );
 		sexp = alup_get_exponent( _SRC );
@@ -1455,6 +1456,7 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		{
 			_NUM.upto--;
 			alup_set( _NUM, 0 );
+			alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
 			return 0;
 		}
 		
@@ -1463,26 +1465,36 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		sbias = alup_get_exponent_bias( _DST );
 		sexp -= sbias;
+		
+		exp = dexp + sexp;
 				
 		alup_init_mantissa( _DST, _DMAN );
 		alup_init_mantissa( _SRC, _SMAN );
+		
+		alub_set( _DMAN.data, _DMAN.upto, 1 );
+		alub_set( _SMAN.data, _SMAN.upto, 1 );
+		_DMAN.upto = _DST.upto;
+		_SMAN.upto++;
 		
 		dbits = _DMAN.upto - _DMAN.from;
 		sbits = _SMAN.upto - _SMAN.from;
 		bits = LOWEST( dbits, sbits );
 		
-		_DMAN.from = _DMAN.upto - EITHER( dexp >= 0 && dexp < bits, dexp, bits );
-		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < bits, sexp, bits );
+		ddiff = EITHER( dexp >= 0 && dexp < dbits, dexp, dbits );
+		sdiff = EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
+		final = alub( _DST.data, _DST.upto - 1 );
+		*(final.ptr) &= ~(final.mask);
+		alup_set_exponent( _DST, 0 );
 		
-		alub_set( _DMAN.data, _DMAN.upto, 1 );
-		alub_set( _SMAN.data, _SMAN.upto, 1 );
-		_DMAN.upto++;
-		_SMAN.upto++;
+		_SMAN.from = _SMAN.upto - sdiff;
+		
+		if ( ddiff != dbits )
+		{
+			alup__shr( _DMAN, dbits - ddiff );
+			final = alup_final_one( _DMAN );
+		}
 		
 		ret = alup__mul_int2int( _DMAN, _SMAN, _cpy );
-		
-		_DMAN.upto--;
-		_SMAN.upto--;
 		
 		/* We mangled this so restore it now */
 		alup_set_exponent( _SRC, sexp + sbias );
@@ -1491,24 +1503,38 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		 * started as before using it any more */
 		_DMAN.from = _DST.from;
 		
-		if ( ret == EOVERFLOW )
-		{
-			dexp++;
-			alup__shr( _DMAN, 1 );
-			alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
-		}
-		
-		dexp += sexp;
-		if ( dexp > dbias )
+		if ( exp >= dbias )
 		{	
 			/* Set infinity */
-			alup_set_exponent( _DST, (dbias << 1) | 1 );
+			alup_init_mantissa( _DST, _DMAN );
+			
 			alup_set( _DMAN, 0 );
+			alup_set_exponent( _DST, (dbias << 1) | 1 );
 		}
 		else
-		{
-			alup_set_exponent( _DST, dexp + dbias );
+		{	
+			alub_t new_final = alup_final_one( _DMAN );
+			
+			if ( new_final.bit > final.bit )
+			{
+				/* Normalise */
+				size_t mov = _DMAN.upto - new_final.bit;
+				size_t add = new_final.bit - final.bit;
+				
+				exp += add;
+				alup__shl( _DMAN, mov );
+			}
+			else if ( ret == EOVERFLOW )
+			{
+				exp++;
+				alup__shr( _DMAN, 1 );
+				alub_set( _DMAN.data, _DMAN.upto - 2, 1 );
+			}
+			
+			alup_set_exponent( _DST, exp + dbias );
 		}
+		
+		alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
 		
 		if ( alup_floating( _NUM ) )
 			return 0;
@@ -1614,9 +1640,8 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 {
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
-		int_t ret;
 		alup_t _DST, _SRC, _DMAN, _SMAN;
-		size_t exp_len, man_len;
+		size_t exp_len;
 		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
 		
@@ -1675,7 +1700,6 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		bits = LOWEST( dbits, sbits );
 		
 		exp_len = (_DST.upto - _DMAN.upto) - 1;
-		man_len = (_DMAN.upto - _DST.from);
 		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < bits, sexp, bits );
 		
 		alub_set( _SMAN.data, _SMAN.upto, 1 );
@@ -1684,19 +1708,10 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		
 		alup__shl( _DMAN, exp_len - 1 );
 		alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
-		ret = alup__div_int2int( _DMAN, _SMAN, _rem );
+		(void)alup__div_int2int( _DMAN, _SMAN, _rem );
 		
 		/* We mangled this so restore it now */
 		alup_set_exponent( _SRC, sexp + sbias );
-
-#if 0
-		if ( ret == EOVERFLOW )
-		{
-			dexp--;
-			//alup__shr( _DMAN, 1 );
-			//alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
-		}
-#endif
 		
 		exp = dexp - sexp;
 		
@@ -1713,7 +1728,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 			/* Normalise */
 			alub_t final = alup_final_one( _DMAN )
 				, first = alup_first_one( _DMAN );
-			ssize_t pos = (_DMAN.upto - final.bit) - 1, add = 0;
+			size_t pos = (_DMAN.upto - final.bit) - 1;
 			bool_t round = (first.bit - _DST.from < exp_len);
 			
 			if ( pos >= (exp_len-1) )

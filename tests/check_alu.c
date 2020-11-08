@@ -1047,432 +1047,161 @@ START_TEST( test_alur_set_floating )
 }
 END_TEST
 
-START_TEST( test_alur_add_floating )
-{
-	ck_assert( alu_upto(alu) > 0 );
-	
-	uint_t nodes[2], num, val;
-	ullong_t _num = _i, _val = 1;
-	int ret = alur_get_nodes( alu, nodes, 2, 0 );
-	double src_num = _num, src_val = _val, got_num, got_val;
-	alur_t NUM, VAL;
-	void *N, *V;
-	
-	ck_assert( ret == 0 );
-	
-	num = nodes[0];
-	val = nodes[1];
-	
-	alur_init_floating( alu, NUM, num );
-	alur_init_floating( alu, VAL, val );
-	
-	NUM.upto = VAL.upto = bitsof(double);
-	
-	/* Set values */
-	
-	ret = alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-	ck_assert( ret == 0 );
-	
-	ret = alur_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
-	ck_assert( ret == 0 );
-	
-	/* Get values */
-	
-	ret = alur_get_raw( alu, NUM, &got_num, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	ret = alur_get_raw( alu, VAL, &got_val, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	N = alur_data( alu, NUM );
-	V = alur_data( alu, VAL );
-	
-	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
-	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
-	
-	src_num += src_val;
-	(void)alur_add( alu, NUM, VAL );
-	
-	N = alur_data( alu, NUM );
-	
-	if ( memcmp( N, &src_num, sizeof(double) ) != 0 )
-	{
-		alur_t EXP, MAN;
-		
-		alur_init_exponent( NUM, EXP );
-		alur_init_mantissa( NUM, MAN );
-		
-		alu_printf
-		(
-			"_num = %llu, _val = %llu, "
-			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
-			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
-			, _num
-			, _val
-			, EXP.upto, EXP.from, EXP.upto - EXP.from
-			, MAN.upto, MAN.from, MAN.upto - MAN.from
-		);
-		
-		alur_print( alu, NUM, 0, 1 );
-		(void)alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-		alur_print( alu, NUM, 0, 1 );
-		
-		ck_assert( 1 == 0 );
-	}
-	
-	alur_rem_nodes( alu, nodes, 2 );
-}
-END_TEST
+typedef int_t (*func_alup__math_t)
+(
+	alup_t _NUM
+	, alup_t _VAL
+	, void *cpy
+	, void *tmp
+);
 
-START_TEST( test_alur_add_floating_randomized )
+func_alup__math_t alup__math[] =
 {
-	ck_assert( alu_upto(alu) > 0 );
-	
-	uint_t nodes[2], num, val;
-	uint_t seed = time(NULL);
-	ullong_t _num = _i, _val = 1;
-	int ret = alur_get_nodes( alu, nodes, 2, 0 );
-	double src_num, src_val, got_num, got_val;
-	alur_t NUM, VAL;
-	void *N, *V;
-	
-	ck_assert( ret == 0 );
-	
-	num = nodes[0];
-	val = nodes[1];
-	
-	for ( int i = 0; i < _i; ++i ) _num = rand_r(&seed);
-	src_num = _num;
-	
-	for ( int i = 0; i < _i; ++i ) _val = rand_r(&seed);
-	src_val = _val;
-	
-	alur_init_floating( alu, NUM, num );
-	alur_init_floating( alu, VAL, val );
-	
-	NUM.upto = VAL.upto = bitsof(double);
-	
-	/* Set values */
-	
-	ret = alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-	ck_assert( ret == 0 );
-	
-	ret = alur_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
-	ck_assert( ret == 0 );
-	
-	/* Get values */
-	
-	ret = alur_get_raw( alu, NUM, &got_num, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	ret = alur_get_raw( alu, VAL, &got_val, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	N = alur_data( alu, NUM );
-	V = alur_data( alu, VAL );
-	
-	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
-	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
-	
-	src_num += src_val;
-	(void)alur_add( alu, NUM, VAL );
-	
-	N = alur_data( alu, NUM );
-	
-	if ( memcmp( N, &src_num, sizeof(double) ) != 0 )
-	{
-		alur_t EXP, MAN;
-		alup_t _NUM, _VAL;
-		
-		alur_init_exponent( NUM, EXP );
-		alur_init_mantissa( NUM, MAN );
-		
-		alu_printf
-		(
-			"_num = %llu, _val = %llu, "
-			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
-			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
-			, _num
-			, _val
-			, EXP.upto, EXP.from, EXP.upto - EXP.from
-			, MAN.upto, MAN.from, MAN.upto - MAN.from
-		);
-		
-		alur_print( alu, NUM, 0, 1 );
-		(void)alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-		alur_print( alu, NUM, 0, 1 );
-		
-		src_num = _num;
-		(void)alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-		
-		alur_print( alu, VAL, 0, 1 );
-		alur_print( alu, NUM, 0, 1 );
-		
-		alup_init_register( alu, _NUM, NUM );
-		alup_init_register( alu, _VAL, VAL );
-		
-		alup_match_exponents( _NUM.data, _VAL.data, sizeof(double) );
-		
-		alur_print( alu, VAL, 0, 1 );
-		alur_print( alu, NUM, 0, 1 );
-		
-		ck_assert( 1 == 0 );
-	}
-	
-	alur_rem_nodes( alu, nodes, 2 );
-}
-END_TEST
+	alup__add
+	, alup__sub
+	, alup__mul
+	, alup__div
+	, NULL
+};
 
-START_TEST( test_alup_sub_floating )
-{
-	ck_assert( alu_upto(alu) > 0 );
-	
-	ullong_t _num = _i, _val = 1;
-	double
-		src_num = _num
-		, src_val = _val
-		, got_num = _num
-		, got_val = _val
-		, tmp_num
-		, tmp_val;
-	alup_t _NUM, _VAL;
-	
-	alup_init_floating( _NUM, &got_num, sizeof(double) );
-	alup_init_floating( _VAL, &got_val, sizeof(double) );
-	
-	src_num -= src_val;
-	(void)alup__sub( _NUM, _VAL, &tmp_num, &tmp_val );
-	
-	if ( memcmp( &got_num, &src_num, sizeof(double) ) != 0 )
-	{
-		alup_t _EXP, _MAN;
-		
-		alup_init_exponent( _NUM, _EXP );
-		alup_init_mantissa( _NUM, _MAN );
-		
-		alu_printf
-		(
-			"_num = %llu, _val = %llu, "
-			"(_EXP.upto = %zu) - (_EXP.from = %zu) = %zu, "
-			"(_MAN.upto = %zu) - (_MAN.from = %zu) = %zu"
-			, _num
-			, _val
-			, _EXP.upto, _EXP.from, _EXP.upto - _EXP.from
-			, _MAN.upto, _MAN.from, _MAN.upto - _MAN.from
-		);
-		
-		alup_print( _NUM, 0, 1 );
-		got_num = src_num;
-		alup_print( _NUM, 0, 1 );
-		
-		got_num = _num;
-		
-		alup_print( _VAL, 0, 1 );
-		alup_print( _NUM, 0, 1 );
-		
-		alup_match_exponents( _NUM.data, _VAL.data, sizeof(double) );
-		
-		alup_print( _VAL, 0, 1 );
-		alup_print( _NUM, 0, 1 );
-		
-		ck_assert( 1 == 0 );
-	}
-}
-END_TEST
+int op_add() { return '+'; }
+int op_sub() { return '-'; }
+int op_mul() { return '*'; }
+int op_div() { return '/'; }
+int op_rem() { return '%'; }
 
-START_TEST( test_alur_sub_floating )
-{
-	ck_assert( alu_upto(alu) > 0 );
-	
-	uint_t nodes[2], num, val;
-	ullong_t _num = _i, _val = 1;
-	int ret = alur_get_nodes( alu, nodes, 2, 0 );
-	double src_num = _num, src_val = _val, got_num, got_val;
-	alur_t NUM, VAL;
-	void *N, *V;
-	
-	ck_assert( ret == 0 );
-	
-	num = nodes[0];
-	val = nodes[1];
-	
-	alur_init_floating( alu, NUM, num );
-	alur_init_floating( alu, VAL, val );
-	
-	NUM.upto = VAL.upto = bitsof(double);
-	
-	/* Set values */
-	
-	ret = alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-	ck_assert( ret == 0 );
-	
-	ret = alur_set_raw( alu, VAL, &src_val, sizeof(double), VAL.info );
-	ck_assert( ret == 0 );
-	
-	/* Get values */
-	
-	ret = alur_get_raw( alu, NUM, &got_num, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	ret = alur_get_raw( alu, VAL, &got_val, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	N = alur_data( alu, NUM );
-	V = alur_data( alu, VAL );
-	
-	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
-	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
-	
-	src_num -= src_val;
-	(void)alur_sub( alu, NUM, VAL );
-	
-	N = alur_data( alu, NUM );
-	
-	if ( memcmp( N, &src_num, sizeof(double) ) != 0 )
-	{
-		alur_t EXP, MAN;
-		alup_t _NUM, _VAL;
-		
-		alur_init_exponent( NUM, EXP );
-		alur_init_mantissa( NUM, MAN );
-		
-		alu_printf
-		(
-			"_num = %llu, _val = %llu, "
-			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
-			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
-			, _num
-			, _val
-			, EXP.upto, EXP.from, EXP.upto - EXP.from
-			, MAN.upto, MAN.from, MAN.upto - MAN.from
-		);
-		
-		alur_print( alu, NUM, 0, 1 );
-		(void)alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-		alur_print( alu, NUM, 0, 1 );
-		
-		src_num = _num;
-		(void)alur_set_raw( alu, NUM, &src_num, sizeof(double), NUM.info );
-		
-		alur_print( alu, VAL, 0, 1 );
-		alur_print( alu, NUM, 0, 1 );
-		
-		alup_init_register( alu, _NUM, NUM );
-		alup_init_register( alu, _VAL, VAL );
-		
-		alup_match_exponents( _NUM.data, _VAL.data, sizeof(double) );
-		
-		alur_print( alu, VAL, 0, 1 );
-		alur_print( alu, NUM, 0, 1 );
-		
-		ck_assert( 1 == 0 );
-	}
-	
-	alur_rem_nodes( alu, nodes, 2 );
-}
-END_TEST
+typedef int (*func_op_math_t)();
 
-START_TEST( test_alup_mul_floating )
+func_op_math_t op_math[] =
 {
-	ck_assert( alu_upto(alu) > 0 );
-	
-	ullong_t _num = _i, _val = 1;
-	double
-		src_num = _num
-		, src_val = _val
-		, got_num = _num
-		, got_val = _val
-		, tmp_num
-		, tmp_val;
-	alup_t _GOT_NUM, _GOT_VAL;
-	
-	alup_init_floating( _GOT_NUM, &got_num, sizeof(double) );
-	alup_init_floating( _GOT_VAL, &got_val, sizeof(double) );
-	
-	src_num *= src_val;
-	(void)alup__mul( _GOT_NUM, _GOT_VAL, &tmp_num, &tmp_val );
-	
-	if ( memcmp( &got_num, &src_num, sizeof(double) ) != 0 )
-	{
-		alup_t _EXP, _MAN, _SRC_NUM, _NUM;
-		
-		alup_init_unsigned( _NUM, &_num, sizeof(ullong_t) );
-		alup_init_floating( _SRC_NUM, &src_num, sizeof(double) );
-		alup_init_exponent( _GOT_NUM, _EXP );
-		alup_init_mantissa( _GOT_NUM, _MAN );
-		
-		alu_printf
-		(
-			"_num = %llu, _val = %llu, "
-			"(_EXP.upto = %zu) - (_EXP.from = %zu) = %zu, "
-			"(_MAN.upto = %zu) - (_MAN.from = %zu) = %zu"
-			, _num
-			, _val
-			, _EXP.upto, _EXP.from, _EXP.upto - _EXP.from
-			, _MAN.upto, _MAN.from, _MAN.upto - _MAN.from
-		);
-		
-		alup_print( _GOT_NUM, 0, 1 );
-		alup_print( _SRC_NUM, 0, 1 );
-		alup_print( _GOT_VAL, 0, 1 );
-		alup_print( _NUM, 0, 1 );
-	}
-	
-	ck_assert( memcmp( &got_num, &src_num, sizeof(double) ) == 0 );
-}
-END_TEST
+	op_add
+	, op_sub
+	, op_mul
+	, op_div
+	, op_rem
+	, NULL
+};
 
-START_TEST( test_alup_div_floating )
+ulong_t int_add( ulong_t num, ulong_t val ) { return num + val; }
+ulong_t int_sub( ulong_t num, ulong_t val ) { return num - val; }
+ulong_t int_mul( ulong_t num, ulong_t val ) { return num * val; }
+ulong_t int_div( ulong_t num, ulong_t val ) { return val ? num / val : 0; }
+ulong_t int_rem( ulong_t num, ulong_t val ) { return val ? num % val : num; }
+
+typedef ulong_t (*func_int_math_t)( ulong_t num, ulong_t val );
+
+func_int_math_t int_math[] =
 {
-	ck_assert( alu_upto(alu) > 0 );
-	
-	ullong_t _num = _i, _val = 3;
-	double tmp_num, tmp_val
-		, src_num = _num
-		, src_val = _val
-		, got_num = _num
-		, got_val = _val
-		, expect = _num
-		, result = _num;
-	alup_t _RESULT, _GOT_VAL;
-	
-	alup_init_floating( _RESULT, &result, sizeof(double) );
-	alup_init_floating( _GOT_VAL, &got_val, sizeof(double) );
-	
-	expect /= src_val;
-	(void)alup__div( _RESULT, _GOT_VAL, &tmp_num, &tmp_val );
-	
-	if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
+	int_add
+	, int_sub
+	, int_mul
+	, int_div
+	, int_rem
+	, NULL
+};
+
+double flt_add( double num, double val ) { return num + val; }
+double flt_sub( double num, double val ) { return num - val; }
+double flt_mul( double num, double val ) { return num * val; }
+double flt_div( double num, double val ) { return val ? num / val : 0; }
+//double flt_rem( double num, double val ) { return val ? num % val : num; }
+
+typedef double (*func_flt_math_t)( double num, double val );
+
+func_flt_math_t flt_math[] =
+{
+	flt_add
+	, flt_sub
+	, flt_mul
+	, flt_div
+	, NULL
+};
+
+const int per_func = LDBL_MANT_DIG;
+bool_t stop_checks = false;
+
+START_TEST( test_alup__math_floating )
+{
+	if ( !stop_checks )
 	{
-		alup_t _EXP, _MAN, _EXPECT, _GOT_NUM, _SRC_NUM, _SRC_VAL;
+		ck_assert( alu_upto(alu) > 0 );
+		size_t func = _i / per_func;
+		double extra1, extra2
+			, value1 = _i
+			, value2 = _i % per_func
+			, expect, result;
+		alup_t _RESULT, _VALUE2;
 		
-		alup_init_floating( _EXPECT, &expect, sizeof(double) );
-		alup_init_floating( _SRC_NUM, &src_num, sizeof(double) );
-		alup_init_floating( _SRC_VAL, &src_val, sizeof(double) );
-		alup_init_floating( _GOT_NUM, &got_num, sizeof(double) );
-		alup_init_exponent( _GOT_NUM, _EXP );
-		alup_init_mantissa( _GOT_NUM, _MAN );
+		alup_init_floating( _RESULT, &result, sizeof(double) );
+		alup_init_floating( _VALUE2, &value2, sizeof(double) );
 		
-		alu_printf
-		(
-			"_num = %llu, _val = %llu, exp length = %zu, man length = %zu"
-			, _num
-			, _val
-			, _EXP.upto - _EXP.from
-			, _MAN.upto - _MAN.from
-		);
+		result = value2;
+		expect = flt_math[func]( value2, value2 );
+		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
 		
-		alup_print( _EXPECT, 0, 1 );
-		alup_print( _RESULT, 0, 1 );
-#if 1
-		alup_print( _GOT_NUM, 0, 1 );
-		alup_print( _SRC_NUM, 0, 1 );
-		alup_print( _GOT_VAL, 0, 1 );
-		alup_print( _SRC_VAL, 0, 1 );
-#endif
+		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
+		{
+			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
+			
+			alup_init_floating( _EXPECT, &expect, sizeof(double) );
+			alup_init_floating( _VALUE1, &value1, sizeof(double) );
+			alup_init_exponent( _VALUE1, _EXP );
+			alup_init_mantissa( _VALUE1, _MAN );
+			
+			alu_printf
+			(
+				"exp_dig = %zu, man_dig = %zu, %f %c %f = %f, got %f"
+				, _EXP.upto - _EXP.from
+				, _MAN.upto - _MAN.from
+				, value2
+				, op_math[func]()
+				, value2
+				, expect
+				, result
+			);
+			
+			alup_print( _VALUE2, 0, 1 );
+			alup_print( _EXPECT, 0, 1 );
+			alup_print( _RESULT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
+		
+		result = value1;
+		expect = flt_math[func]( value1, value2 );
+		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		
+		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
+		{
+			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
+			
+			alup_init_floating( _EXPECT, &expect, sizeof(double) );
+			alup_init_floating( _VALUE1, &value1, sizeof(double) );
+			alup_init_exponent( _VALUE1, _EXP );
+			alup_init_mantissa( _VALUE1, _MAN );
+			
+			alu_printf
+			(
+				"exp_dig = %zu, man_dig = %zu, %f %c %f = %f, got %f"
+				, _EXP.upto - _EXP.from
+				, _MAN.upto - _MAN.from
+				, value1
+				, op_math[func]()
+				, value2
+				, expect
+				, result
+			);
+			
+			alup_print( _VALUE1, 0, 1 );
+			alup_print( _VALUE2, 0, 1 );
+			alup_print( _EXPECT, 0, 1 );
+			alup_print( _RESULT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
 	}
-	
-	ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
 }
 END_TEST
 
@@ -1516,14 +1245,8 @@ Suite * alu_suite(void)
 	tcase_add_loop_test( tc_core, test_alu_op3_rotate, 0, f * ops_loop_until );
 	tcase_add_loop_test( tc_core, test_alup__rol_int2int, 1, bitsof(ushort_t)-1 );
 	tcase_add_loop_test( tc_core, test_alup__ror_int2int, 1, bitsof(ushort_t)-1 );
-	
 	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alur_add_floating, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alur_add_floating_randomized, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alup_sub_floating, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alur_sub_floating, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alup_mul_floating, 0, DBL_MANT_DIG );
-	tcase_add_loop_test( tc_core, test_alup_div_floating, 0, DBL_MANT_DIG );
+	tcase_add_loop_test( tc_core, test_alup__math_floating, 0, per_func * 4 );
 	
 	tcase_add_test( tc_core, test_alur2str );
 	tcase_add_test( tc_core, test_aluv_release );
