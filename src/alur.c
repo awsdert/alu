@@ -621,7 +621,7 @@ int_t alur_rem
 		
 		switch ( ret )
 		{
-		case 0: case ENODATA: case EOVERFLOW:
+		case 0: case ENODATA: case ERANGE:
 			tmpret = ret;
 			ret = alur_mov( alu, NUM, REM );
 			if ( ret == 0 )

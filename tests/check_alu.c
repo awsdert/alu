@@ -1160,7 +1160,7 @@ START_TEST( test_alup__math_floating )
 				, result
 			);
 			
-			alup_print( _VALUE2, 0, 1 );
+			//alup_print( _VALUE2, 0, 1 );
 			alup_print( _EXPECT, 0, 1 );
 			alup_print( _RESULT, 0, 1 );
 			stop_checks = true;
@@ -1192,9 +1192,11 @@ START_TEST( test_alup__math_floating )
 				, expect
 				, result
 			);
-			
+
+#if 0	
 			alup_print( _VALUE1, 0, 1 );
 			alup_print( _VALUE2, 0, 1 );
+#endif
 			alup_print( _EXPECT, 0, 1 );
 			alup_print( _RESULT, 0, 1 );
 			stop_checks = true;

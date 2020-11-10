@@ -1630,7 +1630,7 @@ int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem )
 		
 	n = alup_final_one( _REM );
 	
-	return EITHER( ret, ret, IFTRUE( *(n.ptr) & n.mask, EOVERFLOW ) );
+	return EITHER( ret, ret, IFTRUE( *(n.ptr) & n.mask, ERANGE ) );
 }
 
 int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
@@ -1641,6 +1641,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		size_t exp_len;
 		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
+		alub_t prior;
 		
 		/* Ensure dealing with just floats, impossible for both to take _tmp
 		 * given the above if statment */
@@ -1705,12 +1706,14 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		
 		alup__shl( _DMAN, exp_len - 1 );
 		alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
+		
+		prior = alup_final_one( _DMAN );
 		(void)alup__div_int2int( _DMAN, _SMAN, _rem );
 		
 		/* We mangled this so restore it now */
 		alup_set_exponent( _SRC, sexp + sbias );
 		
-		exp = dexp - sexp;
+		exp = dexp + sexp;
 		
 		if ( exp > dbias )
 		{	
@@ -1723,14 +1726,14 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		else if ( exp <= (ssize_t)(_DMAN.upto - _DMAN.from) )
 		{
 			/* Normalise */
-			alub_t final = alup_final_one( _DMAN )
-				, first = alup_first_one( _DMAN );
-			size_t pos = (_DMAN.upto - final.bit) - 1;
-			bool_t round = (first.bit - _DST.from < exp_len);
+			alub_t first = alup_first_one( _DMAN ), final = alup_final_one( _DMAN );
+			size_t rel2prv = prior.bit - final.bit
+				, rel2cap = _DMAN.upto - final.bit;
+			bool_t round = (first.bit - _DST.from) < exp_len;
 			
-			if ( pos >= (exp_len-1) )
+			if ( rel2prv >= (exp_len-1) )
 			{
-				//alu_puts("Route 2.1");
+				alu_puts("Route 2.1");
 				alup__shr( _DMAN, (exp_len - 1) );
 				//alup__shr( _DMAN, ((_DMAN.upto - _DST.from) - pos) );
 			}
@@ -1738,8 +1741,8 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 			{
 				//alu_puts("Route 2.2");
 				
-				alup__shr( _DMAN, (exp_len - pos) - 2 );
-				exp -= (pos-1);
+				alup__shr( _DMAN, (exp_len - rel2cap) - 1 );
+				exp = dexp - rel2prv;
 				
 				if ( round )
 				{
