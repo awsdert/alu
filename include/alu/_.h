@@ -2,7 +2,9 @@
 # define INC_ALU__H
 
 # include <errno.h>
+#ifndef UNIC__SYS_WIN32
 # include <uchar.h>
+#endif
 # include <float.h>
 # include <ctype.h>
 # include <string.h>
