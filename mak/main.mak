@@ -36,7 +36,8 @@ PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 
 ERR_FLAGS:=$(COP)Wall $(COP)Wextra $(F_pedantic)
 INC_FLAGS:=-I $(UNIC_INC_DIR) -I $(PRJ_INC_DIR)
-SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS) $(COP)D UNIC_FALLBACK
+SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
+SRC_FLAGS+=$(DST_DEF:%=$(F_D) %)
 DLL_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
 EXE_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
 LIB_FLAGS:=$(COP)l $(PRJ_LIB_NAME) $(call ifin,$(PRJ_GOALS),check,$(CHK_FLAGS))
@@ -158,6 +159,18 @@ libalu_64dll: $(PRJ_LIB_NAME).64.dll lib_dir
 	$(call COMPILE_OBJ,,$@,$<)
 
 %$(PRJ_SFX).64.obj: %.c
+	$(call COMPILE_OBJ,,$@,$<)
+
+%$(PRJ_SFX)_d.o: %.c
+	$(call COMPILE_OBJ,,$@,$<)
+
+%$(PRJ_SFX)_d.obj: %.c
+	$(call COMPILE_OBJ,,$@,$<)
+
+%$(PRJ_SFX)_d.32.obj: %.c
+	$(call COMPILE_OBJ,,$@,$<)
+
+%$(PRJ_SFX)_d.64.obj: %.c
 	$(call COMPILE_OBJ,,$@,$<)
 	
 %.c: $(PRJ_INC_FILES)

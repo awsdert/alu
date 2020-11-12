@@ -26,4 +26,10 @@ WIN32_DST_OBJ_SFX:=$(call ifin,$(DST_SYS),win32,.32.obj,)
 WIN64_DST_OBJ_SFX:=$(call ifin,$(DST_SYS),win64,.64.obj,)
 DST_OBJ_SFX=$(strip $(LINUX_DST_OBJ_SFX) $(call MSWIN_VARS,OBJ_SFX))
 
+LINUX_DST_DEF:=$(call ifin,$(DST_SYS),linux,,)
+WIN16_DST_DEF:=$(call ifin,$(DST_SYS),win32,_WIN16 UNIC_FALLBACK,)
+WIN32_DST_DEF:=$(call ifin,$(DST_SYS),win32,_WIN32 UNIC_FALLBACK,)
+WIN64_DST_DEF:=$(call ifin,$(DST_SYS),win64,_WIN64 UNIC_FALLBACK,)
+DST_DEF=$(strip $(LINUX_DST_DEF) $(call MSWIN_VARS,DEF))
+
 .LIBPATTERNS:=$(DST_LIB_PFX)%.$(DST_LIB_SFX) $(DST_LIB_PFX)%.a

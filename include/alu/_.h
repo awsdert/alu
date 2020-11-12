@@ -1,15 +1,13 @@
 #ifndef INC_ALU__H
 # define INC_ALU__H
 
+# include <unic/limits.h>
+# include <unic/uchar.h>
 # include <errno.h>
-#ifndef UNIC__SYS_WIN32
-# include <uchar.h>
-#endif
 # include <float.h>
 # include <ctype.h>
 # include <string.h>
 # include <stdio.h>
-# include <unic/limits.h>
 # include <unic/stdint.h>
 
 #ifndef aluout
