@@ -816,7 +816,6 @@ START_TEST( test_alup__math_floating_absolute )
 	{
 		ck_assert( alu_upto(alu) > 0 );
 		size_t func = _i;
-		uint_t seed = time(NULL);
 		double extra1, extra2
 			, value1 = 1397677567.0
 			, value2 = 797987423.0
