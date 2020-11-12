@@ -1480,6 +1480,7 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		sdiff = EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
 		prior = alub( _DST.data, _DST.upto - 1 );
 		*(prior.ptr) &= ~(prior.mask);
+		alub_set( _DST.data, _DST.upto - 1, 0 );
 		alup_set_exponent( _DST, 0 );
 		
 		alub_set( _DST.data, _DMAN.upto, 1 );
@@ -1501,6 +1502,8 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		if ( exp >= dbias )
 		{	
+			alu_puts("MUL 1");
+			
 			/* Set infinity */
 			alup_init_mantissa( _DST, _DMAN );
 			
@@ -1512,20 +1515,35 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 			final = alup_final_one( _DMAN );
 			_DMAN.upto = man_upto;
 			
-			if ( final.bit >= prior.bit )
+			if ( final.bit < man_upto - 1 )
 			{
 				/* Normalise */
-				size_t mov = _DMAN.upto - final.bit;
+				size_t mov = man_upto - final.bit;
 				size_t add = final.bit - prior.bit;
+				
+				alu_puts("MUL 2.1");
 				
 				exp = dexp + add;
 				alup__shl( _DMAN, mov );
 			}
+			else if ( final.bit >= man_upto )
+			{
+				/* Normalise */
+				size_t mov = final.bit - man_upto;
+				size_t add = final.bit - prior.bit;
+				
+				alu_puts("MUL 2.2");
+				
+				exp = dexp + add;
+				alup__shr( _DMAN, mov );
+			}
 			else if ( ret == EOVERFLOW )
 			{
+				alu_puts("MUL 2.3");
+				
 				exp++;
 				alup__shr( _DMAN, 1 );
-				alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
+				alub_set( _DMAN.data, man_upto - 1, 1 );
 			}
 			
 			alup_set_exponent( _DST, exp + dbias );
