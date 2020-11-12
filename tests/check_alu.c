@@ -681,7 +681,7 @@ START_TEST( test_alup__math_floating_incremental )
 	{
 		ck_assert( alu_upto(alu) > 0 );
 		size_t func = _i / per_func;
-		double extra1, extra2
+		double extra1[2], extra2[2]
 			, value1 = _i
 			, value2 = _i % per_func
 			, expect, result;
@@ -692,7 +692,7 @@ START_TEST( test_alup__math_floating_incremental )
 		
 		result = value2;
 		expect = flt_math[func]( value2, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		alup__math[func]( _RESULT, _VALUE2, extra1, extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
 		{
@@ -725,7 +725,7 @@ START_TEST( test_alup__math_floating_incremental )
 		
 		result = value1;
 		expect = flt_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		alup__math[func]( _RESULT, _VALUE2, extra1, extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
 		{
@@ -738,9 +738,10 @@ START_TEST( test_alup__math_floating_incremental )
 			
 			alu_printf
 			(
-				"exp_dig = %zu, man_dig = %zu, %f %c %f = %f, got %f"
+				"exp_dig = %zu, man_dig = %zu, _i = %i, %f %c %f = %f, got %f"
 				, _EXP.upto - _EXP.from
 				, _MAN.upto - _MAN.from
+				, _i
 				, value1
 				, op_math[func]()
 				, value2
@@ -770,6 +771,8 @@ START_TEST( test_alup__math_floating_randomised )
 			, value2 = rand_r(&seed)
 			, expect, result;
 		alup_t _RESULT, _VALUE2;
+		
+		alu_puts("floating randomised");
 		
 		alup_init_floating( _RESULT, &result, sizeof(double) );
 		alup_init_floating( _VALUE2, &value2, sizeof(double) );
@@ -816,18 +819,20 @@ START_TEST( test_alup__math_floating_absolute )
 	{
 		ck_assert( alu_upto(alu) > 0 );
 		size_t func = _i;
-		double extra1, extra2
+		double extra1[2], extra2[2]
 			, value1 = 1397677567.0
 			, value2 = 797987423.0
 			, expect, result;
 		alup_t _RESULT, _VALUE2;
+		
+		alu_printf("floating absolute '%c'", op_math[func]());
 		
 		alup_init_floating( _RESULT, &result, sizeof(double) );
 		alup_init_floating( _VALUE2, &value2, sizeof(double) );
 		
 		result = value1;
 		expect = flt_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		alup__math[func]( _RESULT, _VALUE2, extra1, extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
 		{
@@ -866,7 +871,7 @@ Suite * alu_suite(void)
 {
 	Suite *s;
 	TCase *tc_core;
-	uint_t f = 0;
+	//uint_t f = 0;
 
 	s = suite_create("ALU");
 

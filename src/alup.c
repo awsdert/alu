@@ -224,9 +224,7 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 	bool neg = alup_below0( _SRC );
 	
 	/* Set +/- */
-	d = alub( _DST.data, _DST.upto - 1 );
-	*(d.ptr) &= ~(d.mask);
-	*(d.ptr) |= IFTRUE( neg, d.mask );
+	alub_set( _DST.data, _DST.upto - 1, neg );
 	
 	if ( neg )
 	{
@@ -245,7 +243,7 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 			alup_neg( _SRC );
 		}
 		
-		return alup_mov_int2int( _DST, _NIL );
+		return alup_set( _DST, 0 );
 	}
 	
 	alup_init_mantissa( _DST, _MAN );
@@ -261,8 +259,7 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 		}
 		
 		/* Set Infinity */
-		exp = (bias << 1) | 1;
-		(void)alup_set_exponent( _DST, exp );
+		(void)alup_set_exponent( _DST, (bias << 1) | 1 );
 		/* Clear mantissa so not treated as NaN */
 		(void)alup_mov_int2int( _MAN, _NIL );
 		return EOVERFLOW;
@@ -377,8 +374,6 @@ int_t	alup_mov_flt2flt( alup_t _DST, alup_t _SRC )
 	size_t dlen, slen, exp, dbias, sbias, inf;
 	bool neg;
 	
-	exp = alup_get_exponent( _SRC );
-	
 	alup_init_mantissa( _DST, _DMAN );
 	alup_init_mantissa( _SRC, _SMAN );
 	
@@ -416,29 +411,31 @@ int_t	alup_mov_flt2flt( alup_t _DST, alup_t _SRC )
 	
 	inf = (sbias << 1) | 1;
 	
-	if ( exp >= inf )
+	exp = alup_get_exponent( _SRC );
+	
+	if ( !exp )
 	{
-		inf = (dbias << 1) | 1;
-		inf = IFTRUE( exp >= inf, inf );
-		(void)alup_set_exponent( _DST, inf );
+		(void)alup_set_exponent( _DST, 0 );
+		return alup_set( _DMAN, 0 );
+	}
+	else if ( exp >= inf )
+	{
+		(void)alup_set_exponent( _DST, (dbias << 1) | 1 );
 		
 		/* If SRC was +/-NaN then this will set that */
 		return alup_mov_int2int( _DMAN, _SMAN );
 	}
-	
+
 	exp -= sbias;
-	exp += dbias;
-	inf = (dbias << 1) | 1;
 	
-	if ( exp >= inf )
+	if ( exp >= dbias )
 	{
-		alup_t _NIL = {0};
 		/* Beyond what DST can handle, default to +/-Infinity */
-		(void)alup_set_exponent( _DST, inf );
-		return alup_mov_int2int( _DMAN, _NIL );
+		(void)alup_set_exponent( _DST, (dbias << 1) | 1 );
+		return alup_set( _DMAN, 0 );
 	}
 	
-	(void)alup_set_exponent( _DST, exp );
+	(void)alup_set_exponent( _DST, exp + dbias );
 	return alup_mov_int2int(  _DMAN, _SMAN );
 }
 
@@ -1647,41 +1644,28 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		alup_t _DST, _SRC, _DMAN, _SMAN;
-		size_t exp_len;
+		size_t exp_len, man_upto;
 		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
 		alub_t prior;
 		
 		/* Ensure dealing with just floats, impossible for both to take _tmp
 		 * given the above if statment */
-		
-		if ( alup_floating( _NUM ) )
-		{
-			_DST = _NUM;
-		}
-		else
-		{
-			bits = _NUM.upto - _NUM.from;
-			size = BITS2SIZE( bits );
-			alup_init_floating( _DST, _tmp, size );
-			alup_mov( _DST, _NUM );
-		}
-		
-		if ( alup_floating( _VAL ) )
-		{
-			_SRC = _VAL;
-		}
-		else
-		{
-			bits = _VAL.upto - _VAL.from;
-			size = BITS2SIZE( bits );
-			alup_init_floating( _SRC, _tmp, size );
-			alup_mov( _SRC, _VAL );
-		}
+		 
+		bits = (_NUM.upto - _NUM.from) * 2;
+		size = BITS2SIZE( bits );
+		alup_init_floating( _DST, _tmp, size );
+		alup_mov( _DST, _NUM );
+
+		size /= 2;
+		_SRC.data = _NUM.data;
+		_SRC.info = ALU_INFO_FLOAT | ALU_INFO__SIGN;
+		_SRC.from = _NUM.from;
+		_SRC.upto = _NUM.upto;
+		alup_mov( _SRC, _VAL );
 		
 		dneg = alup_below0( _DST );
 		sneg = alup_below0( _SRC );
-		alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
 		
 		dexp = alup_get_exponent( _DST );
 		sexp = alup_get_exponent( _SRC );
@@ -1690,13 +1674,14 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		{
 			_NUM.upto--;
 			alup_set( _NUM, 0 );
+			alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
 			return 0;
 		}
 		
 		dbias = alup_get_exponent_bias( _DST );
-		dexp -= dbias;
-		
 		sbias = alup_get_exponent_bias( _DST );
+		
+		dexp -= dbias;
 		sexp -= sbias;
 				
 		alup_init_mantissa( _DST, _DMAN );
@@ -1707,20 +1692,18 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		bits = LOWEST( dbits, sbits );
 		
 		exp_len = (_DST.upto - _DMAN.upto) - 1;
-		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < bits, sexp, bits );
+		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
 		
-		alub_set( _SMAN.data, _SMAN.upto, 1 );
-		_DMAN.upto = _DST.upto - 1;
+		alub_set( _DST.data, _DMAN.upto, 1 );
+		alub_set( _SRC.data, _SMAN.upto, 1 );
+		
+		man_upto = _DMAN.upto;
+		_DMAN.upto = _DST.upto;
 		_SMAN.upto++;
 		
-		alup__shl( _DMAN, exp_len - 1 );
-		alub_set( _DMAN.data, _DMAN.upto - 1, 1 );
-		
+		alup__shl( _DMAN, exp_len );
 		prior = alup_final_one( _DMAN );
 		(void)alup__div_int2int( _DMAN, _SMAN, _rem );
-		
-		/* We mangled this so restore it now */
-		alup_set_exponent( _SRC, sexp + sbias );
 		
 		exp = dexp + sexp;
 		
@@ -1728,7 +1711,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		{	
 			alu_puts("Route 1");
 			/* Set infinity */
-			_DMAN.upto = (_DST.upto - exp_len) - 1;
+			_DMAN.upto = man_upto;
 			alup_set( _DMAN, 0 );
 			alup_set_exponent( _DST, (dbias << 1) | 1 );
 		}
@@ -1737,21 +1720,39 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 			/* Normalise */
 			alub_t first = alup_first_one( _DMAN ), final = alup_final_one( _DMAN );
 			size_t rel2prv = prior.bit - final.bit
-				, rel2cap = _DMAN.upto - final.bit;
+				, rel2cap = _DMAN.upto - final.bit, mov, sub;
 			bool_t round = (first.bit - _DST.from) < exp_len;
 			
-			if ( rel2prv >= (exp_len-1) )
+			exp = dexp - rel2prv;
+			
+			if ( final.bit > man_upto )
 			{
-				alu_puts("Route 2.1");
-				alup__shr( _DMAN, (exp_len - 1) );
-				//alup__shr( _DMAN, ((_DMAN.upto - _DST.from) - pos) );
-			}
-			else
-			{
-				//alu_puts("Route 2.2");
+				mov = final.bit - man_upto;
 				
-				alup__shr( _DMAN, (exp_len - rel2cap) - 1 );
-				exp = dexp - rel2prv;
+				alu_printf( "Route 2.1, mov = %zu", mov );
+				
+				if ( mov )
+				{
+					alup_print( _DST, 0, 1 );
+					alup__shr( _DMAN, mov - 1 );
+					alup_inc( _DMAN );
+					alup__shr( _DMAN, 1 );
+					alup_print( _DST, 0, 1 );
+				}
+				else
+				{
+					alu_puts("No rounding");
+					alup__shr( _DMAN, mov );
+				}
+			}
+			else if ( final.bit < man_upto )
+			{
+				mov = man_upto - final.bit;
+				
+				alu_puts("Route 2.2");
+				
+				alup__shl( _DMAN, mov - 1 );
+				//exp = dexp - rel2prv;
 				
 				if ( round )
 				{
@@ -1760,6 +1761,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 				
 				alup__shr( _DMAN, 1 );
 			}
+			
 			alup_set_exponent( _DST, exp + dbias );
 		}	
 		else
@@ -1769,8 +1771,7 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 			alup_set_exponent( _DST, exp + dbias );
 		}
 		
-		if ( alup_floating( _NUM ) )
-			return 0;
+		alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
 			
 		return alup_mov( _NUM, _DST );
 	}
