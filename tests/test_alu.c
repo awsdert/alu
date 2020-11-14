@@ -182,7 +182,7 @@ int modify(
 	
 	switch ( ret )
 	{
-	case 0: case ENODATA: case EOVERFLOW: break;
+	case 0: case ENODATA: case EOVERFLOW: case ERANGE: break;
 	default:
 		alu_error( ret );
 		alu_printf( "op = '%c'", op );
@@ -437,12 +437,13 @@ int mathmatical(
 	size_t i;
 	uint_t info = ALU_INFO__SIGN;
 	intmax_t num = 0xDEADC0DE, val;
-	char inc_ops[] = "i+*";
-	
+
 	val = 0xBAD;
 	
 	if ( doInc )
 	{		
+		char inc_ops[] = "i+*";
+		
 		for ( i = 0; inc_ops[i]; ++i )
 		{
 			alu_printf( "Trying '%c", inc_ops[i] );
@@ -930,7 +931,7 @@ int print_value( alu_t *alu, bool print_anyways )
 
 int main()
 {
-	int ret = 0;
+	int ret;
 	uint_t preallocate = 64;
 	//uint_t seed = time(NULL);
 	bool print_anyways = false;

@@ -19,15 +19,14 @@ void* alum( alum_t *mem, size_t want, int_t dir )
 		
 		if ( want )
 		{
-			size_t size, pagesize;
+			size_t size, pagesize = BUFSIZ;
 #ifdef UNIC_SYS_WIN32
 			SYSTEM_INFO si;
 			GetSystemInfo(&si);
-			pagesize = si.dwPageSize
+			pagesize = si.dwPageSize;
 #else
 			pagesize = sysconf(_SC_PAGESIZE);
 #endif
-			
 			size = want % pagesize;
 			want /= pagesize;
 			want += !!size;

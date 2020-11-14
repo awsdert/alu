@@ -555,11 +555,166 @@ func_flt_math_t flt_math[] =
 const int per_func = LDBL_MANT_DIG;
 bool_t stop_checks = false;
 
-START_TEST( test_alup__math_integer_incremental )
+START_TEST( test_alup__cmp_integer_incremental )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	if ( !stop_checks )
 	{
-		ck_assert( alu_upto(alu) > 0 );
+		int expect, result;
+		ulong_t value1 = _i, value2 = _i % per_func;
+		alup_t _VALUE1, _VALUE2;
+		
+		alup_init_unsigned( _VALUE1, &value1, sizeof(ulong_t) );
+		alup_init_unsigned( _VALUE2, &value2, sizeof(ulong_t) );
+		
+		expect = (value1 > value2) - (value1 < value2);
+		result = alup_cmp( _VALUE1, _VALUE2 );
+		
+		if ( expect != result )
+		{	
+			alu_printf
+			(
+				"%lu <> %lu = %i, got %i"
+				, value2
+				, value2
+				, expect
+				, result
+			);
+			
+			alup_print( _VALUE1, 0, 1 );
+			alup_print( _VALUE2, 0, 1 );
+			
+			stop_checks = true;
+		}
+		
+		ck_assert( expect == result );
+	}
+}
+END_TEST
+
+START_TEST( test_alup__cmp_integer_randomised )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		uint_t seed = time(NULL);
+		int expect, result;
+		ulong_t value1 = rand_r(&seed), value2 = rand_r(&seed);
+		alup_t _VALUE1, _VALUE2;
+		
+		alup_init_unsigned( _VALUE1, &value1, sizeof(ulong_t) );
+		alup_init_unsigned( _VALUE2, &value2, sizeof(ulong_t) );
+		
+		expect = (value1 > value2) - (value1 < value2);
+		result = alup_cmp( _VALUE1, _VALUE2 );
+		
+		if ( expect != result )
+		{	
+			alu_printf
+			(
+				"%lu <> %lu = %i, got %i"
+				, value2
+				, value2
+				, expect
+				, result
+			);
+			
+			alup_print( _VALUE1, 0, 1 );
+			alup_print( _VALUE2, 0, 1 );
+			
+			stop_checks = true;
+		}
+		
+		ck_assert( expect == result );
+	}
+}
+END_TEST
+
+START_TEST( test_alup__cmp_floating_incremental )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		int expect, result;
+		double value1 = _i, value2 = _i % per_func;
+		alup_t _VALUE1, _VALUE2;
+		
+		alup_init_floating( _VALUE1, &value1, sizeof(double) );
+		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		
+		expect = (value1 > value2) - (value1 < value2);
+		result = alup_cmp( _VALUE1, _VALUE2 );
+		
+		if ( expect != result )
+		{	
+			alu_printf
+			(
+				"%f <> %f = %i, got %i"
+				, value2
+				, value2
+				, expect
+				, result
+			);
+			
+			alup_print( _VALUE1, 0, 1 );
+			alup_print( _VALUE2, 0, 1 );
+			
+			stop_checks = true;
+		}
+		
+		ck_assert( expect == result );
+	}
+}
+END_TEST
+
+START_TEST( test_alup__cmp_floating_randomised )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		uint_t seed = time(NULL);
+		int expect, result;
+		double value1 = rand_r(&seed), value2 = rand_r(&seed);
+		alup_t _VALUE1, _VALUE2;
+		
+		alup_init_floating( _VALUE1, &value1, sizeof(double) );
+		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		
+		expect = (value1 > value2) - (value1 < value2);
+		result = alup_cmp( _VALUE1, _VALUE2 );
+		
+		if ( expect != result )
+		{	
+			alu_printf
+			(
+				"%f <> %f = %i, got %i"
+				, value2
+				, value2
+				, expect
+				, result
+			);
+			
+			alup_print( _VALUE1, 0, 1 );
+			alup_print( _VALUE2, 0, 1 );
+			
+			stop_checks = true;
+		}
+		
+		ck_assert( expect == result );
+	}
+}
+END_TEST
+
+START_TEST( test_alup__math_integer_incremental )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
 		size_t func = _i / per_func;
 		ulong_t extra1, extra2
 			, value1 = _i
@@ -630,9 +785,10 @@ END_TEST
 
 START_TEST( test_alup__math_integer_randomised )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	if ( !stop_checks )
 	{
-		ck_assert( alu_upto(alu) > 0 );
 		size_t func = _i / per_func;
 		uint_t seed = time(NULL);
 		ulong_t extra1, extra2
@@ -677,9 +833,10 @@ END_TEST
 
 START_TEST( test_alup__math_floating_incremental )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	if ( !stop_checks )
 	{
-		ck_assert( alu_upto(alu) > 0 );
 		size_t func = _i / per_func;
 		double extra1[2], extra2[2]
 			, value1 = _i
@@ -730,6 +887,7 @@ START_TEST( test_alup__math_floating_incremental )
 		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
 		{
 			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
+			ullong_t e, r;
 			
 			alup_init_floating( _EXPECT, &expect, sizeof(double) );
 			alup_init_floating( _VALUE1, &value1, sizeof(double) );
@@ -751,7 +909,14 @@ START_TEST( test_alup__math_floating_incremental )
 
 			alup_print( _EXPECT, 0, 1 );
 			alup_print( _RESULT, 0, 1 );
-			stop_checks = true;
+			
+			e = *((ullong_t*)&expect);
+			r = *((ullong_t*)&result);
+			
+			e >>= CHAR_BIT;
+			r >>= CHAR_BIT;
+			
+			stop_checks = ( e != r );
 		}
 		
 		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
@@ -761,9 +926,10 @@ END_TEST
 
 START_TEST( test_alup__math_floating_randomised )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	if ( !stop_checks )
 	{
-		ck_assert( alu_upto(alu) > 0 );
 		size_t func = _i / per_func;
 		uint_t seed = time(NULL);
 		double extra1, extra2
@@ -813,17 +979,36 @@ START_TEST( test_alup__math_floating_randomised )
 }
 END_TEST
 
+const int abs_count = 2;
+
+const double abs_float1[] =
+{
+	1397677567.0,
+	1327753883.0
+};
+const double abs_float2[] =
+{
+	797987423.0,
+	1770012269.0
+};
+
 START_TEST( test_alup__math_floating_absolute )
 {
+	ck_assert( alu_upto(alu) > 0 );
+	
 	if ( !stop_checks )
 	{
-		ck_assert( alu_upto(alu) > 0 );
-		size_t func = _i;
+		size_t func = _i % 4, val = _i % abs_count;
 		double extra1[2], extra2[2]
-			, value1 = 1397677567.0
-			, value2 = 797987423.0
-			, expect, result;
+			, value1
+			, value2
+			, expect
+			, result
+		;
 		alup_t _RESULT, _VALUE2;
+		
+		value1 = abs_float1[val];
+		value2 = abs_float2[val];
 		
 		alu_printf("floating absolute '%c'", op_math[func]());
 		
@@ -893,10 +1078,16 @@ Suite * alu_suite(void)
 	tcase_add_test( tc_core, test_alur_final_one );
 	
 	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
+	
+	tcase_add_loop_test( tc_core, test_alup__cmp_integer_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__cmp_integer_randomised, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__cmp_floating_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__cmp_floating_randomised, 0, per_func * 4 );
+	
 	tcase_add_loop_test( tc_core, test_alup__math_integer_incremental, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__math_integer_randomised, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__math_floating_incremental, 0, per_func * 4 );
-	tcase_add_loop_test( tc_core, test_alup__math_floating_absolute, 0, 4 );
+	tcase_add_loop_test( tc_core, test_alup__math_floating_absolute, 0, abs_count * 4 );
 	tcase_add_loop_test( tc_core, test_alup__math_floating_randomised, 0, per_func * 4 );
 	
 	tcase_add_test( tc_core, test_alur2str );
