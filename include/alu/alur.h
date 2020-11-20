@@ -15,15 +15,14 @@ typedef aluv_t alu_t;
 typedef struct alur
 {
 	uint_t node;
-	uint_t info;
-	size_t from, upto;
+	alup_t alup;
 } alur_t;
 
 int_t alur_ensure( alu_t *alu, uint_t want, size_t Nsize );
 #define alur__empty( alu ) aluv_release( alu, 0 )
 
-#define alur___signed( alur ) !!((alur).info & ALU_INFO__SIGN)
-#define alur_floating( alur ) !!((alur).info & ALU_INFO_FLOAT)
+#define alur___signed( alur ) alup___signed( &((alur).alup) )
+#define alur_floating( alur ) alup_floating( &((alur).alup) )
 
 void alur__print
 (
@@ -56,9 +55,12 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 	do \
 	{ \
 		(alur).node = reg; \
-		(alur).info = 0; \
-		(alur).from = 0; \
-		(alur).upto = alu_Nbits( alu ); \
+		alup_init_unsigned \
+		( \
+			(alur).alup \
+			, alu_Ndata( alu, reg ) \
+			, alu_Nbits( alu ) \
+		); \
 	} \
 	while (0)
 	
@@ -66,9 +68,12 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 	do \
 	{ \
 		(alur).node = reg; \
-		(alur).info = ALU_INFO__SIGN; \
-		(alur).from = 0; \
-		(alur).upto = alu_Nbits( alu ); \
+		alup_init___signed \
+		( \
+			(alur).alup \
+			, alu_Ndata( alu, reg ) \
+			, alu_Nbits( alu ) \
+		); \
 	} \
 	while (0)
 	
@@ -76,34 +81,33 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 	do \
 	{ \
 		(alur).node = reg; \
-		(alur).info = ALU_INFO_FLOAT | ALU_INFO__SIGN; \
-		(alur).from = 0; \
-		(alur).upto = alu_Nbits( alu ) / 4; \
-		(alur).upto -= UNIC_CHAR_BIT; \
+		alup_init_floating \
+		( \
+			(alur).alup \
+			, alu_Ndata( alu, reg ) \
+			, alu_Nbits( alu ) / 2 \
+		); \
 	} \
 	while (0)
 	
 #define alur_init_mantissa( NUM, MAN ) \
 	do \
 	{ \
-		(MAN) = (NUM); \
-		(MAN).info = 0; \
-		(MAN).upto = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
+		(MAN).node = (NUM).node; \
+		alup_init_mantissa( &((NUM).alup), (MAN).alup ); \
 	} \
 	while (0)
 	
 #define alur_init_exponent( NUM, EXP ) \
 	do \
 	{ \
-		(EXP) = (NUM); \
-		(EXP).info = 0; \
-		(EXP).upto--; \
-		(EXP).from = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
+		(EXP).node = (NUM).node; \
+		alup_init_exponent( &((NUM).alup), (EXP).alup ); \
 	} \
 	while (0)
 
 #define alu_Nsize( alu ) ((alu)->Nsize)
-#define alu_Nbits( alu ) (alu_Nsize(alu) * CHAR_BIT)
+#define alu_Nbits( alu ) (alu_Nsize(alu) * UNIC_CHAR_BIT)
 #define alu_nodes( alu ) ((uchar_t*)((alu)->block.block))
 #define alu_Ndata( alu, node ) (alu_nodes(alu) + ((node) * alu_Nsize(alu)))
 #define alu_valid( alu ) alu_Ndata( alu, 0 )
@@ -121,13 +125,33 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 #define alur_clr_active( alu, alur ) alu_clr_active( alu, (alur).node )
 #define alur_set_active( alu, alur ) alu_set_active( alu, (alur).node )
 
-#define alup_init_register( alu, alup, alur ) \
+#define alup_init_register( alu, alur, length ) \
 	do \
 	{ \
-		(alup).data = alur_data( alu, alur ); \
-		(alup).info = (alur).info; \
-		(alup).from = (alur).from; \
-		(alup).upto = (alur).upto; \
+		size_t leng = EITHER( length, length, (alur).alup.leng ); \
+		(alur).node %= alu_upto( alu ); \
+		if ( !((alur).node) ) \
+		{ \
+			alu_printf \
+			( \
+				"(%s).node %% alu_upto(alu) was 0! Forced to 1" \
+				, #alur \
+			); \
+			(alur).node = 1; \
+		} \
+		(alur).alup.data = alur_data( alu, alur ); \
+		if ( alur_floating( alur ) ) \
+		{ \
+			alup_init_floating( (alur).alup, (alur).alup.data, leng ); \
+		} \
+		else if ( alur___signed( alur ) ) \
+		{ \
+			alup_init___signed( (alur).alup, (alur).alup.data, leng ); \
+		} \
+		else \
+		{ \
+			alup_init_unsigned( (alur).alup , (alur).alup.data , leng ); \
+		} \
 	} \
 	while (0)
 
@@ -135,7 +159,7 @@ bool_t	alur_below0( alu_t *alu, alur_t REG );
 alub_t	alur_final_one( alu_t *alu, alur_t NUM );
 int_t	alur_set( alu_t *alu, alur_t NUM, bool fillwith );
 int_t	alur_get_exponent( alu_t *alu, alur_t SRC, size_t *exp );
-size_t	alur_get_exponent_bias( alur_t SRC );
+size_t	alur_get_exponent_bias( alu_t *alu, alur_t SRC );
 int_t	alur_set_exponent( alu_t *alu, alur_t SRC, size_t exp );
 uint_t	alur_get_node( alu_t *alu, size_t need );
 int_t	alur_get_nodes( alu_t *alu, uint_t *regv, uint_t count, size_t need );
@@ -245,12 +269,13 @@ int_t alur__rotate
 
 #define alur_clr( alu, DST ) alur_set( alu, DST, 0 )
 #define alur_set_max( alu, DST ) alur_set( alu, DST, 1 )
+
 int_t alur_set_raw
 (
 	alu_t *alu
 	, alur_t NUM
 	, void *raw
-	, size_t size
+	, size_t bits
 	, uint_t info
 );
 
@@ -259,7 +284,7 @@ int_t alur_get_raw
 	alu_t *alu
 	, alur_t NUM
 	, void *raw
-	, size_t size
+	, size_t bits
 	, uint_t info
 );
 

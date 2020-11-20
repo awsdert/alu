@@ -10,13 +10,25 @@ size_t alu_man_dig( size_t bits );
 
 typedef struct alup
 {
-	void *data;
-	uint_t info;
-	size_t from, upto;
+	void *	data;
+	size_t	from;
+	/* Total bits in the number */
+	size_t	leng;
+	/* 0 means an integer */
+	size_t	mant;
+	/* Must be set for floating values */
+	bool_t	sign;
 } alup_t;
 
-#define alup___signed( alup ) !!((alup).info & ALU_INFO__SIGN)
-#define alup_floating( alup ) !!((alup).info & ALU_INFO_FLOAT)
+#define alup___signed( alup ) !!((alup)->sign)
+#define alup_floating( alup ) !!((alup)->mant)
+#define alup_until_pos( alup ) ((alup)->from + (alup)->leng + 1)
+#define alup_until_bit( alup ) alub( (alup)->data, alup_until_pos( alup ) )
+#define alup_final_pos( alup ) (alup_until_pos( alup ) - 1)
+#define alup_final_bit( alup ) alub( (alup)->data, alup_final_pos( alup ) )
+#define alup_first_bit( alup ) alub( (alup)->data, (alup)->from )
+#define alup_set_sign( alup, neg ) \
+	alub_set( (alup)->data, alup_until_pos(alup) - 1, neg )
 
 void alup__print
 (
@@ -24,7 +36,7 @@ void alup__print
 	, uint_t line
 	, const char *func
 	, char *name
-	, alup_t _PTR
+	, alup_t const * const _PTR
 	, bool print_info
 	, bool print_value
 );
@@ -41,99 +53,109 @@ void alup__print
 		, print_value \
 	)
 
-#define alup_init_unsigned( alup, ptr, size ) \
+#define alup_init_unsigned( alup, ptr, bits ) \
 	do \
 	{ \
 		(alup).data = ptr; \
-		(alup).info = 0; \
+		(alup).sign = false; \
+		(alup).leng = bits; \
 		(alup).from = 0; \
-		(alup).upto = (size) * UNIC_CHAR_BIT; \
+		(alup).mant = 0; \
 	} \
 	while (0)
 	
-#define alup_init___signed( alup, ptr, size ) \
+#define alup_init___signed( alup, ptr, bits ) \
 	do \
 	{ \
 		(alup).data = ptr; \
-		(alup).info = ALU_INFO__SIGN; \
+		(alup).sign = true; \
+		(alup).leng = bits; \
 		(alup).from = 0; \
-		(alup).upto = (size) * UNIC_CHAR_BIT; \
+		(alup).mant = 0; \
 	} \
 	while (0)
 	
-#define alup_init_floating( alup, ptr, size ) \
+#define alup_init_floating( alup, ptr, bits ) \
 	do \
 	{ \
 		(alup).data = ptr; \
-		(alup).info = ALU_INFO_FLOAT | ALU_INFO__SIGN; \
+		(alup).sign = true; \
+		(alup).leng = bits; \
 		(alup).from = 0; \
-		(alup).upto = (size) * UNIC_CHAR_BIT; \
+		(alup).mant = alu_man_dig( (alup).leng ); \
 	} \
 	while (0)
 
-#define alup_init_mantissa( NUM, MAN ) \
+#define alup_init_mantissa( SRC, MAN ) \
 	do \
 	{ \
-		(MAN) = (NUM); \
-		(MAN).info = 0; \
-		(MAN).upto = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
+		(MAN).data = (SRC)->data; \
+		(MAN).sign = false; \
+		(MAN).leng = IFTRUE( (SRC)->mant, ((SRC)->mant - 1) ); \
+		(MAN).from = 0; \
+		(MAN).mant = 0; \
 	} \
 	while (0)
 	
-#define alup_init_exponent( NUM, EXP ) \
+#define alup_init_exponent( SRC, EXP ) \
 	do \
 	{ \
-		(EXP) = (NUM); \
-		(EXP).info = 0; \
-		(EXP).upto--; \
-		(EXP).from = (NUM).from + (alu_man_dig( (NUM).upto - (NUM).from )); \
+		(EXP).data = (SRC)->data; \
+		(EXP).sign = false; \
+		(EXP).leng = IFTRUE \
+		( \
+			(SRC)->mant \
+			, ((SRC)->leng - (SRC)->mant) + !((SRC)->sign) \
+		); \
+		(EXP).from = IFTRUE( (SRC)->mant, ((SRC)->from + (SRC)->mant) - 1 ); \
+		(EXP).mant = 0; \
 	} \
 	while (0)
 
-bool_t	alup_below0( alup_t _PTR );
-alub_t	alup_final_one( alup_t _NUM );
-size_t	alup_get_exponent( alup_t SRC );
-size_t	alup_get_exponent_bias( alup_t SRC );
-int_t	alup_set_exponent( alup_t SRC, size_t exp );
-int_t	alup_set( alup_t _DST, bool fillwith );
+bool_t	alup_below0( alup_t const * const _PTR );
+alub_t	alup_final_one( alup_t const * const _NUM );
+size_t	alup_get_exponent( alup_t const * const _SRC );
+size_t	alup_get_exponent_bias( alup_t const * const _SRC );
+int_t	alup_set_exponent( alup_t const * const _SRC, size_t exp );
+int_t	alup_set( alup_t const * const _DST, bool fillwith );
 
-int_t	alup_mov_int2int( alup_t _DST, alup_t _SRC );
-int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC );
-int_t	alup_mov_flt2flt( alup_t _DST, alup_t _SRC );
-int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC );
-int_t	alup_mov( alup_t _DST, alup_t _SRC );
+int_t	alup_mov_int2int( alup_t const * const _DST, alup_t const * const _SRC );
+int_t	alup_mov_int2flt( alup_t const * const _DST, alup_t const * const _SRC );
+int_t	alup_mov_flt2flt( alup_t const * const _DST, alup_t const * const _SRC );
+int_t	alup_mov_flt2int( alup_t const * const _DST, alup_t const * const _SRC );
+int_t	alup_mov( alup_t const * const _DST, alup_t const * const _SRC );
 
-int_t	alup_cmp_int2int( alup_t _NUM, alup_t _VAL );
-int_t	alup_cmp( alup_t _NUM, alup_t _VAL );
+int_t	alup_cmp_int2int( alup_t const * const _NUM, alup_t const * const _VAL );
+int_t	alup_cmp( alup_t const * const _NUM, alup_t const * const _VAL );
 
-int_t	alup__shl( alup_t _NUM, size_t by );
-int_t	alup__shr( alup_t _NUM, size_t by );
-int_t	alup__rol_int2int( alup_t _NUM, size_t by );
-int_t	alup__rol( alup_t _NUM, void *_tmp, size_t by );
-int_t	alup__ror_int2int( alup_t _NUM, size_t by );
-int_t	alup__ror( alup_t _NUM, void *_tmp, size_t by );
+int_t	alup__shl( alup_t const * const _NUM, size_t by );
+int_t	alup__shr( alup_t const * const _NUM, size_t by );
+int_t	alup__rol_int2int( alup_t const * const _NUM, size_t by );
+int_t	alup__rol( alup_t const * const _NUM, void *_tmp, size_t by );
+int_t	alup__ror_int2int( alup_t const * const _NUM, size_t by );
+int_t	alup__ror( alup_t const * const _NUM, void *_tmp, size_t by );
 
-int_t	alup_rol( alup_t NUM, alup_t VAL, void *_tmp );
+int_t	alup_rol( alup_t const * const _NUM, alup_t const * const _VAL, void *_tmp );
 
-int_t	alup_not( alup_t _NUM );
-int_t	alup_and( alup_t NUM, alup_t VAL );
-int_t	alup__or( alup_t NUM, alup_t VAL );
-int_t	alup_xor( alup_t NUM, alup_t VAL );
+int_t	alup_not( alup_t const * const _NUM );
+int_t	alup_and( alup_t const * const _NUM, alup_t const * const _VAL );
+int_t	alup__or( alup_t const * const _NUM, alup_t const * const _VAL );
+int_t	alup_xor( alup_t const * const _NUM, alup_t const * const _VAL );
 
-int_t	alup_neg( alup_t _NUM );
-int_t	alup_inc( alup_t _NUM );
-int_t	alup_dec( alup_t _NUM );
+int_t	alup_neg( alup_t const * const _NUM );
+int_t	alup_inc( alup_t const * const _NUM );
+int_t	alup_dec( alup_t const * const _NUM );
 int_t	alup_match_exponents( void *_num, void *_val, size_t size );
 
-int_t	alup__add_int2int( alup_t _NUM, alup_t _VAL );
-int_t	alup__add( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
+int_t	alup__add_int2int( alup_t const * const _NUM, alup_t const * const _VAL );
+int_t	alup__add( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
 
-int_t	alup__sub_int2int( alup_t _NUM, alup_t _VAL );
-int_t	alup__sub( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
+int_t	alup__sub_int2int( alup_t const * const _NUM, alup_t const * const _VAL );
+int_t	alup__sub( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
 
-int_t	alup__mul_int2int( alup_t NUM, alup_t VAL, void *_cpy );
-int_t	alup__mul( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
-int_t	alup__div_int2int( alup_t NUM, alup_t VAL, void *_cpy );
-int_t	alup__div( alup_t NUM, alup_t VAL, void *_cpy, void *_tmp );
+int_t	alup__mul_int2int( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy );
+int_t	alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
+int_t	alup__div_int2int( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy );
+int_t	alup__div( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
 
 #endif

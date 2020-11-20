@@ -13,12 +13,10 @@ void alur__print
 	, bool print_info
 	, bool print_value
 )
-{
-	alup_t _PTR;
-	
+{	
 	REG.node %= alu_used( alu );
 	
-	alup_init_register( alu, _PTR, REG );
+	alup_init_register( alu, REG, 0 );
 
 	if ( print_info )
 	{		
@@ -34,7 +32,7 @@ void alur__print
 		);
 	}
 	
-	alup__print( file, line, func, pfx, _PTR, print_info, print_value );
+	alup__print( file, line, func, pfx, &(REG.alup), print_info, print_value );
 }
 
 int_t alu__err_null_ptr
@@ -81,8 +79,8 @@ size_t alu_set_bounds( alu_t *alu, alur_t *REG, size_t from, size_t upto )
 	upto = HIGHEST( upto, 1 );
 	upto = LOWEST( upto, full );
 	
-	REG->upto = upto;
-	REG->from = from * (from < upto);
+	REG->alup.from = IFTRUE( from < upto, from );
+	REG->alup.leng = upto - REG->alup.from;
 	
 	return upto;
 }
@@ -304,7 +302,7 @@ int_t alu_str2reg
 	alur_init_unsigned( alu, NUM, nodes[ALU_BASE_NUM] );
 	alur_init_unsigned( alu, VAL, nodes[ALU_BASE_VAL] );
 
-	ret = alur_set_raw( alu, VAL, &(base.base), sizeof(size_t), 0 );
+	ret = alur_set_raw( alu, VAL, &(base.base), bitsof(size_t), 0 );
 	
 	if ( ret != 0 )
 	{
@@ -361,7 +359,7 @@ int_t alu_str2reg
 		
 		++(*(src.nextpos));
 		
-		alur_set_raw( alu, NUM, &b, sizeof(size_t), 0 );
+		alur_set_raw( alu, NUM, &b, bitsof(size_t), 0 );
 		
 		ret = alur_mul( alu, DST, VAL );
 		
@@ -581,12 +579,11 @@ int_t alu_lit2reg
 		
 		Nsize = alu_Nsize( alu );
 		/* Make sure have enough space for later calculations */
-		bits = DST.upto - DST.from;
-		if ( bits >= (alu_Nbits(alu) / 4) )
+		if ( DST.alup.leng >= (alu_Nbits(alu) / 2) )
 			return EDOM;
 		
 		/* Check how many bits to assign to exponent & mantissa */
-		man_dig = alu_man_dig( bits );
+		man_dig = alu_man_dig( DST.alup.leng );
 		exp_dig = ((Nsize * UNIC_CHAR_BIT) - man_dig) - 1;
 		
 		/* Update Exponent & Mantissa Bounds */
@@ -797,7 +794,7 @@ int_t alu_lit2reg
 				{
 				case 1:
 					part = alur_data( alu, MAN );
-					n = alub( part, MAN.from );
+					n = alub( part, MAN.alup.from );
 					
 					if ( *(n.ptr) & n.mask )
 						(void)alur_inc( alu, MAN );
@@ -812,7 +809,7 @@ int_t alu_lit2reg
 			(void)alur_mov( alu, VAL, DOT );
 			
 			part = alur_data( alu, MAN );
-			n = alub( part, MAN.from );
+			n = alub( part, MAN.alup.from );
 			
 			for ( bits = 0; pos < man_dig; ++pos )
 			{
@@ -953,7 +950,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 				digit = 0;
 			}
 			
-			alur_get_raw( alu, REM, &b, sizeof(size_t), 0 );
+			alur_get_raw( alu, REM, &b, bitsof(size_t), 0 );
 			ret = dst.next( base_str[b], dst.dst );
 			
 			if ( ret != 0 )
@@ -965,7 +962,7 @@ int_t alur2str( alu_t *alu, alu_dst_t dst, alur_t SRC, alu_base_t base )
 			++digit;
 		}
 		
-		alur_get_raw( alu, NUM, &b, sizeof(size_t), 0 );
+		alur_get_raw( alu, NUM, &b, bitsof(size_t), 0 );
 		ret = dst.next( base_str[b], dst.dst );
 		
 		if ( ret != 0 )

@@ -1,40 +1,12 @@
 #include "alu.h"
-size_t alu_man_dig( size_t bits )
-{
-	return EITHER
-	(
-		bits < 6
-		, 3
-		, EITHER
-		(
-			bits < bitsof(float)
-			, 5
-			, EITHER
-			(
-				bits < bitsof(double)
-				, FLT_MANT_DIG
-				, EITHER
-				(
-					bits < bitsof(long double)
-					, DBL_MANT_DIG
-					, bits - 11
-				)
-			)
-		)
-	) - 1;
-}
 
 bool_t alur_below0( alu_t *alu, alur_t REG )
 {
 	if ( alu )
-	{
-		if ( REG.upto )
-		{
-			alub_t r = alub( (void*)alur_data( alu, REG ), REG.upto - 1 );
-			
-			return IFBOTH( alur___signed( REG ), *(r.ptr) & r.mask );
-		}
-		return 0;
+	{	
+		alup_init_register( alu, REG, 0 );
+		
+		return alup_below0( &(REG.alup) );
 	}
 	
 	(void)alu_err_null_ptr("alu");
@@ -43,35 +15,44 @@ bool_t alur_below0( alu_t *alu, alur_t REG )
 
 int_t alur_get_exponent( alu_t *alu, alur_t SRC, size_t *dst )
 {
-	if ( dst )
+	if ( alu )
 	{
-		alup_t _SRC;
+		if ( dst )
+		{	
+			alup_init_register( alu, SRC, 0 );
+			
+			*dst = alup_get_exponent( &(SRC.alup) );
+			
+			return 0;
+		}
 		
-		alup_init_register( alu, _SRC, SRC );
-		
-		*dst = alup_get_exponent( _SRC );
-		
-		return 0;
+		return alu_err_null_ptr("dst");
 	}
-	return alu_err_null_ptr("dst");
+	
+	return alu_err_null_ptr("alu");
 }
 
 int_t alur_set_exponent( alu_t *alu, alur_t DST, size_t src )
 {
-	alup_t _DST;
-		
-	alup_init_register( alu, _DST, DST );
+	if ( alu )
+	{
+		alup_init_register( alu, DST, 0 );	
+		return alup_set_exponent( &(DST.alup), src );
+	}
 	
-	return alup_set_exponent( _DST, src );
+	return alu_err_null_ptr("alu");
 }
 
-size_t alur_get_exponent_bias( alur_t SRC )
+size_t alur_get_exponent_bias( alu_t *alu, alur_t SRC )
 {
-	alur_t EXP;
-	size_t bias = UNIC_SIZE_C(~0);
-	alur_init_exponent( SRC, EXP );
-	bias <<= (EXP.upto - EXP.from) - 1;
-	return ~bias;
+	if ( alu )
+	{
+		alup_init_register( alu, SRC, 0 );
+		return alup_get_exponent( &(SRC.alup) );
+	}
+	
+	(void)alu_err_null_ptr("alu");
+	return 0;
 }
 
 int_t alu__op1
@@ -90,10 +71,13 @@ int_t alu__op1
 		{
 			alur_init_floating( alu, NUM, num );
 		}
+		else if ( info & ALU_INFO__SIGN )
+		{
+			alur_init___signed( alu, NUM, num );
+		}
 		else
 		{
 			alur_init_unsigned( alu, NUM, num );
-			NUM.info = info;
 		}
 		
 		return op1( alu, NUM );
@@ -114,18 +98,21 @@ int_t alu__op2
 	if ( alu )
 	{
 		alur_t NUM, VAL;
-	
+
 		if ( info & ALU_INFO_FLOAT )
 		{
 			alur_init_floating( alu, NUM, num );
 			alur_init_floating( alu, VAL, val );
 		}
+		else if ( info & ALU_INFO__SIGN )
+		{
+			alur_init___signed( alu, NUM, num );
+			alur_init___signed( alu, VAL, val );
+		}
 		else
 		{
 			alur_init_unsigned( alu, NUM, num );
 			alur_init_unsigned( alu, VAL, val );
-			NUM.info = info;
-			VAL.info = info;
 		}
 		
 		return op2( alu, NUM, VAL );
@@ -154,12 +141,15 @@ int_t alu__op4
 			alur_init_floating( alu, NUM, num );
 			alur_init_floating( alu, VAL, val );
 		}
+		else if ( info & ALU_INFO__SIGN )
+		{
+			alur_init___signed( alu, NUM, num );
+			alur_init___signed( alu, VAL, val );
+		}
 		else
 		{
 			alur_init_unsigned( alu, NUM, num );
 			alur_init_unsigned( alu, VAL, val );
-			NUM.info = info;
-			VAL.info = info;
 		}
 		
 		return op4( alu, NUM, VAL, reg, tmp );
@@ -172,20 +162,8 @@ int_t alur_set( alu_t *alu, alur_t NUM, bool fillwith )
 {
 	if ( alu )
 	{
-		alup_t _NUM;
-		
-		NUM.node %= alu_used( alu );
-		
-		if ( !NUM.node )
-		{
-			int_t ret = EDOM;
-			alu_error( ret );
-			return ret;
-		}
-		
-		alup_init_register( alu, _NUM, NUM );
-		alup_set( _NUM, fillwith );
-		return 0;
+		alup_init_register( alu, NUM, 0 );
+		return alup_set( &(NUM.alup), fillwith );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -197,7 +175,7 @@ int_t alu_set( alu_t *alu, uint_t num, bool fillwith )
 	{
 		alur_t NUM;
 		alur_init_unsigned( alu, NUM, num );
-		return alur_set( alu, NUM, fillwith );
+		return alup_set( &(NUM.alup), fillwith );
 	}
 	return alu_err_null_ptr("alu");
 }
@@ -207,30 +185,31 @@ int_t alur_get_raw
 	alu_t *alu
 	, alur_t SRC
 	, void *dst
-	, size_t size
+	, size_t bits
 	, uint_t info
 )
 {
 		
 	if ( alu )
 	{
-		alup_t _DST, _SRC;
+		alup_t _DST;
 		
-		size = HIGHEST( size, 1 );
-		
-		alup_init_register( alu, _SRC, SRC );
+		alup_init_register( alu, SRC, 0 );
 		
 		if ( info & ALU_INFO_FLOAT )
 		{
-			alup_init_floating( _DST, dst, size );
+			alup_init_floating( _DST, dst, bits );
+		}
+		else if ( info & ALU_INFO__SIGN )
+		{
+			alup_init___signed( _DST, dst, bits );
 		}
 		else
 		{
-			alup_init_unsigned( _DST, dst, size );
-			_DST.info = info;
+			alup_init_unsigned( _DST, dst, bits );
 		}
 		
-		return alup_mov( _DST, _SRC );
+		return alup_mov( &_DST, &(SRC.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -242,7 +221,7 @@ int_t alu_get_raw( alu_t *alu, uint_t num, uintmax_t *raw )
 	{
 		alur_t NUM;
 		alur_init_unsigned( alu, NUM, num );
-		return alur_get_raw( alu, NUM, raw, sizeof(uintmax_t), 0 );
+		return alur_get_raw( alu, NUM, raw, bitsof(uintmax_t), 0 );
 	}
 	return alu_err_null_ptr("alu");
 }
@@ -252,29 +231,30 @@ int_t alur_set_raw
 	alu_t *alu
 	, alur_t DST
 	, void *src
-	, size_t size
+	, size_t bits
 	, uint_t info
 )
 {	
 	if ( alu )
 	{
-		alup_t _DST, _SRC;
+		alup_t _SRC;
 		
-		size = HIGHEST( size, 1 );
-		
-		alup_init_register( alu, _DST, DST );
+		alup_init_register( alu, DST, 0 );
 		
 		if ( info & ALU_INFO_FLOAT )
 		{
-			alup_init_floating( _SRC, src, size );
+			alup_init_floating( _SRC, src, bits );
+		}
+		else if ( info & ALU_INFO__SIGN )
+		{
+			alup_init___signed( _SRC, src, bits );
 		}
 		else
 		{
-			alup_init_unsigned( _SRC, src, size );
-			_SRC.info = info;
+			alup_init_unsigned( _SRC, src, bits );
 		}
 		
-		return alup_mov( _DST, _SRC );
+		return alup_mov( &(DST.alup), &_SRC );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -284,7 +264,7 @@ int_t alu_set_raw( alu_t *alu, uint_t num, uintmax_t raw, uint_t info )
 {
 	alur_t NUM;
 	alur_init_unsigned( alu, NUM, num );
-	return alur_set_raw( alu, NUM, &raw, sizeof(uintmax_t), info );
+	return alur_set_raw( alu, NUM, &raw, bitsof(uintmax_t), info );
 }
 
 int_t	alu_mov( alu_t *alu, uint_t num, uint_t val )
@@ -310,7 +290,7 @@ alub_t	alu_final_one( alu_t *alu, uint_t num )
 	{
 		alur_t NUM;
 		alur_init_unsigned( alu, NUM, num );
-		return alur_final_one( alu, NUM );
+		return alup_final_one( &(NUM.alup) );
 	}
 	
 	(void)alu_err_null_ptr("alu");
@@ -318,11 +298,6 @@ alub_t	alu_final_one( alu_t *alu, uint_t num )
 }
 
 size_t alu_lowest_upto( alur_t NUM, alur_t VAL )
-{
-	size_t ndiff, vdiff;
-	
-	ndiff = (NUM.upto - NUM.from);
-	vdiff = (VAL.upto - VAL.from);
-		
-	return NUM.from + LOWEST(ndiff,vdiff);
+{		
+	return NUM.alup.from + LOWEST(NUM.alup.leng,VAL.alup.leng);
 }

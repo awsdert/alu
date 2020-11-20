@@ -1,4 +1,29 @@
 #include <alu/alup.h>
+size_t alu_man_dig( size_t bits )
+{
+	size_t max_exp = bits - LDBL_MANT_DIG;
+	return EITHER
+	(
+		bits < 6
+		, 3
+		, EITHER
+		(
+			bits < bitsof(float)
+			, 5
+			, EITHER
+			(
+				bits < bitsof(double)
+				, FLT_MANT_DIG
+				, EITHER
+				(
+					bits < bitsof(long double)
+					, DBL_MANT_DIG
+					, bits - max_exp
+				)
+			)
+		)
+	);
+}
 
 void alup__print
 (
@@ -6,7 +31,7 @@ void alup__print
 	, uint_t line
 	, const char *func
 	, char *pfx
-	, alup_t _PTR
+	, alup_t const * const _PTR
 	, bool print_info
 	, bool print_value
 )
@@ -16,181 +41,186 @@ void alup__print
 	alup_init_exponent( _PTR, _EXP );
 
 	if ( print_info )
-	{
-		size_t exp_dig = alup_floating( _PTR ) ? _EXP.upto - _EXP.from : 0;
-		size_t man_dig = alup_floating( _PTR ) ? _EXP.from - _PTR.from : 0;
-		
+	{	
 		alu__printf
 		(
-			"%s: part = %p, from = %zu, upto = %zu"
+			"%s: part = %p, from = %zu, leng = %zu, upto = %zu"
 			", signed = %c, floating = %c"
 			", exp_dig = %zu, man_dig = %zu"
 			, file
 			, line
 			, func
 			, pfx
-			, _PTR.data
-			, _PTR.from
-			, _PTR.upto
+			, _PTR->data
+			, _PTR->from
+			, _PTR->leng
+			, alup_until_pos( _PTR )
 			, '0' + alup___signed( _PTR )
 			, '0' + alup_floating( _PTR )
-			, exp_dig
-			, man_dig
+			, _EXP.leng
+			, _PTR->mant
 		);
 	}
 	
 	if ( print_value )
 	{
-		alub_t p = alub( _PTR.data, _PTR.upto );
+		alub_t p = alup_final_bit( _PTR );
+		size_t bits = 0, sep_at = 4;
+		char sec_sep = ' ', dig_sep = '\'';
 		
 		fprintf( aluout, "%s:%u: %s() %s = ", file, line, func, pfx );
 		
 		if ( alup___signed( _PTR ) )
 		{
 			alub_dec(&p);
+			bits = 1;
 			(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
-			(void)fputc( ' ', aluout );
+			(void)fputc( sec_sep, aluout );
 		}
 		
 		if ( alup_floating( _PTR ) )
 		{
-			size_t exp;
-			alup_t _TMP;
+			ssize_t exp = alup_get_exponent( _PTR );
 			char str[bitsof(size_t)] = {0};
 			
-			alup_init_unsigned( _TMP, &exp, sizeof(size_t) );
+			if ( exp )
+				exp -= alup_get_exponent_bias( _PTR );
 			
-			(void)alup_mov_int2int( _TMP, _EXP );
-			
-			exp -= alup_get_exponent_bias(_PTR);
-			
-			sprintf( str, "%+05zd ", (ssize_t)exp );
+			sprintf( str, "%+05zd%c", (ssize_t)exp, sec_sep );
 			
 			fputs( str, aluout );
 			
 			while ( p.bit > _EXP.from )
 			{
+				if ( bits >= sep_at )
+				{
+					//fputc( dig_sep, aluout );
+					bits = 0;
+				}
 				alub_dec(&p);
 				(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
+				++bits;
 			}
 			
-			(void)fputc( ' ', aluout );
-			while ( p.bit > _PTR.from )
-			{
-				alub_dec(&p);
-				(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
-			}
+			(void)fputc( sec_sep, aluout );
 		}
-		else
+		
+		while ( p.bit > _PTR->from )
 		{
-			while ( p.bit > _PTR.from )
+			if ( bits >= sep_at )
 			{
-				alub_dec(&p);
-				(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
+				fputc( dig_sep, aluout );
+				bits = 0;
 			}
+			alub_dec(&p);
+			(void)fputc( '0' + !!(*(p.ptr) & p.mask), aluout );
+			++bits;
 		}
 		
 		fputc( '\n', aluout );
 	}
 }
 
-bool_t alup_below0( alup_t _PTR )
+bool_t alup_below0( alup_t const * const _PTR )
 {
-	if ( _PTR.data && alup___signed(_PTR) )
+	if ( _PTR->data && alup___signed(_PTR) )
 	{
-		alub_t sign = alub( _PTR.data, _PTR.upto - 1 );
+		alub_t sign = alub( _PTR->data, _PTR->from + (_PTR->leng - 1) );
 		return !!(*(sign.ptr) & sign.mask);
 	}
 	
 	return false;
 }
 
-alub_t alup_first_one( alup_t _SRC )
+alub_t alup_first_one( alup_t const * const _SRC )
 {
 	alub_t s = {0};
 	
-	if ( _SRC.data )
+	if ( _SRC->data )
 	{
 		size_t b;
 		
-		s = alub( _SRC.data, _SRC.from );
+		s = alub( _SRC->data, _SRC->from );
 		
 		do
 		{
-			b = EITHER( *(s.ptr) & s.mask, _SRC.upto, s.bit );
+			b = EITHER( *(s.ptr) & s.mask, _SRC->leng, b + 1 );
 			alub_inc(&s);
 		}
-		while ( b < _SRC.upto );
+		while ( b < _SRC->leng );
 		
 	}
 	
 	return s;
 }
 
-alub_t alup_final_one( alup_t _SRC )
+alub_t alup_final_one( alup_t const * const _SRC )
 {
 	alub_t s = {0};
 	
-	if ( _SRC.data )
+	if ( _SRC->data )
 	{
 		size_t b;
 		
-		s = alub( _SRC.data, _SRC.upto );
+		s = alup_final_bit( _SRC );
 		
 		do
 		{
 			alub_dec(&s);
 			b = IFTRUE( !( *(s.ptr) & s.mask ), s.bit );
 		}
-		while ( b > _SRC.from );
-		
+		while ( b > _SRC->from );
 	}
 	
 	return s;
 }
 
-size_t alup_get_exponent( alup_t _SRC )
+size_t alup_get_exponent( alup_t const * const _SRC )
 {
+	int_t ret;
 	size_t dst = 0;
 	alup_t _EXP, _DST;
-		
-	alup_init_unsigned( _DST, &dst, sizeof(size_t) );
+	
+	alup_init_unsigned( _DST, &dst, bitsof(size_t) );
 	alup_init_exponent( _SRC, _EXP );
 	
-	(void)alup_mov_int2int( _DST, _EXP );
+	ret = alup_mov_int2int( &_DST, &_EXP );
+	if ( ret )
+		alu_error( ret );
 	
 	return dst;
 }
 
-int_t alup_set_exponent( alup_t _DST, size_t src )
+int_t alup_set_exponent( alup_t const * const _DST, size_t src )
 {
 	alup_t _EXP, _SRC;
 	
-	alup_init_unsigned( _SRC, &src, sizeof(size_t) );
+	alup_init_unsigned( _SRC, &src, bitsof(size_t) );
 	alup_init_exponent( _DST, _EXP );
 	
-	return alup_mov_int2int( _EXP, _SRC );
+	return alup_mov_int2int( &_EXP, &_SRC );
 }
 
-size_t alup_get_exponent_bias( alup_t _SRC )
+size_t alup_get_exponent_bias( alup_t const * const _SRC )
 {
 	alup_t _EXP;
 	size_t bias = UNIC_SIZE_C(~0);
 	alup_init_exponent( _SRC, _EXP );
-	bias <<= (_EXP.upto - _EXP.from) - 1;
+	bias <<= _EXP.leng - 1;
 	return ~bias;
 }
 
-int_t	alup_set( alup_t _DST, bool fillwith )
+int_t	alup_set( alup_t const * const _DST, bool fillwith )
 {
-	if ( _DST.data )
+	if ( _DST->data )
 	{
 		alub_t n;
+		size_t upto = alup_until_pos( _DST );
 		
 		/* Force to either 1 or 0 */
 		fillwith = !!fillwith;
 		
-		for ( n = alub( _DST.data, _DST.from ); n.bit < _DST.upto; alub_inc(&n) )
+		for ( n = alub( _DST->data, _DST->from ); n.bit < upto; alub_inc(&n) )
 		{
 			*(n.ptr) &= ~(n.mask);
 			*(n.ptr) |= IFTRUE( fillwith, n.mask );
@@ -199,126 +229,132 @@ int_t	alup_set( alup_t _DST, bool fillwith )
 		return 0;
 	}
 	
-	return alu_err_null_ptr("_DST.data");
+	return alu_err_null_ptr("_DST->data");
 }
 
-int_t	alup_set_max( alup_t _DST )
-{
+int_t	alup_set_intmax( alup_t const * const _DST )
+{	
 	int_t ret = alup_set( _DST, 1 );
 	
 	if ( ret == 0 )
 	{
-		if ( alup_floating( _DST ) )
-		{
-			alup_t _MAN;
-			
-			_DST.info |= ALU_INFO__SIGN;
-			
-			alup_init_mantissa( _DST, _MAN );
-			alup_set( _MAN, 0 );
-		}
-		
 		if ( alup___signed( _DST ) )
 		{
-			alub_t n = alub( _DST.data, _DST.upto - 1 );
-			*(n.ptr) &= ~(n.mask);
+			alup_set_sign( _DST, 0 );
 		}
 		
 		return 0;
 	}
 	
-	alu_error(ret);
 	return ret;
 }
 
-int_t	alup_set_min( alup_t _DST )
-{
+int_t	alup_set_intmin( alup_t const * const _DST )
+{	
 	int_t ret = alup_set( _DST, 0 );
 	
 	if ( ret == 0 )
 	{
-		if ( alup_floating( _DST ) )
-		{
-			alup_t _EXP;
-			
-			_DST.info |= ALU_INFO__SIGN;
-			
-			alup_init_exponent( _DST, _EXP );
-			alup_set( _EXP, 1 );
-		}
-			
 		if ( alup___signed( _DST ) )
 		{
-			alub_t n = alub( _DST.data, _DST.upto - 1 );
-			*(n.ptr) |= n.mask;	
+			alup_set_sign( _DST, 1 );
 		}
 		
 		return 0;
 	}
 	
-	alu_error(ret);
 	return ret;
 }
 
-int_t	alup_mov_int2int( alup_t _DST, alup_t _SRC )
+int_t	alup_set_fltinf( alup_t const * const _DST, bool_t neg )
 {
-	if ( _DST.data )
+	alup_t _MAN;
+	size_t bias = alup_get_exponent_bias( _DST );
+	
+	alup_set_sign( _DST, neg );
+	alup_set_exponent( _DST, (bias << 1) | 1 );
+	alup_init_mantissa( _DST, _MAN );
+	
+	return alup_set( &_MAN, 0 );
+}
+
+int_t	alup_set_max( alup_t const * const _DST )
+{
+	if ( alup_floating( _DST ) )
 	{
-		alub_t d = alub( _DST.data, _DST.from );
-		
-		if ( _SRC.data )
+		return alup_set_fltinf( _DST, 0 );
+	}
+	
+	return alup_set_intmax( _DST );
+}
+
+int_t	alup_set_min( alup_t const * const _DST )
+{
+	if ( alup_floating( _DST ) )
+	{
+		return alup_set_fltinf( _DST, 1 );
+	}
+	
+	return alup_set_intmin( _DST );
+}
+
+int_t	alup_set_inf( alup_t const * const _DST, bool_t neg )
+{
+	if ( alup_floating( _DST ) )
+	{
+		return alup_set_fltinf( _DST, neg );
+	}
+	
+	/* Integers do not support infinity, min/max is closest we can get */
+	
+	if ( neg )
+	{
+		return alup_set_intmin( _DST );
+	}
+	
+	return alup_set_intmax( _DST );
+}
+
+int_t	alup_mov_int2int( alup_t const * const _DST, alup_t const * const _SRC )
+{
+	if ( _DST->data )
+	{	
+		if ( _SRC->data )
 		{
-			alub_t s = alub( _SRC.data, _SRC.from );
-			size_t stop =
-				_DST.from + LOWEST( _DST.upto - d.bit, _SRC.upto - s.bit );
-			bool neg;
+			alub_t
+				d = alub( _DST->data, _DST->from )
+				, s = alub( _SRC->data, _SRC->from );
+			size_t upto = _DST->from + LOWEST( _DST->leng, _SRC->leng );
+			bool neg = alup_below0( _SRC );
 			
-			while ( d.bit < stop )
+			for ( ; d.bit < upto; alub_inc(&d), alub_inc(&s) )
 			{
 				*(d.ptr) &= ~(d.mask);
 				*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
-				
-				alub_inc(&d);
-				alub_inc(&s);
 			}
+
+			upto = _DST->from + _DST->leng;
 			
-			neg = alup_below0( _SRC );
-			
-			while ( d.bit < _DST.upto )
+			for ( ; d.bit < upto; alub_inc(&d) )
 			{
 				*(d.ptr) &= ~(d.mask);
 				*(d.ptr) |= IFTRUE( neg, d.mask );
-				
-				alub_inc(&d);
 			}
 			
-			return IFTRUE
-			(
-				d.bit < (_DST.from + (_SRC.upto - _SRC.from))
-				, EOVERFLOW
-			);
-		}
-		else
-		{
-			for ( ; d.bit < _DST.upto; alub_inc(&d) )
-				*(d.ptr) &= ~(d.mask);
+			return IFTRUE( d.bit < (_DST->from + _SRC->leng), ERANGE );
 		}
 		
-		return 0;
+		return alup_set( _DST, 0 );
 	}
 	
-	return alu_err_null_ptr("_DST.data");
+	return alu_err_null_ptr("_DST->data");
 }
 
-int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
-{	
-	alup_t _MAN, _NIL = {0};
-	alub_t d, s;
-	size_t exp, bias, b;
-	bool neg = alup_below0( _SRC );
-	
-	/* Set +/- */
-	alub_set( _DST.data, _DST.upto - 1, neg );
+int_t	alup_mov_int2flt( alup_t const * const _DST, alup_t const * const _SRC )
+{
+	alub_t s;
+	ssize_t exp, bias;
+	bool neg = alup_below0( _SRC ), is0;
 	
 	if ( neg )
 	{
@@ -326,10 +362,10 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 	}
 	
 	s = alup_final_one( _SRC );
-	b = s.bit - _SRC.from;
+	exp = s.bit - _SRC->from;
+	is0 = !(exp || *(s.ptr) & s.mask);
 	
-	/* +0 should look like an integer 0 */
-	if ( !b && !(*(s.ptr) & s.mask) )
+	if ( is0 )
 	{
 		/* Put back the way we received it */
 		if ( neg )
@@ -337,14 +373,13 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 			alup_neg( _SRC );
 		}
 		
-		return alup_set( _DST, 0 );
+		(void)alup_set( _DST, 0 );
+		return ENODATA;
 	}
-	
-	alup_init_mantissa( _DST, _MAN );
 	
 	bias = alup_get_exponent_bias( _DST );
 	
-	if ( b >= bias )
+	if ( exp >= bias )
 	{
 		/* Put back the way we received it */
 		if ( neg )
@@ -352,75 +387,75 @@ int_t	alup_mov_int2flt( alup_t _DST, alup_t _SRC )
 			alup_neg( _SRC );
 		}
 		
-		/* Set Infinity */
-		(void)alup_set_exponent( _DST, (bias << 1) | 1 );
-		/* Clear mantissa so not treated as NaN */
-		(void)alup_mov_int2int( _MAN, _NIL );
-		return EOVERFLOW;
+		(void)alup_set_inf( _DST, neg );
+		return ERANGE;
 	}
-	
-	exp = (bias + b);
-	(void)alup_set_exponent( _DST, exp );
-	
-	_SRC.upto = s.bit;
-	_SRC.from = _SRC.upto - LOWEST( b, _MAN.upto - _MAN.from );
-	_MAN.from = _MAN.upto - LOWEST( b, _MAN.upto - _MAN.from );
-	
-	(void)alup_mov_int2int( _MAN, _SRC );
-	
-	/* Round to nearest */
-	if ( _SRC.from > s.bit - b )
+	else
 	{
-		s = alub( _SRC.data, (_SRC.upto - b) - 1 );
-		d = alub( _MAN.data, _MAN.from );
+		alup_t _MAN, _REF;
+		ssize_t upto = LOWEST( exp + 1, (ssize_t)(_DST->mant) );
 		
-		*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
+		alup_init_mantissa( _DST, _MAN );
+		alup_set( &_MAN, 0 );
+		
+		//alu_printf( "exp = %zd, upto = %zd", exp, upto );
+		
+		_REF = *_SRC;
+		_REF.leng = upto - 1;
+		_REF.from = IFTRUE( s.bit, s.bit - _REF.leng );
+		_MAN.from += ( _DST->mant - upto );
+		
+		//alup_print( &_REF, 1, 1 );
+		
+		(void)alup_mov_int2int( &_MAN, &_REF );
+		
+		/* Round to nearest */
+		if ( _SRC->from < _REF.from )
+		{
+			s = alub( _REF.data, _REF.from - 1 );
+			
+			if ( *(s.ptr) & s.mask )
+				alup_inc( &_MAN );
+		}
+		
+		(void)alup_set_exponent( _DST, exp + bias );
+		alup_set_sign( _DST, neg );
+		
+		/* Put back the way we received it */
+		if ( neg )
+		{
+			alup_neg( _SRC );
+		}
+		
+		return 0;
 	}
-	
-	/* Put back the way we received it */
-	if ( neg )
-	{
-		alup_neg( _SRC );
-	}
-	
-	return 0;
 }
 
-int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC )
+int_t	alup_mov_flt2int( alup_t const * const _DST, alup_t const * const _SRC )
 {
+	int_t ret;
 	alup_t _MAN;
-	alub_t d, s;
-	size_t dlength, slength, sman_dig
-		, exp = alup_get_exponent( _SRC )
-		, bias = alup_get_exponent_bias(_SRC);
+	alub_t s;
+	ssize_t exp = alup_get_exponent( _SRC )
+		, bias = alup_get_exponent_bias(_SRC)
+		, inf = (bias << 1) | 1;
 	bool Inf, neg;
-	
-	dlength = _DST.upto - _DST.from;
-	slength = _SRC.upto - _SRC.from;
-	
-	sman_dig = alu_man_dig(slength);
 	
 	alup_init_mantissa( _SRC, _MAN );
 	
 	neg = alup_below0( _SRC );
-	Inf = (exp == bias);
-		
-	/* Set +/- */
-	d = alub( _DST.data, _DST.upto - 1 );
-	*(d.ptr) &= ~(d.mask);
-	*(d.ptr) |= (neg * d.mask);
+	Inf = (exp == inf);
 	
-	if ( exp <= bias )
+	if ( !exp )
 	{
-		alup_set( _DST, 0 );
-		return 0;
+		return alup_set( _DST, 0 );
 	}
 	
 	exp -= bias;
 	
-	if ( Inf || exp >= dlength )
+	if ( Inf || exp >= (ssize_t)(_DST->leng) )
 	{
-		s = alup_final_one( _MAN );
+		s = alup_final_one( &_MAN );
 		
 		/* NaN cannot be recorded by an integer, use 0 instead */
 		if ( Inf && *(s.ptr) & s.mask )
@@ -429,111 +464,82 @@ int_t	alup_mov_flt2int( alup_t _DST, alup_t _SRC )
 			return 0;
 		}
 		
-		/* Infinity cannot be recorded by an integer,
-		 * use min/max instead */
-		if ( neg )
-			alup_set_min( _DST );
-		else
-			alup_set_max( _DST );
-			
-		return 0;
+		return alup_set_inf( _DST, neg );
 	}
 	
-	(void)alup_set( _DST, 0 );
+	if ( exp < 0 )
+	{
+		return alup_set( _DST, 0 );
+	}
 	
-	/* alur_get_raw() will have retrieved and released a register,
-	 * since that succeeded will end up with that register here as the
-	 * register was not released from memory, only usage */
+	_MAN.from += _MAN.leng - LOWEST( exp, (ssize_t)(_MAN.leng) );
+	(void)alup_mov_int2int( _DST, &_MAN );
+	ret = alup__shl( _DST, exp );
+	/* Put in the assumed bit */
+	alub_set( _DST->data, _DST->from + exp, 1 );
 	
-	/* Put in the assumed bit and move it to correct location */
-	d = alub( _DST.data, _DST.from );
-	*(d.ptr) |= d.mask;
-	(void)alup__shl( _DST, sman_dig );
-	
-	/* Put in rest of mantissa */
-	(void)alup__or( _DST, _MAN );
-	
-	/* Align to correct position now that full integer is there */
-	if ( exp <= sman_dig )
-		return alup__shr( _DST, sman_dig - exp );
-	
-	(void)alup__shl( _DST, exp );
-	return 0;
+	if ( neg )
+	{
+		alup_neg( _DST );
+	}
+
+	return ret;
 }
 
-int_t	alup_mov_flt2flt( alup_t _DST, alup_t _SRC )
+int_t	alup_mov_flt2flt( alup_t const * const _DST, alup_t const * const _SRC )
 {
 	alup_t _DMAN, _SMAN;
-	alub_t d;
-	size_t dlen, slen, exp, dbias, sbias, inf;
-	bool neg;
-	
-	alup_init_mantissa( _DST, _DMAN );
-	alup_init_mantissa( _SRC, _SMAN );
-	
-	dlen = _DMAN.upto - _DMAN.from;
-	slen = _SMAN.upto - _SMAN.from;
-	
-	/* Set +/- */
-	neg = alup_below0( _SRC );
-	d = alub( _DST.data, _DST.upto -1 );
-	*(d.ptr) &= ~(d.mask);
-	*(d.ptr) |= IFTRUE( neg, d.mask );
-	
-	/* Make sure we refer to upper bits of both mantissa's if they're of
-	 * different lengths */
-	if ( dlen > slen )
-	{
-		_DMAN.from = _DMAN.upto - slen;
-		
-		/* Clear out useless bits, we'll worry about recuring digits once
-		 * we have working arithmetic */
-		d = alub( _DST.data, _DMAN.from );
-		while ( d.bit > _DST.from )
-		{
-			alub_dec(&d);
-			*(d.ptr) &= ~(d.mask);
-		}
-	}
-	else if ( slen > dlen )
-	{
-		_SMAN.from = _SMAN.upto - dlen;
-	}
-	
-	dbias = alup_get_exponent_bias( _DST );
-	sbias = alup_get_exponent_bias( _SRC );
-	
-	inf = (sbias << 1) | 1;
+	ssize_t exp, dbias, sbias;
+	bool neg = alup_below0( _SRC );
 	
 	exp = alup_get_exponent( _SRC );
 	
 	if ( !exp )
 	{
-		(void)alup_set_exponent( _DST, 0 );
-		return alup_set( _DMAN, 0 );
+		return alup_set( _DST, 0 );
 	}
-	else if ( exp >= inf )
+	
+	dbias = alup_get_exponent_bias( _DST );
+	sbias = alup_get_exponent_bias( _SRC );
+	
+	alup_init_mantissa( _DST, _DMAN );
+	alup_init_mantissa( _SRC, _SMAN );
+	
+	/* Make sure we refer to upper bits of both mantissa's if they're of
+	 * different lengths */
+	if ( _DST->mant > _SRC->mant )
+	{	
+		alup_set( &_DMAN, 0 );
+		_DMAN.leng = _SRC->mant;
+		_DMAN.from += _DST->mant - _SRC->mant;
+	}
+	else if ( _SRC->mant > _DST->mant )
 	{
-		(void)alup_set_exponent( _DST, (dbias << 1) | 1 );
-		
-		/* If SRC was +/-NaN then this will set that */
-		return alup_mov_int2int( _DMAN, _SMAN );
+		_SMAN.leng = _DST->mant;
+		_SMAN.from += _SRC->mant - _DST->mant;
 	}
-
+	
+	if ( exp >= ((sbias << 1) | 1) )
+	{
+		alup_set_sign( _DST, neg );
+		(void)alup_set_exponent( _DST, (dbias << 1) | 1 );	
+		/* If SRC was +/-NaN then this will set that */
+		return alup_mov_int2int( &_DMAN, &_SMAN );
+	}
+	
 	exp -= sbias;
 	
-	if ( exp >= dbias )
-	{
-		/* Beyond what DST can handle, default to +/-Infinity */
-		(void)alup_set_exponent( _DST, (dbias << 1) | 1 );
-		return alup_set( _DMAN, 0 );
+	if ( exp >= dbias || exp <= -dbias )
+	{	
+		return alup_set_inf( _DST, neg );
 	}
 	
+	alup_set_sign( _DST, neg );
 	(void)alup_set_exponent( _DST, exp + dbias );
-	return alup_mov_int2int(  _DMAN, _SMAN );
+	return alup_mov_int2int(  &_DMAN, &_SMAN );
 }
 
-int_t	alup_mov( alup_t _DST, alup_t _SRC )
+int_t	alup_mov( alup_t const * const _DST, alup_t const * const _SRC )
 {
 	if ( alup_floating( _DST ) )
 	{
@@ -549,52 +555,61 @@ int_t	alup_mov( alup_t _DST, alup_t _SRC )
 	}
 }
 
-int_t alup_not( alup_t _NUM )
+int_t alup_not( alup_t const * const _DST )
 {
-	if ( _NUM.data )
+	if ( _DST->data )
 	{
-		alub_t n, e;
-		size_t i, stop, mask, mask_init, mask_last;
+		alub_t d, e;
+		size_t mask, mask_init, mask_last;
 		
-		n = alub( _NUM.data, _NUM.from );
-		e = alub( _NUM.data, _NUM.upto - 1 );
+		d = alup_first_bit( _DST );
+		e = alup_final_bit( _DST );
 		
 		mask = 0;
 		mask_init = mask_last = ~mask;
 		
-		mask_init <<= n.pos;
-		mask_last <<= (bitsof(uintmax_t) - e.pos) - 1;
+		mask_init <<= d.pos;
+		mask_last <<= e.pos;
+		mask_last = ~mask_last;
 		
-		stop = e.seg - n.seg;
+		mask = EITHER( e.seg > d.seg, mask_last, mask_last & mask_init );
 		
-		*(n.ptr) ^= EITHER( stop, mask_init, mask_init & mask_last );
+		*(e.ptr) ^= mask;
+		*(d.ptr) ^= IFTRUE( e.seg > d.seg, mask_init );
 		
-		for ( i = 1; i < stop; ++i ) n.ptr[i] = ~(n.ptr[i]);
-		
-		*(e.ptr) ^= IFTRUE( stop, mask_last );
+		for ( ++(d.seg); d.seg < e.seg; ++(d.seg) )
+		{
+			++(d.ptr);
+			d.ptr[d.seg] = ~(d.ptr[d.seg]);
+		}
 		
 		return 0;
 	}
 	
-	return alu_err_null_ptr("_NUM.data");
+	return alu_err_null_ptr("_DST->data");
 }
 
-int_t alup_cmp_int2int( alup_t _NUM, alup_t _VAL )
+int_t alup_cmp_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
 {
-	int a = !(_NUM.data), b = !(_VAL.data), r = a - b;
+	int a = !(_NUM->data), b = !(_VAL->data), r = a - b;
+	
+	if ( r )
+		return r;
+		
+	a = alup_below0( _NUM );
+	b = alup_below0( _VAL );
+	r = a - b;
 	
 	if ( r )
 		return r;
 	else
 	{
-		alub_t
-			n = alub( _NUM.data, _NUM.upto )
-			, v = alub( _VAL.data, _VAL.upto );
-		size_t ndiff = n.bit - _NUM.from, vdiff = v.bit - _VAL.from;
+		alub_t n = alup_final_bit( _NUM ), v = alup_final_bit( _VAL );
+		size_t nlen = n.bit - _NUM->from, vlen = v.bit - _VAL->from;
 		
-		while ( ndiff > vdiff )
+		while ( nlen > vlen )
 		{
-			--ndiff;
+			--nlen;
 			alub_dec(&n);
 			
 			r = !!(*(n.ptr) & n.mask);
@@ -603,9 +618,9 @@ int_t alup_cmp_int2int( alup_t _NUM, alup_t _VAL )
 				return r;
 		}
 		
-		while ( vdiff > ndiff )
+		while ( vlen > nlen )
 		{
-			--vdiff;
+			--vlen;
 			alub_dec(&v);
 			
 			r = !!(*(v.ptr) & v.mask);
@@ -614,9 +629,9 @@ int_t alup_cmp_int2int( alup_t _NUM, alup_t _VAL )
 				return -r;
 		}
 		
-		while ( ndiff )
+		while ( nlen )
 		{
-			--ndiff;
+			--nlen;
 			alub_dec(&n);
 			alub_dec(&v);
 			
@@ -628,13 +643,14 @@ int_t alup_cmp_int2int( alup_t _NUM, alup_t _VAL )
 				return r;
 		}
 	}
+	
 	return 0;
 }
 
-int_t alup_cmp( alup_t _NUM, alup_t _VAL )
+int_t alup_cmp( alup_t const * const _NUM, alup_t const * const _VAL )
 {
 	alup_t _VMAN;
-	ssize_t nexp, vexp, vbias, vdiff;
+	ssize_t nexp, vexp, vbias;
 	bool_t nneg = alup_below0( _NUM ), vneg = alup_below0( _VAL ), vhad = 0;
 	int_t ret = (nneg < vneg) - (nneg > vneg);
 	
@@ -667,15 +683,15 @@ int_t alup_cmp( alup_t _NUM, alup_t _VAL )
 			{					
 				alup_init_mantissa( _VAL, _VMAN );
 				
-				alub_set( _NUM.data, _NMAN.upto, 1 );
-				alub_set( _VAL.data, _VMAN.upto, 1 );
+				alub_set( _NUM->data, alup_until_pos(&_NMAN), 1 );
+				alub_set( _VAL->data, alup_until_pos(&_VMAN), 1 );
 				
-				_NMAN.upto++;
-				_VMAN.upto++;
+				_NMAN.leng++;
+				_VMAN.leng++;
 				
 				// FIXME: Doesn't account for different size mantissas
 				
-				ret = alup_cmp_int2int( _NMAN, _VMAN );
+				ret = alup_cmp_int2int( &_NMAN, &_VMAN );
 				
 				alup_set_exponent( _NUM, nexp + IFTRUE( nhad, nbias ) );
 				alup_set_exponent( _VAL, vexp + IFTRUE( vhad, vbias ) );
@@ -695,7 +711,7 @@ int_t alup_cmp( alup_t _NUM, alup_t _VAL )
 		
 		vbias = alup_get_exponent_bias( _VAL );
 		
-		nexp = n.bit - _NUM.from;
+		nexp = n.bit - _NUM->from;
 		vexp = alup_get_exponent( _VAL );
 		vhad = !!vexp;
 		vexp -= IFTRUE( vhad, vbias );
@@ -707,18 +723,16 @@ int_t alup_cmp( alup_t _NUM, alup_t _VAL )
 			
 			alup_init_mantissa( _VAL, _VMAN );
 			
-			alub_set( _VAL.data, _VMAN.upto, 1 );
+			alub_set( _VAL->data, alup_until_pos( &_VMAN ), 1 );
 			
-			_VMAN.upto++;
-			vdiff = _VMAN.upto - _VMAN.from;
-			_VMAN.from = EITHER
+			_VMAN.leng++;
+			_VMAN.from += IFTRUE
 			(
-				vexp >= 0 && vexp <= vdiff
-				,  _VMAN.upto - vexp
-				, _VMAN.from
+				vexp >= 0 && vexp <= (ssize_t)(_VMAN.leng)
+				,  _VMAN.leng - vexp
 			);
 			
-			ret = alup_cmp_int2int( _NUM, _VMAN );
+			ret = alup_cmp_int2int( _NUM, &_VMAN );
 			
 			alup_set_exponent( _VAL, vexp + IFTRUE( vhad, vbias ) );
 		}
@@ -732,38 +746,135 @@ int_t alup_cmp( alup_t _NUM, alup_t _VAL )
 	return alup_cmp_int2int( _NUM, _VAL );
 }
 
-int_t alup_inc( alup_t _NUM )
+int_t alup__inc_int( alup_t const * const _SRC )
 {
 	alub_t n;
 	bool_t is1 = true;
+	size_t upto = alup_until_pos( _SRC );
 	
 	for
 	(
-		n = alub( _NUM.data, _NUM.from )
-		; is1 && n.bit < _NUM.upto
+		n = alub( _SRC->data, _SRC->from )
+		; n.bit < upto
 		; alub_inc(&n)
 	)
 	{
 		is1 = !!(*(n.ptr) & n.mask);
 		*(n.ptr) &= ~(n.mask);
 		*(n.ptr) |= IFTRUE( !is1, n.mask );
+		if ( !is1 ) return 0;
 	}
 	
-	return EITHER( is1, EOVERFLOW, 0 );
+	return EOVERFLOW;
 }
 
-int_t alup_match_exponents( void *_num, void *_val, size_t size )
+int_t alup_inc( alup_t const * const _SRC )
+{	
+	if ( alup_floating( _SRC ) )
+	{
+		ssize_t exp = alup_get_exponent( _SRC )
+			, bias = alup_get_exponent_bias( _SRC );
+		
+		if ( exp )
+			exp -= bias;
+		
+		if ( exp >= 0 && exp < bias )
+		{
+			alup_t _MAN;
+			size_t upto;
+			
+			alup_init_mantissa( _SRC, _MAN );
+			
+			upto = alup_until_pos( &_MAN ) - 1;
+			_MAN.from = upto - exp;
+			
+			return alup__inc_int( &_MAN );
+		}
+		
+		return ERANGE;
+	}
+	
+	return alup__inc_int( _SRC );
+}
+
+int_t alup__dec_int( alup_t const * const _SRC )
+{
+	alub_t n;
+	bool_t is0 = true;
+	size_t upto = alup_until_pos( _SRC );
+	
+	for
+	(
+		n = alub( _SRC->data, _SRC->from )
+		; n.bit < upto
+		; alub_inc(&n)
+	)
+	{
+		is0 = !(*(n.ptr) & n.mask);
+		*(n.ptr) &= ~(n.mask);
+		if ( !is0 ) return 0;
+		*(n.ptr) |= n.mask;
+	}
+	
+	return EOVERFLOW;
+}
+
+int_t alup_dec( alup_t const * const _SRC )
+{
+	if ( alup_floating( _SRC ) )
+	{
+		ssize_t exp = alup_get_exponent( _SRC )
+			, bias = alup_get_exponent_bias( _SRC );
+		
+		if ( exp )
+			exp -= bias;
+		
+		if ( exp >= 0 && exp < bias )
+		{
+			int_t ret;
+			alup_t _MAN;
+			alub_t until_bit;
+			
+			alup_init_mantissa( _SRC, _MAN );
+
+			until_bit = alup_until_bit( &_MAN );
+			*(until_bit.ptr) |= until_bit.mask;
+			
+			_MAN.from = (until_bit.bit - 1) - exp;
+			_MAN.leng = exp + 1;
+			
+			ret = alup__dec_int( &_MAN );
+			
+			if ( !(*(until_bit.ptr) & until_bit.mask ) )
+			{
+				alub_t final_one = alup_final_one( &_MAN );
+				size_t mov = until_bit.bit - final_one.bit;
+				exp -= mov;
+				alup__shl( &_MAN, mov );
+			}
+			
+			alup_set_exponent( _SRC, exp + bias );
+			return ret;
+		}
+		
+		return ERANGE;
+	}
+	
+	return alup__dec_int( _SRC );
+}
+
+int_t alup_match_exponents( void *_num, void *_val, size_t bits )
 {
 	int_t ret;
 	alup_t _NUM, _VAL, _DST, _MAN = {0};
 	size_t exp = 0, nexp, vexp, diff = 0;
 	bool truncated = false;
 	
-	alup_init_floating( _NUM, _num, size );
-	alup_init_floating( _VAL, _val, size );
+	alup_init_floating( _NUM, _num, bits );
+	alup_init_floating( _VAL, _val, bits );
 	
-	nexp = alup_get_exponent( _NUM );
-	vexp = alup_get_exponent( _VAL );
+	nexp = alup_get_exponent( &_NUM );
+	vexp = alup_get_exponent( &_VAL );
 		
 	if ( nexp > vexp )
 	{
@@ -780,34 +891,32 @@ int_t alup_match_exponents( void *_num, void *_val, size_t size )
 	
 	if ( diff )
 	{
-		alup_init_mantissa( _DST, _MAN );
+		alup_init_mantissa( &_DST, _MAN );
 			
 		/* Match exponent and align mantissa */
-		(void)alup_set_exponent( _DST, exp );
+		(void)alup_set_exponent( &_DST, exp );
 		
-		ret = alup__shr( _MAN, diff );
+		ret = alup__shr( &_MAN, diff );
 		
 		truncated = (ret == ERANGE);
 	
 		/* Insert assumed bit back into position */
-		if ( diff < _MAN.upto )
+		if ( diff < _MAN.leng )
 		{
-			alub_t m = alub( _MAN.data, _MAN.upto - diff );
-			*(m.ptr) |= m.mask;
+			alub_set( _MAN.data, _MAN.leng - diff, 1 );
 		}
 	}
 	
 	return IFTRUE( truncated, ERANGE );
 }
 
-int_t alup__add_int2int( alup_t _NUM, alup_t _VAL )
+int_t alup__add_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
 {
 	bool_t changed = false, carry = false, active, append;
 	alub_t
-		n = alub( _NUM.data, _NUM.from )
-		, v = alub( _VAL.data, _VAL.from );
-	size_t stop =
-		_NUM.from + LOWEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from );
+		n = alub( _NUM->data, _NUM->from )
+		, v = alub( _VAL->data, _VAL->from );
+	size_t stop = _NUM->from + LOWEST( _NUM->leng, _VAL->leng );
 	
 	for ( ; n.bit < stop; alub_inc(&n), alub_inc(&v) )
 	{
@@ -838,12 +947,14 @@ int_t alup__add_int2int( alup_t _NUM, alup_t _VAL )
 		changed = EITHER( changed, true, append );
 	}
 	
-	for ( ; !changed && v.bit < _VAL.upto; alub_inc(&v) )
+	stop = alup_until_pos( _VAL );
+	for ( ; !changed && v.bit < stop; alub_inc(&v) )
 	{
 		changed = EITHER( changed, true, !!(*(v.ptr) & v.mask) );
 	}
 	
-	for ( ; carry && n.bit < _NUM.upto; alub_inc(&n) )
+	stop = alup_until_pos( _NUM );
+	for ( ; carry && n.bit < stop; alub_inc(&n) )
 	{
 		carry = !!(*(n.ptr) & n.mask);
 		*(n.ptr) &= ~(n.mask);
@@ -863,56 +974,54 @@ int_t alup__add_int2int( alup_t _NUM, alup_t _VAL )
 	);
 }
 
-int_t alup__add( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
+int_t alup__add( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp )
 {	
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		int_t ret;
 		alup_t _CPY, _TMP, _CMAN, _TMAN;
 		size_t exp, cexp, texp;
-		size_t
-			bits = HIGHEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from )
-			, size = (bits / UNIC_CHAR_BIT) + !!(bits % UNIC_CHAR_BIT);
+		size_t bits = HIGHEST( _NUM->leng, _VAL->leng );
 		bool_t truncated = false;
 		
-		alup_init_floating( _CPY, _cpy, size );
-		alup_init_floating( _TMP, _tmp, size );
+		alup_init_floating( _CPY, _cpy, bits );
+		alup_init_floating( _TMP, _tmp, bits );
 		
-		alup_init_mantissa( _CPY, _CMAN );
-		alup_init_mantissa( _TMP, _TMAN );
+		alup_init_mantissa( &_CPY, _CMAN );
+		alup_init_mantissa( &_TMP, _TMAN );
 		
-		alup_mov( _CPY, _NUM );
-		alup_mov( _TMP, _VAL );
+		alup_mov( &_CPY, _NUM );
+		alup_mov( &_TMP, _VAL );
 		
-		cexp = alup_get_exponent( _CPY );
-		texp = alup_get_exponent( _TMP );
+		cexp = alup_get_exponent( &_CPY );
+		texp = alup_get_exponent( &_TMP );
 		
-		ret = alup_match_exponents( _CPY.data, _TMP.data, size );
+		ret = alup_match_exponents( _CPY.data, _TMP.data, bits );
 		
 		truncated = (ret == ERANGE);
 		
-		exp = alup_get_exponent( _CPY );
+		exp = alup_get_exponent( &_CPY );
 		
-		ret = alup__add_int2int( _CMAN, _TMAN );
+		ret = alup__add_int2int( &_CMAN, &_TMAN );
 		
 		if ( cexp || texp )
 		{
 			if ( ret == EOVERFLOW || cexp == texp )
 			{
 				size_t both = 1 + (ret == EOVERFLOW && cexp == texp);
-				alub_t c = alub( _CMAN.data, _CMAN.upto - 1 );
+				alub_t c = alub( _CMAN.data, _CMAN.leng - 1 );
 				
 				++exp;
-				alup__shr( _CMAN, 1 );
+				alup__shr( &_CMAN, 1 );
 				
 				*(c.ptr) &= ~(c.mask);
 				*(c.ptr) |= IFTRUE( both == 2, c.mask );
 			}
 		}
 		
-		(void)alup_set_exponent( _CPY, exp );
+		(void)alup_set_exponent( &_CPY, exp );
 		
-		ret = alup_mov( _NUM, _CPY );
+		ret = alup_mov( _NUM, &_CPY );
 		
 		return IFTRUE( truncated || ret == ERANGE, ERANGE );
 	}
@@ -920,14 +1029,14 @@ int_t alup__add( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 	return alup__add_int2int( _NUM, _VAL );
 }
 
-int_t alup__sub_int2int( alup_t _NUM, alup_t _VAL )
+int_t alup__sub_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
 {
 	bool_t changed = false, carry = false, active, append;
 	alub_t
-		n = alub( _NUM.data, _NUM.from )
-		, v = alub( _VAL.data, _VAL.from );
+		n = alub( _NUM->data, _NUM->from )
+		, v = alub( _VAL->data, _VAL->from );
 	size_t stop =
-		_NUM.from + LOWEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from );
+		_NUM->from + LOWEST( _NUM->leng, _VAL->leng );
 	
 	for ( ; n.bit < stop; alub_inc(&n), alub_inc(&v) )
 	{
@@ -958,12 +1067,14 @@ int_t alup__sub_int2int( alup_t _NUM, alup_t _VAL )
 		changed = EITHER( changed, true, append );
 	}
 	
-	for ( ; !changed && v.bit < _VAL.upto; alub_inc(&v) )
+	stop = alup_until_pos( _VAL );
+	for ( ; !changed && v.bit < stop; alub_inc(&v) )
 	{
 		changed = EITHER( changed, true, !!(*(v.ptr) & v.mask) );
 	}
 	
-	for ( ; carry && n.bit < _NUM.upto; alub_inc(&n) )
+	stop = alup_until_pos( _NUM );
+	for ( ; carry && n.bit < stop; alub_inc(&n) )
 	{
 		active = !!(*(n.ptr) & n.mask);
 		*(n.ptr) &= ~(n.mask);
@@ -984,41 +1095,39 @@ int_t alup__sub_int2int( alup_t _NUM, alup_t _VAL )
 	);
 }
 
-int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
+int_t alup__sub( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp )
 {	
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		int_t ret;
 		alup_t _CPY, _TMP, _CMAN, _TMAN;
 		size_t exp, cexp, texp;
-		size_t
-			bits = HIGHEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from )
-			, size = (bits / UNIC_CHAR_BIT) + !!(bits % UNIC_CHAR_BIT);
+		size_t bits = HIGHEST( _NUM->leng, _VAL->leng );
 		bool_t truncated = false;
 		
-		alup_init_floating( _CPY, _cpy, size );
-		alup_init_floating( _TMP, _tmp, size );
+		alup_init_floating( _CPY, _cpy, bits );
+		alup_init_floating( _TMP, _tmp, bits );
 		
-		alup_init_mantissa( _CPY, _CMAN );
-		alup_init_mantissa( _TMP, _TMAN );
+		alup_init_mantissa( &_CPY, _CMAN );
+		alup_init_mantissa( &_TMP, _TMAN );
 		
-		alup_mov( _CPY, _NUM );
-		alup_mov( _TMP, _VAL );
+		alup_mov( &_CPY, _NUM );
+		alup_mov( &_TMP, _VAL );
 		
-		cexp = alup_get_exponent( _CPY );
-		texp = alup_get_exponent( _TMP );
+		cexp = alup_get_exponent( &_CPY );
+		texp = alup_get_exponent( &_TMP );
 		
-		ret = alup_match_exponents( _CPY.data, _TMP.data, size );
+		ret = alup_match_exponents( _CPY.data, _TMP.data, bits );
 		
 		truncated = (ret == ERANGE);
 		
-		exp = alup_get_exponent( _CPY );
+		exp = alup_get_exponent( &_CPY );
 		
-		ret = alup__sub_int2int( _CMAN, _TMAN );
+		ret = alup__sub_int2int( &_CMAN, &_TMAN );
 		
 		if ( cexp || texp )
 		{
-			size_t bias = alup_get_exponent_bias( _CPY );
+			size_t bias = alup_get_exponent_bias( &_CPY );
 			
 			if ( ret == EOVERFLOW || cexp == texp )
 			{	
@@ -1026,7 +1135,7 @@ int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 				//alub_t c = alub( _CMAN.data, _CMAN.upto - 1 );
 				
 				--exp;
-				alup__shl( _CMAN, 1 );
+				alup__shl( &_CMAN, 1 );
 				
 				//*(c.ptr) &= ~(c.mask);
 				//*(c.ptr) |= IFTRUE( both == 2, c.mask );
@@ -1034,11 +1143,12 @@ int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 			
 			if ( cexp == texp )
 			{
-				alup_set( _TMP, 0 );
+				alup_set( &_TMP, 0 );
 				
-				_TMP.info = 0;
+				_TMP.sign = 0;
+				_TMP.mant = 0;
 				
-				if ( alup_cmp_int2int( _CMAN, _TMP ) == 0 )
+				if ( alup_cmp_int2int( &_CMAN, &_TMP ) == 0 )
 				{
 					if ( ret != EOVERFLOW )
 						exp  = 0;
@@ -1048,14 +1158,14 @@ int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 			alub_set
 			(
 				_CPY.data
-				, _CPY.upto - 1
+				, _CPY.leng - 1
 				, (cexp >= bias && cexp < texp) || (!cexp && texp >= bias)
 			);
 		}
 		
-		(void)alup_set_exponent( _CPY, exp );
+		(void)alup_set_exponent( &_CPY, exp );
 		
-		ret = alup_mov( _NUM, _CPY );
+		ret = alup_mov( _NUM, &_CPY );
 		
 		return IFTRUE( truncated || ret == ERANGE, ERANGE );
 	}
@@ -1063,7 +1173,7 @@ int_t alup__sub( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 	return alup__sub_int2int( _NUM, _VAL );
 }
 
-int_t alup__shl( alup_t _NUM, size_t by )
+int_t alup__shl( alup_t const * const _NUM, size_t by )
 {	
 	int_t ret = 0;
 	
@@ -1078,18 +1188,18 @@ int_t alup__shl( alup_t _NUM, size_t by )
 			alup_t _EXP;
 			
 			alup_init_exponent( _NUM, _EXP );
-			alup_init_unsigned( _TMP, &by, sizeof(size_t) );
+			alup_init_unsigned( _TMP, &by, bitsof(size_t) );
 			
-			return alup__add_int2int( _EXP, _TMP );
+			return alup__add_int2int( &_EXP, &_TMP );
 		}
 		
-		diff = _NUM.upto - _NUM.from;
+		diff = _NUM->leng;
 		
 		if ( by >= diff )
 			return alup_set( _NUM, 0 );
 		else
 		{
-			alub_t d = alub( _NUM.data, _NUM.upto ), s = d;
+			alub_t d = alup_until_bit( _NUM ), s = d;
 			
 			while ( by )
 			{
@@ -1099,7 +1209,7 @@ int_t alup__shl( alup_t _NUM, size_t by )
 				ret = IFTRUE( ret || *(s.ptr) & s.mask, ERANGE );
 			}
 			
-			while ( s.bit > _NUM.from )
+			while ( s.bit > _NUM->from )
 			{
 				alub_dec(&s);
 				alub_dec(&d);
@@ -1108,7 +1218,7 @@ int_t alup__shl( alup_t _NUM, size_t by )
 				*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
 			}
 			
-			while ( d.bit > _NUM.from )
+			while ( d.bit > _NUM->from )
 			{
 				alub_dec(&d);
 				
@@ -1120,7 +1230,7 @@ int_t alup__shl( alup_t _NUM, size_t by )
 	return ret;
 }
 
-int_t alup__shr( alup_t _NUM, size_t by )
+int_t alup__shr( alup_t const * const _NUM, size_t by )
 {	
 	int_t ret = 0;
 	
@@ -1134,14 +1244,15 @@ int_t alup__shr( alup_t _NUM, size_t by )
 			alup_t _EXP;
 			
 			alup_init_exponent( _NUM, _EXP );
-			alup_init_unsigned( _TMP, &by, sizeof(size_t) );
+			alup_init_unsigned( _TMP, &by, bitsof(size_t) );
 			
-			return alup__sub_int2int( _EXP, _TMP );
+			return alup__sub_int2int( &_EXP, &_TMP );
 		}
 		else
 		{
 			bool_t neg = alup_below0( _NUM );
-			alub_t d = alub( _NUM.data, _NUM.from ), s = d;
+			alub_t d = alub( _NUM->data, _NUM->from ), s = d;
+			size_t upto = alup_until_pos( _NUM );
 			
 			while ( by )
 			{
@@ -1150,8 +1261,9 @@ int_t alup__shr( alup_t _NUM, size_t by )
 				ret = IFTRUE( ret || *(s.ptr) & s.mask, ERANGE );
 				
 				alub_inc(&s);
-			}		
-			while ( s.bit < _NUM.upto )
+			}
+			
+			while ( s.bit < upto )
 			{
 				*(d.ptr) &= ~(d.mask);
 				*(d.ptr) |= IFTRUE( *(s.ptr) & s.mask, d.mask );
@@ -1160,7 +1272,7 @@ int_t alup__shr( alup_t _NUM, size_t by )
 				alub_inc(&d);
 			}
 			
-			while ( d.bit < _NUM.upto )
+			while ( d.bit < upto )
 			{	
 				*(d.ptr) &= ~(d.mask);
 				*(d.ptr) |= IFTRUE( neg, d.mask );
@@ -1173,50 +1285,69 @@ int_t alup__shr( alup_t _NUM, size_t by )
 	return ret;
 }
 
-int_t alup_neg( alup_t _NUM )
+int_t alup__neg_int( alup_t const * const _SRC )
 {
-	int ret = alup_not( _NUM );
+	int ret = alup_not( _SRC );
 	
 	if ( ret == 0 )
-		return alup_inc( _NUM );
+		return alup__inc_int( _SRC );
 		
 	alu_error( ret );
 	return ret;
 }
 
-int_t alup__rol_int2int( alup_t _NUM, size_t by )
+int_t alup_neg( alup_t const * const _SRC )
 {
-	size_t diff = _NUM.upto - _NUM.from;
+	if ( alup_floating( _SRC ) )
+	{
+		alup_t _MAN;
+		alub_t sign = alup_final_bit( _SRC );
+		bool_t neg = !(*(sign.ptr) & sign.mask);
+		
+		*(sign.ptr) &= ~(sign.mask);
+		*(sign.ptr) |= IFTRUE( neg, sign.mask );
+		
+		alup_init_mantissa( _SRC, _MAN );
+		
+		return alup__neg_int( &_MAN );
+	}
+	
+	return alup__neg_int( _SRC );
+}
+
+int_t alup__rol_int2int( alup_t const * const _NUM, size_t by )
+{
+	size_t diff = _NUM->leng;
 	
 	if ( by && diff )
 	{	
 		alub_t d, w;
 		uintmax_t was, tmp;
 		alup_t _SEG, _TMP;
-		size_t cap;
+		size_t cap, upto = alup_until_pos( _NUM );
 		
-		_SEG = _NUM;
-		alup_init_unsigned( _TMP, &tmp, sizeof(uintmax_t) );
+		_SEG = *_NUM;
+		alup_init_unsigned( _TMP, &tmp, bitsof(uintmax_t) );
 		
 		by %= diff;
 		
-		d = alub( _NUM.data, _NUM.from );
+		d = alub( _NUM->data, _NUM->from );
 		
-		_SEG.from = _NUM.upto - by;
-		alup_mov_int2int( _TMP, _SEG );
+		_SEG.from = upto - by;
+		alup_mov_int2int( &_TMP, &_SEG );
 		cap = by;
 		
-		while ( d.bit < _NUM.upto )
+		while ( d.bit < upto )
 		{
 			was = tmp;
 			
 			_SEG.from = d.bit;
-			alup_mov_int2int( _TMP, _SEG );
+			alup_mov_int2int( &_TMP, &_SEG );
 			
 			for
 			(
 				w = alub( &was, 0 )
-				; w.bit < cap && d.bit < _NUM.upto
+				; w.bit < cap && d.bit < upto
 				; alub_inc(&w), alub_inc(&d)
 			)
 			{	
@@ -1231,7 +1362,7 @@ int_t alup__rol_int2int( alup_t _NUM, size_t by )
 	return 0;
 }
 
-int_t alup__rol( alup_t _NUM, void *_tmp, size_t by )
+int_t alup__rol( alup_t const * const _NUM, void *_tmp, size_t by )
 {
 	if ( alup_floating( _NUM ) )
 	{
@@ -1239,35 +1370,36 @@ int_t alup__rol( alup_t _NUM, void *_tmp, size_t by )
 		
 		if ( exp )
 		{
-			size_t bias = alup_get_exponent_bias( _NUM ), diff, man;
+			size_t bias = alup_get_exponent_bias( _NUM ), man;
 			alup_t _MAN, _TMP;
 			alub_t t;
 			bool_t neg = alup_below0( _NUM );
+			size_t upto = alup_until_pos( _NUM ), tupto;
 			
 			alup_init_mantissa( _NUM, _MAN );
-			diff = _MAN.upto - _MAN.from;
-			man = bias + diff;
+			man = bias + _MAN.leng;
 			exp -= bias;
 			
-			alup_init_unsigned( _TMP, _tmp, BITS2SIZE(man) );
+			alup_init_unsigned( _TMP, _tmp, man );
+			tupto = alup_until_pos( &_TMP );
 			
-			alub_set( _MAN.data, _MAN.upto, 1 );
-			_MAN.upto++;
+			alub_set( _MAN.data, alup_until_pos( &_MAN ), 1 );
+			_MAN.leng++;
 			
-			_TMP.from = _TMP.upto - diff;
-			(void)alup_mov_int2int( _TMP, _MAN );
+			_TMP.from = tupto - _MAN.leng;
+			(void)alup_mov_int2int( &_TMP, &_MAN );
 			
 			_TMP.from = 0;
-			(void)alup__rol_int2int( _TMP, by );
+			(void)alup__rol_int2int( &_TMP, by );
 			
-			t = alup_final_one( _TMP );
+			t = alup_final_one( &_TMP );
 			
 			/* Set Sign */
 			
 			alub_set
 			(
-				_NUM.data
-				, _NUM.upto - 1
+				_NUM->data
+				, upto - 1
 				, neg && (t.bit || *(t.ptr) & t.mask)
 			);
 			
@@ -1277,53 +1409,53 @@ int_t alup__rol( alup_t _NUM, void *_tmp, size_t by )
 			
 			/* Set Mantissa */
 			
-			_MAN.upto--;
-			_TMP.upto = t.bit;
-			_TMP.from = EITHER( t.bit >= diff, _TMP.upto - diff, 0 );
+			_MAN.leng--;
+			_TMP.leng = t.bit - _TMP.from;
+			_TMP.from = IFTRUE( _TMP.leng >= _MAN.leng, t.bit - _MAN.leng );
 			
-			return alup_mov_int2int( _MAN, _TMP );
+			return alup_mov_int2int( &_MAN, &_TMP );
 		}
 	}
 	
 	return alup__rol_int2int( _NUM, by );
 }
 
-int_t alup__ror_int2int( alup_t _NUM, size_t by )
+int_t alup__ror_int2int( alup_t const * const _NUM, size_t by )
 {
-	size_t diff = _NUM.upto - _NUM.from;
+	size_t diff = _NUM->leng;
 	
 	if ( by && diff )
 	{	
 		alub_t d, w;
 		uintmax_t was, tmp;
 		alup_t _SEG, _TMP;
-		size_t cap;
+		size_t cap, upto = alup_until_pos( _NUM );
 		
-		_SEG = _NUM;
-		alup_init_unsigned( _TMP, &tmp, sizeof(uintmax_t) );
+		_SEG = *_NUM;
+		alup_init_unsigned( _TMP, &tmp, bitsof(uintmax_t) );
 		
 		by %= diff;
 		/* We're faking a right rotate by going opposite direction so convert
 		 * by to the equivalent value */
 		by = diff - by;
 		
-		d = alub( _NUM.data, _NUM.from );
+		d = alub( _NUM->data, _NUM->from );
 		
-		_SEG.from = _NUM.upto - by;
-		alup_mov_int2int( _TMP, _SEG );
+		_SEG.from = upto - by;
+		alup_mov_int2int( &_TMP, &_SEG );
 		cap = by;
 		
-		while ( d.bit < _NUM.upto )
+		while ( d.bit < upto )
 		{
 			was = tmp;
 			
 			_SEG.from = d.bit;
-			alup_mov_int2int( _TMP, _SEG );
+			alup_mov_int2int( &_TMP, &_SEG );
 			
 			for
 			(
 				w = alub( &was, 0 )
-				; w.bit < cap && d.bit < _NUM.upto
+				; w.bit < cap && d.bit < upto
 				; alub_inc(&w), alub_inc(&d)
 			)
 			{	
@@ -1338,7 +1470,7 @@ int_t alup__ror_int2int( alup_t _NUM, size_t by )
 	return 0;
 }
 
-int_t alup__ror( alup_t _NUM, void *_tmp, size_t by )
+int_t alup__ror( alup_t const * const _NUM, void *_tmp, size_t by )
 {
 	if ( alup_floating( _NUM ) )
 	{
@@ -1346,33 +1478,33 @@ int_t alup__ror( alup_t _NUM, void *_tmp, size_t by )
 		
 		if ( exp )
 		{
-			size_t bias = alup_get_exponent_bias( _NUM ), diff, man;
+			size_t bias = alup_get_exponent_bias( _NUM ), man;
 			alup_t _MAN, _TMP;
 			alub_t m, t;
 			bool_t neg = alup_below0( _NUM );
+			size_t upto = alup_until_pos( _NUM ), tupto;
 			
 			alup_init_mantissa( _NUM, _MAN );
-			diff = _MAN.upto - _MAN.from;
-			man = bias + diff;
+			man = bias + _MAN.leng;
 			exp -= bias;
 			
-			alup_init_unsigned( _TMP, _tmp, BITS2SIZE(man) );
+			alup_init_unsigned( _TMP, _tmp, man );
+			tupto = alup_until_pos( &_TMP );
 			
-			m = alub( _MAN.data, _MAN.upto );
-			*(m.ptr) |= m.mask;
-			_MAN.upto++;
+			alub_set( _MAN.data, alup_until_pos( &_MAN ), 1 );
+			_MAN.leng++;
 			
-			_TMP.from = _TMP.upto - diff;
-			(void)alup_mov_int2int( _TMP, _MAN );
+			_TMP.from = tupto - _MAN.leng;
+			(void)alup_mov_int2int( &_TMP, &_MAN );
 			
 			_TMP.from = 0;
-			(void)alup__ror_int2int( _TMP, by );
+			(void)alup__ror_int2int( &_TMP, by );
 			
-			t = alup_final_one( _TMP );
+			t = alup_final_one( &_TMP );
 			
 			/* Set Sign */
 			
-			m = alub( _NUM.data, _NUM.upto - 1 );
+			m = alub( _NUM->data, upto - 1 );
 			*(m.ptr) &= ~(m.mask);
 			*(m.ptr) |= IFTRUE( neg && (t.bit || *(t.ptr) & t.mask), m.mask );
 			
@@ -1386,73 +1518,70 @@ int_t alup__ror( alup_t _NUM, void *_tmp, size_t by )
 			
 			/* Set Mantissa */
 			
-			_MAN.upto--;
-			_TMP.upto = t.bit;
-			_TMP.from = EITHER( t.bit >= diff, _TMP.upto - diff, 0 );
+			_MAN.leng--;
+			_TMP.leng = t.bit - _TMP.from;
+			_TMP.from = IFTRUE( _TMP.leng >= _MAN.leng, t.bit - _MAN.leng );
 			
-			return alup_mov_int2int( _MAN, _TMP );
+			return alup_mov_int2int( &_MAN, &_TMP );
 		}
 	}
 	
 	return alup__ror_int2int( _NUM, by );
 }
 
-int_t alup_rol( alup_t _NUM, alup_t _VAL, void *_tmp )
+int_t alup_rol( alup_t const * const _NUM, alup_t const * const _VAL, void *_tmp )
 {
-	size_t rot, len = _NUM.upto - _NUM.from, cap = BITS2SIZE(len);
-	alup_t _CAP, _TMP, _ROT;
+	size_t rot, len = _NUM->leng;
+	alup_t _LEN, _TMP, _ROT;
 	
-	alup_init_unsigned( _CAP, &cap, sizeof(size_t) );
-	alup_init_unsigned( _ROT, &rot, sizeof(size_t) );
-	alup_init_unsigned( _TMP, _tmp, cap );
+	alup_init_unsigned( _LEN, &len, bitsof(size_t) );
+	alup_init_unsigned( _ROT, &rot, bitsof(size_t) );
+	alup_init_unsigned( _TMP, _tmp, _NUM->leng );
 	
 	/* Retrieve only an amount that fits into size_t,
 	 * also ensure within bounds of nbits */
-	alup__div_int2int( _VAL, _CAP, _tmp );
-	alup_mov_int2int( _ROT, _TMP );
+	alup__div_int2int( _VAL, &_LEN, _tmp );
+	alup_mov_int2int( &_ROT, &_TMP );
 	
 	/* Reconstruct _VAL to what it was,
 	 * supposed to be constant - we fake it here */
-	alup__mul_int2int( _VAL, _CAP, _tmp );
-	alup__add_int2int( _VAL, _ROT );
+	alup__mul_int2int( _VAL, &_LEN, _tmp );
+	alup__add_int2int( _VAL, &_ROT );
 	
 	return alup__rol_int2int( _NUM, rot );
 }
 
-int_t alup_and( alup_t _NUM, alup_t _VAL )
+int_t alup_and( alup_t const * const _NUM, alup_t const * const _VAL )
 {	
-	if ( !_NUM.data || !_VAL.data )
+	if ( !_NUM->data || !_VAL->data )
 	{
 		int_t ret = EINVAL;
 		
 		alu_error( ret );
 		
-		if ( !_NUM.data ) alu_puts( "_NUM.data was NULL!" );
+		if ( !_NUM->data ) alu_puts( "_NUM->data was NULL!" );
 		
-		if ( !_VAL.data ) alu_puts( "_VAL.data was NULL!" );
+		if ( !_VAL->data ) alu_puts( "_VAL->data was NULL!" );
 		
 		return ret;
 	}
 	else
 	{
 		alub_t
-			n = alub( _NUM.data, _NUM.from )
-			, v = alub( _VAL.data, _VAL.from );
+			n = alub( _NUM->data, _NUM->from )
+			, v = alub( _VAL->data, _VAL->from );
 		bool_t neg = alup_below0( _VAL );
 		size_t
 			mask = UNIC_SIZE_C(~0)
-			, stop = _NUM.from + LOWEST
-			(
-				_NUM.upto - _NUM.from
-				, _VAL.upto - _VAL.from
-			);
+			, stop = _NUM->from + LOWEST( _NUM->leng, _VAL->leng );
 		
 		for ( ; n.bit < stop; alub_inc(&n), alub_inc(&v) )
 		{	
 			*(n.ptr) &= EITHER( *(v.ptr) & v.mask, mask, ~(n.mask) );
 		}
 		
-		for ( ; n.bit < _NUM.upto; alub_inc(&n) )
+		stop = alup_until_pos( _NUM );
+		for ( ; n.bit < stop; alub_inc(&n) )
 		{
 			*(n.ptr) &= EITHER( neg, mask, ~(n.mask) );
 		}
@@ -1461,39 +1590,36 @@ int_t alup_and( alup_t _NUM, alup_t _VAL )
 	}
 }
 
-int_t alup__or( alup_t _NUM, alup_t _VAL )
+int_t alup__or( alup_t const * const _NUM, alup_t const * const _VAL )
 {
 	
-	if ( !_NUM.data || !_VAL.data )
+	if ( !_NUM->data || !_VAL->data )
 	{
 		int_t ret = EINVAL;
 		
 		alu_error( ret );
 		
-		if ( !_NUM.data ) alu_puts( "_NUM.data was NULL!" );
+		if ( !_NUM->data ) alu_puts( "_NUM->data was NULL!" );
 		
-		if ( !_VAL.data ) alu_puts( "_VAL.data was NULL!" );
+		if ( !_VAL->data ) alu_puts( "_VAL->data was NULL!" );
 		
 		return ret;
 	}
 	else
 	{
 		alub_t
-			n = alub( _NUM.data, _NUM.from )
-			, v = alub( _VAL.data, _VAL.from );
+			n = alub( _NUM->data, _NUM->from )
+			, v = alub( _VAL->data, _VAL->from );
 		bool_t neg = alup_below0( _VAL );
-		size_t stop = _NUM.from + LOWEST
-			(
-				_NUM.upto - _NUM.from
-				, _VAL.upto - _VAL.from
-			);
+		size_t stop = _NUM->from + LOWEST( _NUM->leng, _VAL->leng );
 	
 		for ( ; n.bit < stop; alub_inc(&n), alub_inc(&v) )
 		{
 			*(n.ptr) |= IFTRUE( *(v.ptr) & v.mask, n.mask );
 		}
 		
-		for ( ; n.bit < _NUM.upto; alub_inc(&n) )
+		stop = alup_until_pos( _NUM );
+		for ( ; n.bit < stop; alub_inc(&n) )
 		{
 			*(n.ptr) |= IFTRUE( neg, n.mask );
 		}
@@ -1502,17 +1628,17 @@ int_t alup__or( alup_t _NUM, alup_t _VAL )
 	}
 }
 
-int_t alup_xor( alup_t _NUM, alup_t _VAL )
+int_t alup_xor( alup_t const * const _NUM, alup_t const * const _VAL )
 {	
-	if ( !_NUM.data || !_VAL.data )
+	if ( !_NUM->data || !_VAL->data )
 	{
 		int_t ret = EINVAL;
 		
 		alu_error(ret);
 		
-		if ( !_NUM.data ) alu_puts("_NUM.data was NULL!");
+		if ( !_NUM->data ) alu_puts("_NUM->data was NULL!");
 		
-		if ( !_VAL.data ) alu_puts("_VAL.data was NULL!");
+		if ( !_VAL->data ) alu_puts("_VAL->data was NULL!");
 		
 		return ret;
 	}
@@ -1520,16 +1646,17 @@ int_t alup_xor( alup_t _NUM, alup_t _VAL )
 	{
 		bool_t neg = alup_below0( _VAL );
 		alub_t
-			n = alub( _NUM.data, _NUM.from ), v = alub( _VAL.data, _VAL.from );
+			n = alub( _NUM->data, _NUM->from ), v = alub( _VAL->data, _VAL->from );
 		size_t stop =
-			_NUM.from + LOWEST( _NUM.upto - _NUM.from, _VAL.upto - _VAL.from );
+			_NUM->from + LOWEST( _NUM->leng, _VAL->leng );
 		
 		for ( ; n.bit < stop; alub_inc(&n), alub_inc(&v) )
 		{
 			*(n.ptr) ^= IFTRUE( *(v.ptr) & v.mask, n.mask );
 		}
 		
-		for ( ; n.bit < _NUM.upto; alub_inc(&n) )
+		stop = alup_until_pos( _NUM );
+		for ( ; n.bit < stop; alub_inc(&n) )
 		{
 			*(n.ptr) ^= IFTRUE( neg, n.mask );
 		}
@@ -1542,39 +1669,35 @@ int_t alup_xor( alup_t _NUM, alup_t _VAL )
 
 int_t alup__mul_int2int
 (
-	alup_t _NUM
-	, alup_t _VAL
+	alup_t const * const _NUM
+	, alup_t const * const _VAL
 	, void *_cpy
 )
 {
 	int ret;
 	alup_t _CPY;
-	size_t
-		diff = _NUM.upto - _NUM.from
-		, size = (diff / UNIC_CHAR_BIT) + !!(diff % UNIC_CHAR_BIT)
-	;
 	
-	alup_init_unsigned( _CPY, _cpy, size );
-	_CPY.info = _NUM.info;
+	alup_init_unsigned( _CPY, _cpy, _NUM->leng );
+	_CPY.sign = _NUM->sign;
 	
-	ret = alup_mov_int2int( _CPY, _NUM );
+	ret = alup_mov_int2int( &_CPY, _NUM );
 	
 	if ( ret == 0 )
 	{
 		bool carry = false, caught;
 		alub_t v;
-		size_t p;
+		size_t p, upto = alup_until_pos( _VAL );
 		
 		alup_set( _NUM, 0 );
 		
-		v = alub( _VAL.data, _VAL.from );
+		v = alub( _VAL->data, _VAL->from );
 		
-		for ( p = v.bit; v.bit < _VAL.upto; alub_inc(&v) )
+		for ( p = v.bit; v.bit < upto; alub_inc(&v) )
 		{
 			if ( *(v.ptr) & v.mask )
 			{	
-				(void)alup__shl( _CPY, v.bit - p );
-				ret = alup__add_int2int( _NUM, _CPY );
+				(void)alup__shl( &_CPY, v.bit - p );
+				ret = alup__add_int2int( _NUM, &_CPY );
 				p = v.bit;
 				
 				carry = (carry | (ret == EOVERFLOW));
@@ -1595,16 +1718,16 @@ int_t alup__mul_int2int
 	return ret;
 }
 
-int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
+int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp )
 {
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		int_t ret;
 		alup_t _DST, _SRC, _DMAN, _SMAN;
-		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
+		ssize_t exp, dexp, sexp, dbias, sbias, bits;
 		bool_t dneg, sneg;
 		ssize_t ddiff = 0, sdiff = 0;
-		size_t man_upto;
+		size_t dmupto, smupto;
 		alub_t final, prior;
 		
 		/* Ensure dealing with just floats, impossible for both to take _tmp
@@ -1612,157 +1735,159 @@ int_t alup__mul( alup_t _NUM, alup_t _VAL, void *_cpy, void *_tmp )
 		
 		if ( alup_floating( _NUM ) )
 		{
-			_DST = _NUM;
+			_DST = *_NUM;
 		}
 		else
 		{
-			bits = _NUM.upto - _NUM.from;
-			size = BITS2SIZE( bits );
-			alup_init_floating( _DST, _tmp, size );
-			alup_mov( _DST, _NUM );
+			bits = _NUM->leng;
+			alup_init_floating( _DST, _tmp, bits );
+			alup_mov( &_DST, _NUM );
 		}
 		
 		if ( alup_floating( _VAL ) )
 		{
-			_SRC = _VAL;
+			_SRC = *_VAL;
 		}
 		else
 		{
-			bits = _VAL.upto - _VAL.from;
-			size = BITS2SIZE( bits );
-			alup_init_floating( _SRC, _tmp, size );
-			alup_mov( _SRC, _VAL );
+			bits = _VAL->leng;
+			alup_init_floating( _SRC, _tmp, bits );
+			alup_mov( &_SRC, _VAL );
 		}
 		
-		dneg = alup_below0( _DST );
-		sneg = alup_below0( _SRC );
+		dneg = alup_below0( &_DST );
+		sneg = alup_below0( &_SRC );
 		
-		dexp = alup_get_exponent( _DST );
-		sexp = alup_get_exponent( _SRC );
+		dexp = alup_get_exponent( &_DST );
+		sexp = alup_get_exponent( &_SRC );
 		
 		if ( !dexp || !sexp )
 		{
-			_NUM.upto--;
 			alup_set( _NUM, 0 );
-			alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
+			alup_set_sign( &_DST, dneg != sneg );
 			return 0;
 		}
 		
-		dbias = alup_get_exponent_bias( _DST );
-		sbias = alup_get_exponent_bias( _DST );
+		dbias = alup_get_exponent_bias( &_DST );
+		sbias = alup_get_exponent_bias( &_DST );
 		
 		dexp -= dbias;
 		sexp -= sbias;
 		
 		exp = dexp + sexp;
 				
-		alup_init_mantissa( _DST, _DMAN );
-		alup_init_mantissa( _SRC, _SMAN );
+		alup_init_mantissa( &_DST, _DMAN );
+		alup_init_mantissa( &_SRC, _SMAN );
 		
-		dbits = _DMAN.upto - _DMAN.from;
-		sbits = _SMAN.upto - _SMAN.from;
+		ddiff = EITHER
+		(
+			dexp >= 0 && dexp < (ssize_t)(_DMAN.leng)
+			, dexp
+			, _DMAN.leng
+		);
+		sdiff = EITHER
+		(
+			sexp >= 0 && sexp < (ssize_t)(_SMAN.leng)
+			, sexp
+			, _SMAN.leng
+		);
 		
-		ddiff = EITHER( dexp >= 0 && dexp < dbits, dexp, dbits );
-		sdiff = EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
+		alup_set_exponent( &_DST, 0 );
+		alup_set_sign( &_DST, 0 );
 		
-		alup_set_exponent( _DST, 0 );
-		alub_set( _DST.data, _DST.upto - 1, 0 );
-		alub_set( _DST.data, _DMAN.upto, 1 );
-		alub_set( _SRC.data, _SMAN.upto, 1 );
+		dmupto = alup_until_pos( &_DMAN );
+		smupto = alup_until_pos( &_SMAN );
 		
-		man_upto = _DMAN.upto;
+		alub_set( _DST.data, dmupto, 1 );
+		alub_set( _SRC.data, smupto, 1 );
 		
-		_SMAN.from = _SMAN.upto - sdiff;
-		_DMAN.upto = _DST.upto;
-		_SMAN.upto++;
+		_SMAN.from = smupto - sdiff;
+		_DMAN.leng = _DST.leng;
+		_SMAN.leng++;
 		
-		alup__shr( _DMAN, dbits - ddiff );
-		prior = alup_final_one( _DMAN );
+		alup__shr( &_DMAN, _DST.mant - ddiff );
+		prior = alup_final_one( &_DMAN );
 		
-		ret = alup__mul_int2int( _DMAN, _SMAN, _cpy );
+		ret = alup__mul_int2int( &_DMAN, &_SMAN, _cpy );
 		
 		/* We mangled this so restore it now */
-		alup_set_exponent( _SRC, sexp + sbias );
+		alup_set_exponent( &_SRC, sexp + sbias );
 		
 		if ( exp >= dbias )
 		{	
 			alu_puts("MUL 1");
 			
-			/* Set infinity */
-			alup_init_mantissa( _DST, _DMAN );
-			
-			alup_set( _DMAN, 0 );
-			alup_set_exponent( _DST, (dbias << 1) | 1 );
+			(void)alup_set_fltinf( _NUM, dneg != sneg );
+			return ERANGE;
 		}
 		else
 		{
 			size_t add, mov;
 			
-			final = alup_final_one( _DMAN );
+			final = alup_final_one( &_DMAN );
 			add = final.bit - prior.bit;
 			
-			if ( final.bit < man_upto - 1 )
+			if ( final.bit < dmupto - 1 )
 			{
 				/* Normalise */
-				mov = man_upto - final.bit;
+				mov = dmupto - final.bit;
 				
 				exp = dexp + add;
-				alup__shl( _DMAN, mov );
+				alup__shl( &_DMAN, mov );
 			}
-			else if ( final.bit >= man_upto )
+			else if ( final.bit >= dmupto )
 			{
 				/* Normalise */
-				mov = final.bit - man_upto;
+				mov = final.bit - dmupto;
 				
 				exp = dexp + add;
-				alup__shr( _DMAN, mov );
+				alup__shr( &_DMAN, mov );
 			}
 			else if ( ret == EOVERFLOW )
 			{	
 				exp++;
-				alup__shr( _DMAN, 1 );
-				alub_set( _DMAN.data, man_upto - 1, 1 );
+				alup__shr( &_DMAN, 1 );
+				alub_set( _DMAN.data, dmupto - 1, 1 );
 			}
 			
-			alup_set_exponent( _DST, exp + dbias );
+			alup_set_exponent( &_DST, exp + dbias );
 		}
 		
-		alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
+		alup_set_sign( &_DST, dneg != sneg );
 		
 		if ( alup_floating( _NUM ) )
 			return 0;
 			
-		return alup_mov( _NUM, _DST );
+		return alup_mov( _NUM, &_DST );
 	}
 	
 	return alup__mul_int2int( _NUM, _VAL, _cpy );
 }
 
-int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem )
+int_t alup__div_int2int( alup_t const * const _NUM, alup_t const * const _VAL, void *_rem )
 {	
 
-	int ret;
+	int ret = 0;
 	alup_t _SEG, _REM;
 	alub_t n;
 	bool_t nNeg, vNeg;
-	size_t bits, diff, size;
+	size_t bits = 0;
 	
-	if ( !_NUM.data || !_VAL.data || !_rem )
+	if ( !_NUM->data || !_VAL->data || !_rem )
 	{
 		ret = EINVAL;
 		
 		alu_error( ret );
 		
-		if ( !_NUM.data ) alu_puts("NUM.data was NULL!");
+		if ( !_NUM->data ) alu_puts("NUM.data was NULL!");
 			
-		if ( !_VAL.data ) alu_puts("VAL.data was NULL!");
+		if ( !_VAL->data ) alu_puts("VAL.data was NULL!");
 			
 		if ( !_rem ) alu_puts("_rem was NULL!");
 		
 		return ret;
 	}
 	
-	ret = 0;
 	nNeg = alup_below0( _NUM );
 	vNeg = alup_below0( _VAL );
 	
@@ -1772,34 +1897,30 @@ int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem )
 	if ( vNeg )
 		alup_neg( _VAL );
 	
-	bits = 0;
-	diff = _NUM.upto - _NUM.from;
-	size = (diff / UNIC_CHAR_BIT) + !!(diff % UNIC_CHAR_BIT);
+	alup_init_unsigned( _REM, _rem, _NUM->leng );
 	
-	alup_init_unsigned( _REM, _rem, size );
-	_REM.info = _NUM.info;
-	
-	(void)alup_mov_int2int( _REM, _NUM );
+	(void)alup_mov_int2int( &_REM, _NUM );
 	(void)alup_set( _NUM, 0 );
 	
 	_SEG = _REM;
-	_SEG.info = 0;
 	
-	n = alup_final_one( _REM );
-	_SEG.upto = _SEG.from = n.bit + 1;
-	n = alub( _NUM.data, _NUM.from );
+	n = alup_final_one( &_REM );
+	_SEG.from = n.bit + 1;
+	_SEG.leng = 0;
+	n = alub( _NUM->data, _NUM->from );
 	
 #if 0
 	while ( _SEG.from > _REM.from )
 #else
-	while ( alup_cmp_int2int( _REM, _VAL ) >= 0 )
+	while ( alup_cmp_int2int( &_REM, _VAL ) >= 0 )
 #endif
 	{
 		++bits;
+		_SEG.leng++;
 		_SEG.from--;
-		if ( alup_cmp_int2int( _SEG, _VAL ) >= 0 )
+		if ( alup_cmp_int2int( &_SEG, _VAL ) >= 0 )
 		{
-			ret = alup__sub_int2int( _SEG, _VAL );
+			ret = alup__sub_int2int( &_SEG, _VAL );
 			
 			if ( ret == ENODATA )
 				break;
@@ -1818,23 +1939,24 @@ int_t alup__div_int2int( alup_t _NUM, alup_t _VAL, void *_rem )
 	if ( nNeg != vNeg )
 		alup_neg( _NUM );
 	
+	_REM.sign = _NUM->sign;
 	if ( nNeg )
-		alup_neg( _REM );
+		alup_neg( &_REM );
 	
 	if ( vNeg )
 		alup_neg( _VAL );
 		
-	n = alup_final_one( _REM );
+	n = alup_final_one( &_REM );
 	
 	return EITHER( ret, ret, IFTRUE( *(n.ptr) & n.mask, ERANGE ) );
 }
 
-int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
+int_t alup__div( alup_t const * const _NUM, alup_t const * const _VAL, void *_rem, void *_tmp )
 {
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		alup_t _DST, _SRC, _DMAN, _SMAN;
-		size_t exp_len, man_upto;
+		size_t exp_len, dmupto, smupto;
 		ssize_t exp, dexp, sexp, dbias, sbias, dbits, sbits, bits, size;
 		bool_t dneg, sneg;
 		alub_t prior;
@@ -1842,58 +1964,56 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		/* Ensure dealing with just floats, impossible for both to take _tmp
 		 * given the above if statment */
 		 
-		bits = (_NUM.upto - _NUM.from) * 2;
+		bits = _NUM->leng * 2;
 		size = BITS2SIZE( bits );
 		alup_init_floating( _DST, _tmp, size );
-		alup_mov( _DST, _NUM );
+		alup_mov( &_DST, _NUM );
 
 		size /= 2;
-		_SRC.data = _NUM.data;
-		_SRC.info = ALU_INFO_FLOAT | ALU_INFO__SIGN;
-		_SRC.from = _NUM.from;
-		_SRC.upto = _NUM.upto;
-		alup_mov( _SRC, _VAL );
+		alup_init_floating( _SRC, _NUM->data, _NUM->leng );
+		alup_mov( &_SRC, _VAL );
 		
-		dneg = alup_below0( _DST );
-		sneg = alup_below0( _SRC );
+		dneg = alup_below0( &_DST );
+		sneg = alup_below0( &_SRC );
 		
-		dexp = alup_get_exponent( _DST );
-		sexp = alup_get_exponent( _SRC );
+		dexp = alup_get_exponent( &_DST );
+		sexp = alup_get_exponent( &_SRC );
 		
 		if ( !dexp || !sexp )
 		{
-			_NUM.upto--;
 			alup_set( _NUM, 0 );
-			alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
+			alup_set_sign( _NUM, dneg != sneg );
 			return 0;
 		}
 		
-		dbias = alup_get_exponent_bias( _DST );
-		sbias = alup_get_exponent_bias( _DST );
+		dbias = alup_get_exponent_bias( &_DST );
+		sbias = alup_get_exponent_bias( &_SRC );
 		
 		dexp -= dbias;
 		sexp -= sbias;
 				
-		alup_init_mantissa( _DST, _DMAN );
-		alup_init_mantissa( _SRC, _SMAN );
+		alup_init_mantissa( &_DST, _DMAN );
+		alup_init_mantissa( &_SRC, _SMAN );
 		
-		dbits = _DMAN.upto - _DMAN.from;
-		sbits = _SMAN.upto - _SMAN.from;
+		dmupto = alup_until_pos( &_DMAN );
+		smupto = alup_until_pos( &_SMAN );
+		
+		dbits = _DMAN.leng;
+		sbits = _SMAN.leng;
 		bits = LOWEST( dbits, sbits );
 		
-		exp_len = (_DST.upto - _DMAN.upto) - 1;
-		_SMAN.from = _SMAN.upto - EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
+		exp_len = (_DST.leng - _DST.mant) - 1;
+		_SMAN.from = smupto - EITHER( sexp >= 0 && sexp < sbits, sexp, sbits );
 		
-		alub_set( _DST.data, _DMAN.upto, 1 );
-		alub_set( _SRC.data, _SMAN.upto, 1 );
+		alub_set( _DST.data, dmupto, 1 );
+		alub_set( _SRC.data, smupto, 1 );
 		
-		man_upto = _DMAN.upto;
-		_DMAN.upto = _DST.upto;
-		_SMAN.upto++;
+		_DMAN.leng = _DST.leng;
+		_SMAN.leng++;
 		
-		alup__shl( _DMAN, exp_len );
-		prior = alup_final_one( _DMAN );
-		(void)alup__div_int2int( _DMAN, _SMAN, _rem );
+		alup__shl( &_DMAN, exp_len );
+		prior = alup_final_one( &_DMAN );
+		(void)alup__div_int2int( &_DMAN, &_SMAN, _rem );
 		
 		exp = dexp + sexp;
 		
@@ -1901,63 +2021,61 @@ int_t alup__div( alup_t _NUM, alup_t _VAL, void *_rem, void *_tmp )
 		{	
 			alu_puts("Route 1");
 			/* Set infinity */
-			_DMAN.upto = man_upto;
-			alup_set( _DMAN, 0 );
-			alup_set_exponent( _DST, (dbias << 1) | 1 );
+			return alup_set_inf( _NUM, dneg != sneg );
 		}
-		else if ( exp <= (ssize_t)(_DMAN.upto - _DMAN.from) )
+		else if ( exp <= (ssize_t)(_DMAN.leng) )
 		{
 			/* Normalise */
-			alub_t first = alup_first_one( _DMAN ), final = alup_final_one( _DMAN );
+			alub_t first = alup_first_one( &_DMAN ), final = alup_final_one( &_DMAN );
 			size_t rel2prv = prior.bit - final.bit, mov;
 			bool_t round = (first.bit - _DST.from) < exp_len;
 			
 			exp = dexp - rel2prv;
 			
-			if ( final.bit > man_upto )
+			if ( final.bit > dmupto )
 			{
 				bool_t up;
-				mov = final.bit - man_upto;
+				mov = final.bit - dmupto;
 				
 				//alu_printf( "Route 2.1, mov = %zu", mov );
 				
 				//alup_print( _DST, 0, 1 );
-				alup__shr( _DMAN, mov - 1 );
+				alup__shr( &_DMAN, mov - 1 );
 				up = alub_get( _DST.data, _DST.from );
-				alup__shr( _DMAN, 1 );
+				alup__shr( &_DMAN, 1 );
 				if ( round || up )
-					alup_inc( _DMAN );
+					alup_inc( &_DMAN );
 				//alup_print( _DST, 0, 1 );
 			}
-			else if ( final.bit < man_upto )
+			else if ( final.bit < dmupto )
 			{
-				mov = man_upto - final.bit;
+				mov = dmupto - final.bit;
 				
 				alu_puts("Route 2.2");
 				
-				alup__shl( _DMAN, mov + 1 );
+				alup__shl( &_DMAN, mov + 1 );
 				//exp = dexp - rel2prv;
 				
 				if ( round )
 				{
-					alup_inc( _DMAN );
+					alup_inc( &_DMAN );
 				}
 				
-				alup__shr( _DMAN, 1 );
+				alup__shr( &_DMAN, 1 );
 			}
 			
-			alup_set_exponent( _DST, exp + dbias );
+			alup_set_exponent( &_DST, exp + dbias );
 		}	
 		else
 		{
 			//alu_puts("Route 3");
-			alup__shr( _DMAN, (exp_len - 1) );
-			alup_set_exponent( _DST, exp + dbias );
+			alup__shr( &_DMAN, (exp_len - 1) );
+			alup_set_exponent( &_DST, exp + dbias );
 		}
 		
-		alub_set( _DST.data, _DST.upto - 1, dneg != sneg );
+		alub_set( _DST.data, (_DST.from + _DST.leng) - 1, dneg != sneg );
 			
-		return alup_mov( _NUM, _DST );
+		return alup_mov( _NUM, &_DST );
 	}
 	
 	return alup__div_int2int( _NUM, _VAL, _rem );

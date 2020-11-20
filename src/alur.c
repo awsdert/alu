@@ -3,12 +3,10 @@
 alub_t alur_final_one( alu_t *alu, alur_t NUM )
 {
 	if ( alu )
-	{
-		alup_t _NUM;
+	{	
+		alup_init_register( alu, NUM, 0 );
 		
-		alup_init_register( alu, _NUM, NUM );
-		
-		return alup_final_one( _NUM );
+		return alup_final_one( &(NUM.alup) );
 	}
 	else
 	{
@@ -25,12 +23,11 @@ int_t alur_mov_int2int( alu_t *alu, alur_t DST, alur_t SRC )
 	if ( alu )
 	{
 		int_t ret;
-		alup_t _DST, _SRC;
 		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
+		alup_init_register( alu, DST, 0 );
+		alup_init_register( alu, SRC, 0 );
 		
-		ret = alu->block.fault = alup_mov_int2int( _DST, _SRC );
+		ret = alu->block.fault = alup_mov_int2int( &(DST.alup), &(SRC.alup) );
 		if ( ret == 0 || ret == EOVERFLOW )
 			return 0;
 		return ret;
@@ -42,13 +39,11 @@ int_t alur_mov_int2int( alu_t *alu, alur_t DST, alur_t SRC )
 int alur_mov_int2flt( alu_t *alu, alur_t DST, alur_t SRC )
 {	
 	if ( alu )
-	{
-		alup_t _DST, _SRC;
+	{	
+		alup_init_register( alu, DST, 0 );
+		alup_init_register( alu, SRC, 0 );
 		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov_int2flt( _DST, _SRC );
+		return alup_mov_int2flt( &(DST.alup), &(SRC.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -57,13 +52,11 @@ int alur_mov_int2flt( alu_t *alu, alur_t DST, alur_t SRC )
 int alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC )
 {	
 	if ( alu )
-	{
-		alup_t _DST, _SRC;
+	{	
+		alup_init_register( alu, DST, 0 );
+		alup_init_register( alu, SRC, 0 );
 		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov_flt2int( _DST, _SRC );
+		return alup_mov_flt2int( &(DST.alup), &(SRC.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -72,13 +65,11 @@ int alur_mov_flt2int( alu_t *alu, alur_t DST, alur_t SRC )
 int alur_mov_flt2flt( alu_t *alu, alur_t DST, alur_t SRC )
 {
 	if ( alu )
-	{
-		alup_t _DST, _SRC;
+	{	
+		alup_init_register( alu, DST, 0 );
+		alup_init_register( alu, SRC, 0 );
 		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov_flt2flt( _DST, _SRC );
+		return alup_mov_flt2flt( &(DST.alup), &(SRC.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -87,13 +78,11 @@ int alur_mov_flt2flt( alu_t *alu, alur_t DST, alur_t SRC )
 int_t	alur_mov( alu_t *alu, alur_t DST, alur_t SRC )
 {
 	if ( alu )
-	{
-		alup_t _DST, _SRC;
+	{	
+		alup_init_register( alu, DST, 0 );
+		alup_init_register( alu, SRC, 0 );
 		
-		alup_init_register( alu, _DST, DST );
-		alup_init_register( alu, _SRC, SRC );
-		
-		return alup_mov( _DST, _SRC );
+		return alup_mov( &(DST.alup), &(SRC.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -161,11 +150,9 @@ int_t alur_cmp(
 			return 0;
 		}
 		else
-		{
-			alup_t _NUM, _VAL;
-			
-			alup_init_register( alu, _NUM, NUM );
-			alup_init_register( alu, _VAL, VAL );
+		{	
+			alup_init_register( alu, NUM, 0 );
+			alup_init_register( alu, VAL, 0 );
 			
 			if ( a )
 			{
@@ -173,7 +160,7 @@ int_t alur_cmp(
 				alur_neg( alu, VAL );
 			}
 			
-			ret = alup_cmp_int2int( _NUM, _VAL );
+			ret = alup_cmp_int2int( &(NUM.alup), &(VAL.alup) );
 			
 			if ( a )
 			{
@@ -197,11 +184,7 @@ int_t alur_not( alu_t *alu, alur_t NUM )
 {
 	if ( alu )
 	{
-		alup_t _NUM;
-		
-		alup_init_register( alu, _NUM, NUM );
-		alup_not( _NUM );
-		
+		alup_not( &(NUM.alup) );
 		return 0;
 	}
 	
@@ -211,12 +194,9 @@ int_t alur_not( alu_t *alu, alur_t NUM )
 int_t alur_inc( alu_t *alu, alur_t NUM )
 {
 	if ( alu )
-	{
-		alup_t _NUM;
-		
-		alup_init_register( alu, _NUM, NUM );
-		
-		return alup_inc( _NUM );
+	{	
+		alup_init_register( alu, NUM, 0 );
+		return alup_inc( &(NUM.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -224,23 +204,13 @@ int_t alur_inc( alu_t *alu, alur_t NUM )
 
 int_t alur_dec( alu_t *alu, alur_t NUM )
 {
-	alub_t n;
-	void *part;
-	
-	NUM.node %= alu_used( alu );
-	part = alur_data( alu, NUM );
-	
-	n = alub( part, NUM.from );
-	
-	for ( ; n.bit < NUM.upto; alub_inc(&n) )
+	if ( alu )
 	{
-		bool is1 = !!(*(n.ptr) & n.mask);
-		*(n.ptr) &= ~(n.mask);
-		*(n.ptr) |= IFTRUE( !is1, n.mask );
-		NUM.upto = IFTRUE( !is1, NUM.upto );
+		alup_init_register( alu, NUM, 0 );
+		return alup_dec( &(NUM.alup) );
 	}
 	
-	return EITHER( NUM.upto, EOVERFLOW, 0 );
+	return alu_err_null_ptr("alu");
 }
 
 int_t alur_match_exponents( alu_t *alu, uint_t num, uint_t val )
@@ -269,37 +239,32 @@ int_t alur__add(
 )
 {	
 	if ( alu )
-	{
-		int ret;
-		//alub_t n, v;
-		alup_t _NUM, _VAL;
+	{	
+		int_t ret;
 		
-		NUM.node %= alu_used( alu );
-		VAL.node %= alu_used( alu );
-		cpy %= alu_used(alu);
-		tmp %= alu_used(alu);
+		alup_init_register( alu, NUM, 0 );
+		alup_init_register( alu, VAL, 0 );
 		
-		ret = IFTRUE( !NUM.node || !VAL.node || !cpy || !tmp, EINVAL );
-			
-		if ( ret )
+		ret = alup__add
+		(
+			&(NUM.alup)
+			, &(VAL.alup)
+			, alu_Ndata(alu,cpy)
+			, alu_Ndata(alu,tmp)
+		);
+		
+		alu->block.fault = ret;
+		
+		switch ( ret )
 		{
-			alu_error( ret );
-			
-			if ( !NUM.node ) alu_puts( "NUM.node was 0!" );
-			
-			if ( !VAL.node ) alu_puts( "VAL.node was 0!" );
-			
-			if ( !cpy ) alu_puts( "cpy was 0!" );
-			
-			if ( !tmp ) alu_puts( "tmp was 0!" );
-			
-			return ret;
+			case 0: case ENODATA: case EOVERFLOW: case ERANGE:
+				ret = 0;
+				break;
+			default:
+				alu_error( ret );
 		}
 		
-		alup_init_register( alu, _NUM, NUM );
-		alup_init_register( alu, _VAL, VAL );
-		
-		return alup__add( _NUM, _VAL, alu_Ndata(alu,cpy), alu_Ndata(alu,tmp) );
+		return ret;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -318,16 +283,6 @@ int_t alur_add(
 	{
 		ret = alur__add( alu, NUM, VAL, nodes[0], nodes[1] );
 		alur_rem_nodes( alu, nodes, 2 );
-		
-		switch (ret)
-		{
-		case 0: case ENODATA: case EOVERFLOW: case ERANGE:
-			alu->block.fault = ret;
-			ret = 0;
-			break;
-		default:
-			alu_error(ret);
-		}
 	}
 	else
 	{
@@ -341,12 +296,31 @@ int_t alur__sub( alu_t *alu, alur_t NUM, alur_t VAL, uint_t cpy, uint_t tmp )
 {
 	if ( alu )
 	{
-		alup_t _NUM, _VAL;
+		int_t ret;
 		
-		alup_init_register( alu, _NUM, NUM );
-		alup_init_register( alu, _VAL, VAL );
+		alup_init_register( alu, NUM, 0 );
+		alup_init_register( alu, VAL, 0 );
 		
-		return alup__sub( _NUM, _VAL, alu_Ndata(alu, cpy), alu_Ndata(alu, tmp) );
+		ret = alup__sub
+		(
+			&(NUM.alup)
+			, &(VAL.alup)
+			, alu_Ndata(alu, cpy)
+			, alu_Ndata(alu, tmp)
+		);
+		
+		alu->block.fault = ret;
+		
+		switch ( ret )
+		{
+			case 0: case ENODATA: case EOVERFLOW: case ERANGE:
+				ret = 0;
+				break;
+			default:
+				alu_error( ret );
+		}
+		
+		return ret;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -360,13 +334,13 @@ int_t alur_sub( alu_t *alu, alur_t NUM, alur_t VAL )
 	if ( ret == 0 )
 	{	
 		ret = alur__sub( alu, NUM, VAL, nodes[0], nodes[1] );
-		
 		alur_rem_nodes( alu, nodes, 2 );
-		
-		return ret;
+	}
+	else
+	{
+		alu_error(ret);
 	}
 	
-	alu_error(ret);
 	return ret;
 }
 
@@ -374,11 +348,8 @@ int_t alur__shl( alu_t *alu, alur_t NUM, size_t by )
 {	
 	if ( alu )
 	{
-		alup_t _NUM;
-		
-		alup_init_register( alu, _NUM, NUM );
-		
-		return alup__shl( _NUM, by );
+		alup_init_register( alu, NUM, 0 );	
+		return alup__shl( &(NUM.alup), by );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -388,11 +359,8 @@ int_t alur__shr( alu_t *alu, alur_t NUM, size_t by )
 {	
 	if ( alu )
 	{
-		alup_t _NUM;
-		
-		alup_init_register( alu, _NUM, NUM );
-		
-		return alup__shr( _NUM, by );
+		alup_init_register( alu, NUM, 0 );
+		return alup__shr( &(NUM.alup), by );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -419,35 +387,19 @@ int_t alur__shift
 	if ( alu )
 	{
 		int cmp;
-		alup_t _VAL, _TMP;
+		alup_t _TMP;
 		size_t by;
 		
-		NUM.node %= alu_used( alu );
-		VAL.node %= alu_used( alu );
+		alup_init_register( alu, VAL, 0 );
+		alup_init_unsigned( _TMP, &by, bitsof(size_t) );
 		
-		ret = IFTRUE( !NUM.node || !VAL.node, EINVAL );
+		by = NUM.alup.leng;
 		
-		if ( ret )
-		{
-			alu_error( ret );
-			
-			if ( !NUM.node ) alu_puts("NUM.node was 0!");
-			
-			if ( !VAL.node ) alu_puts("VAL.node was 0!");
-			
-			return ret;
-		}
-		
-		alup_init_register( alu, _VAL, VAL );
-		alup_init_unsigned( _TMP, &by, sizeof(size_t) );
-		
-		by = NUM.upto - NUM.from;
-		
-		cmp = alup_cmp_int2int( _VAL, _TMP );
+		cmp = alup_cmp_int2int( &(VAL.alup), &_TMP );
 		
 		if ( cmp < 0 )
 		{
-			alup_mov_int2int( _TMP, _VAL );
+			alup_mov_int2int( &_TMP, &(VAL.alup) );
 			ret = _shift( alu, NUM, by );
 		}
 		else
@@ -472,36 +424,32 @@ int_t alur__mul
 )
 {
 	if ( alu )
-	{
-		alup_t _NUM, _VAL;
-			
-		alup_init_register( alu, _NUM, NUM );
-		alup_init_register( alu, _VAL, VAL );
+	{		
+		int_t ret;
 		
-		if ( alur_floating(VAL) || alur_floating(NUM) )
+		alup_init_register( alu, NUM, 0 );
+		alup_init_register( alu, VAL, 0 );
+		
+		ret = alup__mul
+		(
+			&(NUM.alup)
+			, &(VAL.alup)
+			, alu_Ndata( alu, cpy )
+			, alu_Ndata( alu, tmp )
+		);
+		
+		alu->block.fault = ret;
+		
+		switch ( ret )
 		{
-			/* Not yet supported */
-			alup_t _CPY, _TMP;
-			
-			alup_init_floating( _CPY, alu_Ndata( alu, cpy ), alu_Nsize( alu ) );
-			alup_init_floating( _TMP, alu_Ndata( alu, tmp ), alu_Nsize( alu ) );
-			
-			if ( alur_floating(NUM) )
-				alup_mov_flt2flt( _CPY, _NUM );
-			else
-				alup_mov_int2flt( _CPY, _NUM );
-				
-			if ( alur_floating(VAL) )
-				alup_mov_flt2flt( _TMP, _VAL );
-			else
-				alup_mov_int2flt( _TMP, _VAL );
-			
-			return ENOSYS;
+			case 0: case ENODATA: case EOVERFLOW: case ERANGE:
+				ret = 0;
+				break;
+			default:
+				alu_error( ret );
 		}
-		else
-		{
-			return alup__mul_int2int( _NUM, _VAL, alu_Ndata( alu, cpy ) );
-		}
+		
+		return ret;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -522,7 +470,6 @@ int_t alur_mul
 	if ( ret == 0 )
 	{
 		ret = alur__mul( alu, NUM, VAL, nodes[0], nodes[1] );
-		
 		alur_rem_nodes( alu, nodes, 2 );
 		
 		return ret;
@@ -535,12 +482,9 @@ int_t alur_mul
 int_t alur_neg( alu_t *alu, alur_t NUM )
 {
 	if ( alu )
-	{
-		alup_t _NUM;
-		
-		alup_init_register( alu, _NUM, NUM );
-		
-		return alup_neg( _NUM );
+	{	
+		alup_init_register( alu, NUM, 0 );
+		return alup_neg( &(NUM.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -549,19 +493,32 @@ int_t alur_neg( alu_t *alu, alur_t NUM )
 int_t alur__div( alu_t *alu, alur_t NUM, alur_t VAL, uint_t rem, uint_t tmp )
 {	
 	if ( alu )
-	{
-		alup_t _NUM, _VAL;
+	{	
+		int_t ret;
 		
-		alup_init_register( alu, _NUM, NUM );
-		alup_init_register( alu, _VAL, VAL );
+		alup_init_register( alu, NUM, 0 );
+		alup_init_register( alu, VAL, 0 );
 		
-		return alup__div
+		ret = alup__div
 		(
-			_NUM
-			, _VAL
+			&(NUM.alup)
+			, &(VAL.alup)
 			, alu_Ndata( alu, rem )
 			, alu_Ndata( alu, tmp )
 		);
+		
+		alu->block.fault = ret;
+		
+		switch ( ret )
+		{
+			case 0: case ENODATA: case EOVERFLOW: case ERANGE:
+				ret = 0;
+				break;
+			default:
+				alu_error( ret );
+		}
+		
+		return ret;
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -604,32 +561,25 @@ int_t alur_rem
 	
 	if ( ret == 0 )
 	{
-		int tmpret;
-		alur_t REM;
-		
-		if ( NUM.info & ALU_INFO_FLOAT )
-		{
-			alur_init_floating( alu, REM, nodes[0] );
-		}
-		else
-		{
-			alur_init_unsigned( alu, REM, nodes[0] );
-			REM.info = NUM.info;
-		}
-		
 		ret = alur__div( alu, NUM, VAL, nodes[0], nodes[1] );
 		
-		switch ( ret )
+		if ( ret == 0 )
 		{
-		case 0: case ENODATA: case ERANGE:
-			tmpret = ret;
+			alur_t REM = NUM;
+			
+			REM.node = nodes[0];
+			alup_init_register( alu, REM, 0 );
 			ret = alur_mov( alu, NUM, REM );
-			if ( ret == 0 )
-				ret = tmpret;
-			break;
-		default:
-			alu_error(ret);
+			
+			if ( ret != 0 )
+			{
+				alu_error(ret);
+				alu->block.fault = ret;
+			}
 		}
+		
+		return ret;
+		
 		alur_rem_nodes( alu, nodes, 2 );
 		return ret;
 	}
@@ -659,11 +609,9 @@ int_t alur__rol( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
 		}
 		else
 		{
-			alup_t _NUM;
-		
-			alup_init_register( alu, _NUM, NUM );
+			alup_init_register( alu, NUM, 0 );
 			
-			alup__rol( _NUM, alu_Ndata( alu, tmp ), by );
+			alup__rol( &(NUM.alup), alu_Ndata( alu, tmp ), by );
 			return 0;
 		}
 	}
@@ -675,11 +623,8 @@ int_t alur__ror( alu_t *alu, alur_t NUM, uint_t tmp, size_t by )
 {	
 	if ( alu )
 	{
-		alup_t _NUM;
-		
-		alup_init_register( alu, _NUM, NUM );
-		
-		return alup__ror( _NUM, alu_Ndata( alu, tmp ), by );
+		alup_init_register( alu, NUM, 0 );	
+		return alup__ror( &(NUM.alup), alu_Ndata( alu, tmp ), by );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -707,7 +652,7 @@ int_t alur__rotate
 	if ( alu )
 	{
 		int cmp;
-		alup_t _VAL, _TMP;
+		alup_t _TMP;
 		size_t by;
 		
 		NUM.node %= alu_used( alu );
@@ -726,16 +671,16 @@ int_t alur__rotate
 			return ret;
 		}
 		
-		alup_init_register( alu, _VAL, VAL );
-		alup_init_unsigned( _TMP, &by, sizeof(size_t) );
+		alup_init_register( alu, VAL, 0 );
+		alup_init_unsigned( _TMP, &by, bitsof(size_t) );
 		
-		by = NUM.upto - NUM.from;
+		by = NUM.alup.leng;
 		
-		cmp = alup_cmp_int2int( _VAL, _TMP );
+		cmp = alup_cmp_int2int( &(VAL.alup), &_TMP );
 		
 		if ( cmp < 0 )
 		{
-			alup_mov_int2int( _TMP, _VAL );
+			alup_mov_int2int( &_TMP, &(VAL.alup) );
 			ret = _rotate( alu, NUM, tmp, by );
 		}
 		else
@@ -769,12 +714,10 @@ int_t alur_and( alu_t *alu, alur_t NUM, alur_t VAL )
 		}
 		else
 		{
-			alup_t _NUM, _VAL;
+			alup_init_register( alu, NUM, 0 );
+			alup_init_register( alu, VAL, 0 );
 			
-			alup_init_register( alu, _NUM, NUM );
-			alup_init_register( alu, _VAL, VAL );
-			
-			return alup_and( _NUM, _VAL );
+			return alup_and( &(NUM.alup), &(VAL.alup) );
 		}
 	}
 	
@@ -784,30 +727,10 @@ int_t alur_and( alu_t *alu, alur_t NUM, alur_t VAL )
 int_t alur__or( alu_t *alu, alur_t NUM, alur_t VAL )
 {	
 	if ( alu )
-	{	
-		NUM.node %= alu_used( alu );
-		VAL.node %= alu_used( alu );
-		
-		if ( !NUM.node || !VAL.node )
-		{
-			int_t ret = EDOM;
-			alu_error( ret );
-			
-			if ( !NUM.node ) alu_puts("!NUM.node was 0!");
-			
-			if ( !VAL.node ) alu_puts("!VAL.node was 0!");
-			
-			return ret;
-		}
-		else
-		{
-			alup_t _NUM, _VAL;
-			
-			alup_init_register( alu, _NUM, NUM );
-			alup_init_register( alu, _VAL, VAL );
-			
-			return alup__or( _NUM, _VAL );
-		}
+	{
+		alup_init_register( alu, NUM, 0 );
+		alup_init_register( alu, VAL, 0 );
+		return alup__or( &(NUM.alup), &(VAL.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -817,30 +740,9 @@ int_t alur_xor( alu_t *alu, alur_t NUM, alur_t VAL )
 {	
 	if ( alu )
 	{	
-		NUM.node %= alu_used( alu );
-		VAL.node %= alu_used( alu );
-		
-		if ( !NUM.node || !VAL.node )
-		{
-			int_t ret = EINVAL;
-			
-			alu_error( ret );
-			
-			if ( !NUM.node ) alu_puts("NUM.node was 0!");
-		
-			if ( !VAL.node ) alu_puts("VAL.node was 0!");
-			
-			return ret;
-		}
-		else
-		{
-			alup_t _NUM, _VAL;
-			
-			alup_init_register( alu, _NUM, NUM );
-			alup_init_register( alu, _VAL, VAL );
-		
-			return alup_xor( _NUM, _VAL );
-		}
+		alup_init_register( alu, NUM, 0 );
+		alup_init_register( alu, VAL, 0 );
+		return alup_xor( &(NUM.alup), &(VAL.alup) );
 	}
 	
 	return alu_err_null_ptr("alu");

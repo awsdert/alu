@@ -3,6 +3,8 @@
 #include <time.h>
 
 alu_t *alu = NULL;
+const int per_func = LDBL_MANT_DIG;
+bool_t stop_checks = false;
 
 #define REG_COUNT 3
 
@@ -157,118 +159,6 @@ START_TEST( test_alur_get_nodes )
 }
 END_TEST
 
-START_TEST( test_alur_set_raw )
-{
-	ck_assert( alu_upto( alu ) > 0 );
-	
-	uint_t num = alur_get_node( alu, 0 );
-	uintmax_t val = _i, got;
-	alur_t NUM;
-	bool active = alu_get_active( alu, num );
-	
-	ck_assert( num != 0 );
-	ck_assert( active == true );
-	
-	alur_init_unsigned( alu, NUM, num );
-	NUM.upto = bitsof(uintmax_t);
-	
-	active = alu_get_active( alu, num );
-	ck_assert( active == true );
-
-	alur_set_raw( alu, NUM, &val, sizeof(uintmax_t), 0 );
-	
-	active = alu_get_active( alu, num );
-	ck_assert( active == true );
-	
-	alur_get_raw( alu, NUM, &got, sizeof(uintmax_t), 0 );
-	
-	active = alu_get_active( alu, num );
-	ck_assert( active == true );
-	
-	ck_assert_msg
-	(
-		val == got
-		, "Expected %ju, Got %ju"
-		, val
-		, got
-	);
-	
-	alur_rem_node( alu, &num );
-}
-END_TEST
-
-START_TEST( test_alu_uint_set_raw )
-{
-	uint_t num = alur_get_node( alu, 0 );
-	uintmax_t val = _i, got;
-	
-	ck_assert( num != 0 );
-
-	alu_uint_set_raw( alu, num, val );
-	alu_uint_get_raw( alu, num, &got );
-	
-	ck_assert_msg
-	(
-		val == got
-		, "Expected %ju, Got %ju"
-		, val
-		, got
-	);
-	
-	alur_rem_node( alu, &num );
-}
-END_TEST
-
-START_TEST( test_alur_final_one )
-{
-	uint_t num = alur_get_node( alu, 0 );
-	size_t bit = 0;
-	void *N;
-	alur_t NUM;
-	alub_t n, v;
-	
-	ck_assert( num != 0 );
-	
-	alur_init_unsigned( alu, NUM, num );
-	/* Ensure any realloc occurs BEFORE we get our pointer - prevents it
-	 * changing during the following loop */
-	alu_set_raw( alu, num, 0, 0 );
-	
-	N = alu_Ndata( alu, num );
-	
-	while ( bit < bitsof(uintmax_t) )
-	{	
-		v = alub( N, bit++ );
-		
-		alu_set_raw( alu, num, v.mask, 0 );
-		
-		n = alur_final_one( alu, NUM );
-		
-		ck_assert_msg
-		(
-			n.bit == v.bit
-			, "Expected %zu, Got %zu"
-			, v.bit
-			, n.bit
-		);
-		ck_assert( n.pos == v.pos );
-		ck_assert( n.seg == v.seg );
-		ck_assert( n.mask == v.mask );
-		ck_assert_msg
-		(
-			n.ptr == v.ptr
-			, "Expected %p, Got %p, Val = %c, %c"
-			, (void*)(v.ptr)
-			, (void*)(n.ptr)
-			, '0' + !!(*(n.ptr) & n.mask)
-			, '0' + !!(*(v.ptr) & v.mask)
-		);
-	}
-	
-	alur_rem_node( alu, &num );
-}
-END_TEST
-
 START_TEST( test_alub )
 {
 	ck_assert( alu_upto(alu) > 0 );
@@ -380,180 +270,177 @@ START_TEST( test_alub_set )
 }
 END_TEST
 
-START_TEST( test_alur_set_floating )
+START_TEST( test_alup_mov_int2int )
 {
-	ck_assert( alu_upto(alu) > 0 );
-	
-	uint_t nodes[2], num, val;
-	ullong_t _num = _i, _val = 1;
-	int ret = alur_get_nodes( alu, nodes, 2, 0 );
-	double src_num = _num, src_val = _val, got_num, got_val;
-	alur_t NUM, VAL;
-	void *N, *V;
-	
-	ck_assert( ret == 0 );
-	
-	num = nodes[0];
-	val = nodes[1];
-	
-	alur_init_floating( alu, NUM, num );
-	alur_init_floating( alu, VAL, val );
-	
-	NUM.upto = VAL.upto = bitsof(double);
-	
-	/* Set values */
-	
-	ret = alur_set_raw( alu, NUM, &src_num, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	ret = alur_set_raw( alu, VAL, &src_val, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	/* Get values */
-	
-	ret = alur_get_raw( alu, NUM, &got_num, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	ret = alur_get_raw( alu, VAL, &got_val, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	N = alur_data( alu, NUM );
-	V = alur_data( alu, VAL );
-	
-	ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
-	ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
-	
-	/* Set values */
-	
-	ret = alur_set_raw( alu, NUM, &_num, sizeof(ullong_t), 0 );
-	ck_assert( ret == 0 );
-	
-	ret = alur_set_raw( alu, VAL, &_val, sizeof(ullong_t), 0 );
-	ck_assert( ret == 0 );
-	
-	/* Get values */
-	
-	ret = alur_get_raw( alu, NUM, &got_num, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	ret = alur_get_raw( alu, VAL, &got_val, sizeof(double), ALU_INFO_FLOAT );
-	ck_assert( ret == 0 );
-	
-	N = alur_data( alu, NUM );
-	V = alur_data( alu, VAL );
-	
-	//ck_assert( memcmp( N, &src_num, sizeof(double) ) == 0 );
-	//ck_assert( memcmp( V, &src_val, sizeof(double) ) == 0 );
-	
-	if
-	(
-		memcmp( N, &src_num, sizeof(double) ) != 0
-		|| memcmp( V, &src_val, sizeof(double) ) != 0
-	)
+	if ( !stop_checks )
 	{
-		alur_t EXP, MAN;
+		alup_t _EXPECT, _RESULT, _RVALUE, _EVALUE;
+		ulong_t expect = _i, result = 0;
 		
-		alur_init_exponent( NUM, EXP );
-		alur_init_mantissa( NUM, MAN );
+		alup_init_unsigned( _EXPECT, &expect, bitsof(ulong_t) );
+		alup_init_unsigned( _RESULT, &result, bitsof(ulong_t) );
 		
-		alu_printf
-		(
-			"_num = %llu, src_num = %e, _val = %llu, src_val = %e\n"
-			"(EXP.upto = %zu) - (EXP.from = %zu) = %zu, "
-			"(MAN.upto = %zu) - (MAN.from = %zu) = %zu"
-			, _num, src_num
-			, _val, src_val
-			, EXP.upto, EXP.from, EXP.upto - EXP.from
-			, MAN.upto, MAN.from, MAN.upto - MAN.from
-		);
+		_RVALUE = _RESULT;
+		_EVALUE = _EXPECT;
 		
-		alur_print( alu, NUM, 0, 1 );
-		(void)memcpy( alur_data( alu, NUM ), &src_num, sizeof(double) );
-		alur_print( alu, NUM, 0, 1 );
+		alup_mov_int2int( &_RESULT, &_EXPECT );
 		
-		alur_print( alu, VAL, 0, 1 );
-		(void)memcpy( alur_data( alu, VAL ), &src_val, sizeof(double) );
-		alur_print( alu, VAL, 0, 1 );
+		ck_assert( memcmp( &_RESULT, &_RVALUE, sizeof(alup_t) ) == 0 );
+		ck_assert( memcmp( &_EXPECT, &_EVALUE, sizeof(alup_t) ) == 0 );
 		
-		ck_assert( 1 == 0 );
+		if ( memcmp( &result, &expect, sizeof(ulong_t) ) != 0 )
+		{
+			//alup_init_floating( _EXPECT, &expect, bitsof(ulong_t) );
+			
+			alu_printf
+			(
+				"Expect %lu, Result %lu"
+				, expect
+				, result
+			);
+			
+			alup_print( &_RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(ulong_t) ) == 0 );
 	}
-	
-	alur_rem_nodes( alu, nodes, 2 );
 }
 END_TEST
 
-typedef int_t (*func_alup__math_t)
-(
-	alup_t _NUM
-	, alup_t _VAL
-	, void *cpy
-	, void *tmp
-);
+START_TEST( test_alup_mov_flt2flt )
+{	
+	if ( !stop_checks )
+	{
+		alup_t _EXPECT, _RESULT, _RPRIOR, _EPRIOR;
+		float expect = _i, result = 0;
+		
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _EXPECT, &expect, bitsof(float) );
+		
+		_RPRIOR = _RESULT;
+		_EPRIOR = _EXPECT;
+		
+		alup_mov_flt2flt( &_RESULT, &_EXPECT );
+		
+		ck_assert( memcmp( &_RESULT, &_RPRIOR, sizeof(alup_t) ) == 0 );
+		ck_assert( memcmp( &_EXPECT, &_EPRIOR, sizeof(alup_t) ) == 0 );
+		
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
+		{
+			//alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			
+			alu_printf
+			(
+				"%d, Expect %f, Result %f"
+				, _i
+				, expect
+				, result
+			);
+			
+			alup_print( &_RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
+	}
+}
+END_TEST
 
-func_alup__math_t alup__math[] =
+START_TEST( test_alup_mov_int2flt )
+{	
+	if ( !stop_checks )
+	{
+		alup_t _EXPECT, _RESULT, _BEFORE, _RPRIOR, _EPRIOR;
+		ulong_t before = _i;
+		float expect = before, result = 0;
+		
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _EXPECT, &expect, bitsof(float) );
+		alup_init_unsigned( _BEFORE, &before, bitsof(ulong_t) );
+		
+		_RPRIOR = _RESULT;
+		_EPRIOR = _EXPECT;
+		
+		alup_mov_int2flt( &_RESULT, &_BEFORE );
+		
+		ck_assert( memcmp( &_RESULT, &_RPRIOR, sizeof(alup_t) ) == 0 );
+		ck_assert( memcmp( &_EXPECT, &_EPRIOR, sizeof(alup_t) ) == 0 );
+		
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
+		{
+			//alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			
+			alu_printf
+			(
+				"Before = %lu, Expect %f, Result %f"
+				, before
+				, expect
+				, result
+			);
+			
+			alup_print( &_RESULT, 1, 1 );
+			alup_print( &_EXPECT, 1, 1 );
+			alup_print( &_BEFORE, 1, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
+	}
+}
+END_TEST
+
+char* text_not() { return "~"; }
+char* text_inc() { return "++"; }
+char* text_dec() { return "--"; }
+char* text_neg() { return "-"; }
+char* text_add() { return "+"; }
+char* text_sub() { return "-"; }
+char* text_mul() { return "*"; }
+char* text_div() { return "/"; }
+char* text_rem() { return "%"; }
+
+long_t long_not( long_t num ) { return ~num; }
+long_t long_inc( long_t num ) { return ++num; }
+long_t long_dec( long_t num ) { return --num; }
+long_t long_neg( long_t num ) { return -num; }
+long_t long_add( long_t num, long_t val ) { return num + val; }
+long_t long_sub( long_t num, long_t val ) { return num - val; }
+long_t long_mul( long_t num, long_t val ) { return num * val; }
+long_t long_div( long_t num, long_t val ) { return val ? num / val : 0; }
+long_t long_rem( long_t num, long_t val ) { return val ? num % val : num; }
+
+float flt_not( float num )
 {
-	alup__add
-	, alup__sub
-	, alup__mul
-	, alup__div
-	, NULL
-};
+		ullong_t val = ~(*((ulong_t*)&num));
+		return *((float*)&val);
+}
+float flt_inc( float num ) { return ++num; }
+float flt_dec( float num ) { return --num; }
+float flt_neg( float num ) { return -num; }
+float flt_add( float num, float val ) { return num + val; }
+float flt_sub( float num, float val ) { return num - val; }
+float flt_mul( float num, float val ) { return num * val; }
+float flt_div( float num, float val ) { return val ? num / val : 0; }
 
-int op_add() { return '+'; }
-int op_sub() { return '-'; }
-int op_mul() { return '*'; }
-int op_div() { return '/'; }
-int op_rem() { return '%'; }
+typedef char*	(*func_text_op1_t)();
+typedef long_t	(*func_long_op1_t)( long_t num );
+typedef float	(*func_flt_op1_t)( float num );
+typedef int_t	(*func_alup_op1_t)( alup_t const * const _NUM );
+typedef char*	(*func_text_op4_t)();
+typedef long_t	(*func_long_op4_t)( long_t num, long_t val );
+typedef float	(*func_flt_op4_t)( float num, float val );
+typedef int_t	(*func_alup_op4_t)( alup_t const * const _NUM, alup_t const * const _VAL, void *cpy, void *tmp );
 
-typedef int (*func_op_math_t)();
-
-func_op_math_t op_math[] =
-{
-	op_add
-	, op_sub
-	, op_mul
-	, op_div
-	, op_rem
-	, NULL
-};
-
-ulong_t int_add( ulong_t num, ulong_t val ) { return num + val; }
-ulong_t int_sub( ulong_t num, ulong_t val ) { return num - val; }
-ulong_t int_mul( ulong_t num, ulong_t val ) { return num * val; }
-ulong_t int_div( ulong_t num, ulong_t val ) { return val ? num / val : 0; }
-ulong_t int_rem( ulong_t num, ulong_t val ) { return val ? num % val : num; }
-
-typedef ulong_t (*func_int_math_t)( ulong_t num, ulong_t val );
-
-func_int_math_t int_math[] =
-{
-	int_add
-	, int_sub
-	, int_mul
-	, int_div
-	, int_rem
-	, NULL
-};
-
-double flt_add( double num, double val ) { return num + val; }
-double flt_sub( double num, double val ) { return num - val; }
-double flt_mul( double num, double val ) { return num * val; }
-double flt_div( double num, double val ) { return val ? num / val : 0; }
-//double flt_rem( double num, double val ) { return val ? num % val : num; }
-
-typedef double (*func_flt_math_t)( double num, double val );
-
-func_flt_math_t flt_math[] =
-{
-	flt_add
-	, flt_sub
-	, flt_mul
-	, flt_div
-	, NULL
-};
-
-const int per_func = LDBL_MANT_DIG;
-bool_t stop_checks = false;
+func_text_op1_t	text_op1[] = { text_not, text_inc, text_dec, text_neg, NULL };
+func_alup_op1_t	alup_op1[] = { alup_not, alup_inc, alup_dec, alup_neg, NULL };
+func_long_op1_t	long_op1[] = { long_not, long_inc, long_dec, long_neg, NULL };
+func_flt_op1_t	flt_op1[] = { flt_not, flt_inc, flt_dec, flt_neg, NULL };
+func_alup_op4_t	alup_op4[] = { alup__add, alup__sub, alup__mul, alup__div, NULL };
+func_text_op4_t	text_op4[] = { text_add, text_sub, text_mul, text_div, text_rem, NULL };
+func_long_op4_t	long_op4[] = { long_add, long_sub, long_mul, long_div, long_rem, NULL };
+func_flt_op4_t	flt_op4[] = { flt_add, flt_sub, flt_mul, flt_div, NULL };
 
 START_TEST( test_alup__cmp_integer_incremental )
 {
@@ -565,11 +452,11 @@ START_TEST( test_alup__cmp_integer_incremental )
 		ulong_t value1 = _i, value2 = _i % per_func;
 		alup_t _VALUE1, _VALUE2;
 		
-		alup_init_unsigned( _VALUE1, &value1, sizeof(ulong_t) );
-		alup_init_unsigned( _VALUE2, &value2, sizeof(ulong_t) );
+		alup_init_unsigned( _VALUE1, &value1, bitsof(ulong_t) );
+		alup_init_unsigned( _VALUE2, &value2, bitsof(ulong_t) );
 		
 		expect = (value1 > value2) - (value1 < value2);
-		result = alup_cmp( _VALUE1, _VALUE2 );
+		result = alup_cmp( &_VALUE1, &_VALUE2 );
 		
 		if ( expect != result )
 		{	
@@ -581,9 +468,11 @@ START_TEST( test_alup__cmp_integer_incremental )
 				, expect
 				, result
 			);
-			
-			alup_print( _VALUE1, 0, 1 );
-			alup_print( _VALUE2, 0, 1 );
+
+#if 1
+			alup_print( &_VALUE1, 1, 1 );
+			alup_print( &_VALUE2, 1, 1 );
+#endif
 			
 			stop_checks = true;
 		}
@@ -604,11 +493,11 @@ START_TEST( test_alup__cmp_integer_randomised )
 		ulong_t value1 = rand_r(&seed), value2 = rand_r(&seed);
 		alup_t _VALUE1, _VALUE2;
 		
-		alup_init_unsigned( _VALUE1, &value1, sizeof(ulong_t) );
-		alup_init_unsigned( _VALUE2, &value2, sizeof(ulong_t) );
+		alup_init_unsigned( _VALUE1, &value1, bitsof(ulong_t) );
+		alup_init_unsigned( _VALUE2, &value2, bitsof(ulong_t) );
 		
 		expect = (value1 > value2) - (value1 < value2);
-		result = alup_cmp( _VALUE1, _VALUE2 );
+		result = alup_cmp( &_VALUE1, &_VALUE2 );
 		
 		if ( expect != result )
 		{	
@@ -621,8 +510,8 @@ START_TEST( test_alup__cmp_integer_randomised )
 				, result
 			);
 			
-			alup_print( _VALUE1, 0, 1 );
-			alup_print( _VALUE2, 0, 1 );
+			alup_print( &_VALUE1, 0, 1 );
+			alup_print( &_VALUE2, 0, 1 );
 			
 			stop_checks = true;
 		}
@@ -638,29 +527,31 @@ START_TEST( test_alup__cmp_floating_incremental )
 	
 	if ( !stop_checks )
 	{
-		int expect, result;
-		double value1 = _i, value2 = _i % per_func;
+		int expect, result, _j = _i % per_func;
+		float value1 = _i, value2 = _j;
 		alup_t _VALUE1, _VALUE2;
 		
-		alup_init_floating( _VALUE1, &value1, sizeof(double) );
-		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		alup_init_floating( _VALUE1, &value1, bitsof(float) );
+		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
 		expect = (value1 > value2) - (value1 < value2);
-		result = alup_cmp( _VALUE1, _VALUE2 );
+		result = alup_cmp( &_VALUE1, &_VALUE2 );
 		
 		if ( expect != result )
 		{	
 			alu_printf
 			(
-				"%f <> %f = %i, got %i"
+				"%f <> %f = %i (source: %i <> %i), got %i"
 				, value2
 				, value2
 				, expect
+				, _i
+				, _j
 				, result
 			);
 			
-			alup_print( _VALUE1, 0, 1 );
-			alup_print( _VALUE2, 0, 1 );
+			alup_print( &_VALUE1, 0, 1 );
+			alup_print( &_VALUE2, 0, 1 );
 			
 			stop_checks = true;
 		}
@@ -678,14 +569,14 @@ START_TEST( test_alup__cmp_floating_randomised )
 	{
 		uint_t seed = time(NULL);
 		int expect, result;
-		double value1 = rand_r(&seed), value2 = rand_r(&seed);
+		float value1 = rand_r(&seed), value2 = rand_r(&seed);
 		alup_t _VALUE1, _VALUE2;
 		
-		alup_init_floating( _VALUE1, &value1, sizeof(double) );
-		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		alup_init_floating( _VALUE1, &value1, bitsof(float) );
+		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
 		expect = (value1 > value2) - (value1 < value2);
-		result = alup_cmp( _VALUE1, _VALUE2 );
+		result = alup_cmp( &_VALUE1, &_VALUE2 );
 		
 		if ( expect != result )
 		{	
@@ -698,8 +589,8 @@ START_TEST( test_alup__cmp_floating_randomised )
 				, result
 			);
 			
-			alup_print( _VALUE1, 0, 1 );
-			alup_print( _VALUE2, 0, 1 );
+			alup_print( &_VALUE1, 0, 1 );
+			alup_print( &_VALUE2, 0, 1 );
 			
 			stop_checks = true;
 		}
@@ -709,7 +600,179 @@ START_TEST( test_alup__cmp_floating_randomised )
 }
 END_TEST
 
-START_TEST( test_alup__math_integer_incremental )
+START_TEST( test_alup_op1_integer_incremental )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		size_t func = _i / per_func;
+		ulong_t before = _i, expect = before, result = before;
+		alup_t _RESULT, _EXPECT;
+		
+		alup_init_unsigned( _RESULT, &result, bitsof(ulong_t) );
+		alup_init_unsigned( _EXPECT, &expect, bitsof(ulong_t) );
+		
+		expect = long_op1[func]( expect );
+		alup_op1[func]( &_RESULT );
+		
+		if ( memcmp( &result, &expect, sizeof(ulong_t) ) != 0 )
+		{
+			alup_t _BEFORE;
+			
+			alup_init_unsigned( _BEFORE, &before, bitsof(ulong_t) );
+			
+			alu_printf
+			(
+				"%d, %s0x%lX = 0x%lX, got 0x%lX"
+				, _i
+				, text_op1[func]()
+				, before
+				, expect
+				, result
+			);
+			
+			alup_print( &_BEFORE, 0, 1 );
+			alup_print( &_EXPECT, 1, 1 );
+			alup_print( &_RESULT, 1, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(ulong_t) ) == 0 );
+	}
+}
+END_TEST
+
+START_TEST( test_alup_op1_floating_incremental )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		size_t func = _i / per_func;
+		float before = _i, expect = before, result = before;
+		alup_t _RESULT, _EXPECT;
+		
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _EXPECT, &expect, bitsof(float) );
+		
+		expect = flt_op1[func]( expect );
+		alup_op1[func]( &_RESULT );
+		
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
+		{	
+			int testno = _i;
+			alup_t _BEFORE, _TESTNO;
+			
+			alup_init_floating( _BEFORE, &before, bitsof(float) );
+			alup_init___signed( _TESTNO, &testno, bitsof(int) );
+			
+			alu_printf
+			(
+				"%d, %s(%f) = %f, got %f"
+				, _i
+				, text_op1[func]()
+				, before
+				, expect
+				, result
+			);
+			
+			alup_print( &_TESTNO, 0, 1 );
+			alup_print( &_BEFORE, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
+	}
+}
+END_TEST
+
+START_TEST( test_alup_op1_floating_randomised )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		size_t func = _i / per_func;
+		uint_t seed = time(NULL);
+		float before = rand_r(&seed), expect = before, result = before;
+		alup_t _RESULT, _EXPECT;
+		
+		alup_init_floating( _EXPECT, &expect, bitsof(float) );
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+
+		expect = flt_op1[func]( expect );
+		alup_op1[func]( &_RESULT );
+		
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
+		{
+			alup_t _BEFORE;
+			
+			alup_init_floating( _BEFORE, &before, bitsof(float) );
+			
+			alu_printf
+			(
+				"%d, %s%f = %f, got %f"
+				, _i
+				, text_op1[func]()
+				, before
+				, expect
+				, result
+			);
+			
+			alup_print( &_BEFORE, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
+	}
+}
+END_TEST
+
+START_TEST( test_alup_op1_integer_randomised )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		size_t func = _i / per_func;
+		uint_t seed = time(NULL);
+		ulong_t before = rand_r(&seed), expect = before, result = before;
+		alup_t _RESULT, _EXPECT;
+		
+		alup_init_unsigned( _EXPECT, &expect, bitsof(ulong_t) );
+		alup_init_unsigned( _RESULT, &result, bitsof(ulong_t) );
+
+		expect = long_op1[func]( expect );
+		alup_op1[func]( &_RESULT );
+		
+		if ( memcmp( &result, &expect, sizeof(ulong_t) ) != 0 )
+		{	
+			alu_printf
+			(
+				"%s%lu = %lu, got %lu"
+				, text_op1[func]()
+				, before
+				, expect
+				, result
+			);
+			
+			//alup_print( _BEFORE, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(ulong_t) ) == 0 );
+	}
+}
+END_TEST
+
+START_TEST( test_alup__op4_integer_incremental )
 {
 	ck_assert( alu_upto(alu) > 0 );
 	
@@ -720,61 +783,54 @@ START_TEST( test_alup__math_integer_incremental )
 			, value1 = _i
 			, value2 = _i % per_func
 			, expect, result;
-		alup_t _RESULT, _VALUE2;
+		alup_t _RESULT, _VALUE2, _EXPECT;
 		
-		alup_init_unsigned( _RESULT, &result, sizeof(ulong_t) );
-		alup_init_unsigned( _VALUE2, &value2, sizeof(ulong_t) );
+		alup_init_unsigned( _RESULT, &result, bitsof(ulong_t) );
+		alup_init_unsigned( _VALUE2, &value2, bitsof(ulong_t) );
+		alup_init_unsigned( _EXPECT, &expect, bitsof(ulong_t) );
 		
 		result = value2;
-		expect = int_math[func]( value2, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		expect = long_op4[func]( value2, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, &extra1, &extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(ulong_t) ) != 0 )
-		{
-			alup_t _EXPECT;
-			
-			alup_init_unsigned( _EXPECT, &expect, sizeof(ulong_t) );
-			
+		{	
 			alu_printf
 			(
-				"%lu %c %lu = %lu, got %lu"
+				"%lu %s %lu = %lu, got %lu"
 				, value2
-				, op_math[func]()
+				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
 			
-			//alup_print( _VALUE2, 0, 1 );
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
+			//alup_print( _BEFORE, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
 		}
 		
 		ck_assert( memcmp( &result, &expect, sizeof(ulong_t) ) == 0 );
 		
 		result = value1;
-		expect = int_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		expect = long_op4[func]( value1, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, &extra1, &extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(ulong_t) ) != 0 )
-		{
-			alup_t _EXPECT;
-			
-			alup_init_unsigned( _EXPECT, &expect, sizeof(ulong_t) );
-			
+		{	
 			alu_printf
 			(
-				"%lu %c %lu = %lu, got %lu"
+				"%lu %s %lu = %lu, got %lu"
 				, value1
-				, op_math[func]()
+				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
 
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
 		}
 		
@@ -783,7 +839,7 @@ START_TEST( test_alup__math_integer_incremental )
 }
 END_TEST
 
-START_TEST( test_alup__math_integer_randomised )
+START_TEST( test_alup__op4_integer_randomised )
 {
 	ck_assert( alu_upto(alu) > 0 );
 	
@@ -797,32 +853,32 @@ START_TEST( test_alup__math_integer_randomised )
 			, expect, result;
 		alup_t _RESULT, _VALUE2;
 		
-		alup_init_unsigned( _RESULT, &result, sizeof(ulong_t) );
-		alup_init_unsigned( _VALUE2, &value2, sizeof(ulong_t) );
+		alup_init_unsigned( _RESULT, &result, bitsof(ulong_t) );
+		alup_init_unsigned( _VALUE2, &value2, bitsof(ulong_t) );
 		
 		result = value1;
-		expect = int_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		expect = long_op4[func]( value1, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, &extra1, &extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(ulong_t) ) != 0 )
 		{
 			alup_t _EXPECT;
 			
-			alup_init_unsigned( _EXPECT, &expect, sizeof(ulong_t) );
+			alup_init_unsigned( _EXPECT, &expect, bitsof(ulong_t) );
 			
 			alu_printf
 			(
-				"%lu %c %lu = %lu, got %lu"
+				"%lu %s %lu = %lu, got %lu"
 				, value1
-				, op_math[func]()
+				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
 			
 			//alup_print( _VALUE2, 0, 1 );
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
 		}
 		
@@ -831,100 +887,59 @@ START_TEST( test_alup__math_integer_randomised )
 }
 END_TEST
 
-START_TEST( test_alup__math_floating_incremental )
+START_TEST( test_alup__op4_floating_incremental )
 {
 	ck_assert( alu_upto(alu) > 0 );
 	
 	if ( !stop_checks )
 	{
 		size_t func = _i / per_func;
-		double extra1[2], extra2[2]
+		float extra1[2], extra2[2]
 			, value1 = _i
 			, value2 = _i % per_func
 			, expect, result;
 		alup_t _RESULT, _VALUE2;
 		
-		alup_init_floating( _RESULT, &result, sizeof(double) );
-		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
 		result = value2;
-		expect = flt_math[func]( value2, value2 );
-		alup__math[func]( _RESULT, _VALUE2, extra1, extra2 );
+		expect = flt_op4[func]( value2, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, extra1, extra2 );
 		
-		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
 		{
 			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
 			
-			alup_init_floating( _EXPECT, &expect, sizeof(double) );
-			alup_init_floating( _VALUE1, &value1, sizeof(double) );
-			alup_init_exponent( _VALUE1, _EXP );
-			alup_init_mantissa( _VALUE1, _MAN );
+			alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			alup_init_floating( _VALUE1, &value1, bitsof(float) );
+			alup_init_exponent( &_VALUE1, _EXP );
+			alup_init_mantissa( &_VALUE1, _MAN );
 			
 			alu_printf
 			(
-				"exp_dig = %zu, man_dig = %zu, %f %c %f = %f, got %f"
-				, _EXP.upto - _EXP.from
-				, _MAN.upto - _MAN.from
+				"exp_dig = %zu, man_dig = %zu, %f %s %f = %f, got %f"
+				, _EXP.leng
+				, _MAN.leng
 				, value2
-				, op_math[func]()
+				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
 			
 			//alup_print( _VALUE2, 0, 1 );
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
 		}
 		
-		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
-		
-		result = value1;
-		expect = flt_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, extra1, extra2 );
-		
-		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
-		{
-			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
-			ullong_t e, r;
-			
-			alup_init_floating( _EXPECT, &expect, sizeof(double) );
-			alup_init_floating( _VALUE1, &value1, sizeof(double) );
-			alup_init_exponent( _VALUE1, _EXP );
-			alup_init_mantissa( _VALUE1, _MAN );
-			
-			alu_printf
-			(
-				"exp_dig = %zu, man_dig = %zu, _i = %i, %f %c %f = %f, got %f"
-				, _EXP.upto - _EXP.from
-				, _MAN.upto - _MAN.from
-				, _i
-				, value1
-				, op_math[func]()
-				, value2
-				, expect
-				, result
-			);
-
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
-			
-			e = *((ullong_t*)&expect);
-			r = *((ullong_t*)&result);
-			
-			e >>= CHAR_BIT;
-			r >>= CHAR_BIT;
-			
-			stop_checks = ( e != r );
-		}
-		
-		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
 	}
 }
 END_TEST
 
-START_TEST( test_alup__math_floating_randomised )
+START_TEST( test_alup__op4_floating_randomised )
 {
 	ck_assert( alu_upto(alu) > 0 );
 	
@@ -932,7 +947,7 @@ START_TEST( test_alup__math_floating_randomised )
 	{
 		size_t func = _i / per_func;
 		uint_t seed = time(NULL);
-		double extra1, extra2
+		float extra1, extra2
 			, value1 = rand_r(&seed)
 			, value2 = rand_r(&seed)
 			, expect, result;
@@ -940,66 +955,66 @@ START_TEST( test_alup__math_floating_randomised )
 		
 		alu_puts("floating randomised");
 		
-		alup_init_floating( _RESULT, &result, sizeof(double) );
-		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
 		result = value1;
-		expect = flt_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, &extra1, &extra2 );
+		expect = flt_op4[func]( value1, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, &extra1, &extra2 );
 		
-		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
 		{
 			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
 			
-			alup_init_floating( _EXPECT, &expect, sizeof(double) );
-			alup_init_floating( _VALUE1, &value1, sizeof(double) );
-			alup_init_exponent( _VALUE1, _EXP );
-			alup_init_mantissa( _VALUE1, _MAN );
+			alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			alup_init_floating( _VALUE1, &value1, bitsof(float) );
+			alup_init_exponent( &_VALUE1, _EXP );
+			alup_init_mantissa( &_VALUE1, _MAN );
 			
 			alu_printf
 			(
-				"exp_dig = %zu, man_dig = %zu, %f %c %f = %f, got %f"
-				, _EXP.upto - _EXP.from
-				, _MAN.upto - _MAN.from
+				"exp_dig = %zu, man_dig = %zu, %f %s %f = %f, got %f"
+				, _EXP.leng
+				, _MAN.leng
 				, value1
-				, op_math[func]()
+				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
 			
 			//alup_print( _VALUE2, 0, 1 );
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
 		}
 		
-		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
 	}
 }
 END_TEST
 
 const int abs_count = 2;
 
-const double abs_float1[] =
+const float abs_float1[] =
 {
 	1397677567.0,
 	1327753883.0
 };
-const double abs_float2[] =
+const float abs_float2[] =
 {
 	797987423.0,
 	1770012269.0
 };
 
-START_TEST( test_alup__math_floating_absolute )
+START_TEST( test_alup__op4_floating_absolute )
 {
 	ck_assert( alu_upto(alu) > 0 );
 	
 	if ( !stop_checks )
 	{
 		size_t func = _i % 4, val = _i % abs_count;
-		double extra1[2], extra2[2]
+		float extra1[2], extra2[2]
 			, value1
 			, value2
 			, expect
@@ -1010,43 +1025,43 @@ START_TEST( test_alup__math_floating_absolute )
 		value1 = abs_float1[val];
 		value2 = abs_float2[val];
 		
-		alu_printf("floating absolute '%c'", op_math[func]());
+		alu_printf("floating absolute '%s'", text_op4[func]());
 		
-		alup_init_floating( _RESULT, &result, sizeof(double) );
-		alup_init_floating( _VALUE2, &value2, sizeof(double) );
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
 		result = value1;
-		expect = flt_math[func]( value1, value2 );
-		alup__math[func]( _RESULT, _VALUE2, extra1, extra2 );
+		expect = flt_op4[func]( value1, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, extra1, extra2 );
 		
-		if ( memcmp( &result, &expect, sizeof(double) ) != 0 )
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
 		{
 			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
 			
-			alup_init_floating( _EXPECT, &expect, sizeof(double) );
-			alup_init_floating( _VALUE1, &value1, sizeof(double) );
-			alup_init_exponent( _VALUE1, _EXP );
-			alup_init_mantissa( _VALUE1, _MAN );
+			alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			alup_init_floating( _VALUE1, &value1, bitsof(float) );
+			alup_init_exponent( &_VALUE1, _EXP );
+			alup_init_mantissa( &_VALUE1, _MAN );
 			
 			alu_printf
 			(
-				"exp_dig = %zu, man_dig = %zu, %f %c %f = %f, got %f"
-				, _EXP.upto - _EXP.from
-				, _MAN.upto - _MAN.from
+				"exp_dig = %zu, man_dig = %zu, %f %s %f = %f, got %f"
+				, _EXP.leng
+				, _MAN.leng
 				, value1
-				, op_math[func]()
+				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
 			
 			//alup_print( _VALUE2, 0, 1 );
-			alup_print( _EXPECT, 0, 1 );
-			alup_print( _RESULT, 0, 1 );
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
 		}
 		
-		ck_assert( memcmp( &result, &expect, sizeof(double) ) == 0 );
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
 	}
 }
 END_TEST
@@ -1071,24 +1086,25 @@ Suite * alu_suite(void)
 	tcase_add_loop_test( tc_core, test_alub_set, 0, (bitsof(uintmax_t) * 2) );
 	tcase_add_loop_test( tc_core, test_alub_inc, 0, bitsof(uintmax_t) - 1 );
 	tcase_add_loop_test( tc_core, test_alub_dec, 1, bitsof(uintmax_t) );
-
-	tcase_add_loop_test( tc_core, test_alur_set_raw, 0, per_func );
-	tcase_add_loop_test( tc_core, test_alu_uint_set_raw, 0, per_func );
-
-	tcase_add_test( tc_core, test_alur_final_one );
 	
-	tcase_add_loop_test( tc_core, test_alur_set_floating, 0, DBL_MANT_DIG );
-	
+	tcase_add_loop_test( tc_core, test_alup_mov_int2int, 0, DBL_MANT_DIG );
+	tcase_add_loop_test( tc_core, test_alup_op1_integer_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup_op1_integer_randomised, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__cmp_integer_incremental, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__cmp_integer_randomised, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__op4_integer_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__op4_integer_randomised, 0, per_func * 4 );
+	
+	tcase_add_loop_test( tc_core, test_alup_mov_flt2flt, 0, DBL_MANT_DIG );
+	tcase_add_loop_test( tc_core, test_alup_mov_int2flt, 0, DBL_MANT_DIG );
+	
+	tcase_add_loop_test( tc_core, test_alup_op1_floating_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup_op1_floating_randomised, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__cmp_floating_incremental, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__cmp_floating_randomised, 0, per_func * 4 );
-	
-	tcase_add_loop_test( tc_core, test_alup__math_integer_incremental, 0, per_func * 4 );
-	tcase_add_loop_test( tc_core, test_alup__math_integer_randomised, 0, per_func * 4 );
-	tcase_add_loop_test( tc_core, test_alup__math_floating_incremental, 0, per_func * 4 );
-	tcase_add_loop_test( tc_core, test_alup__math_floating_absolute, 0, abs_count * 4 );
-	tcase_add_loop_test( tc_core, test_alup__math_floating_randomised, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__op4_floating_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__op4_floating_absolute, 0, abs_count * 4 );
+	tcase_add_loop_test( tc_core, test_alup__op4_floating_randomised, 0, per_func * 4 );
 	
 	tcase_add_test( tc_core, test_alur2str );
 	tcase_add_test( tc_core, test_aluv_release );
