@@ -1023,8 +1023,6 @@ int_t alup_addsub
 			alup_t _CMAN, _TMAN;
 			size_t bias = alup_get_exponent_bias( &_CPY ), exp = 0;
 			
-			ret = alup_match_exponents( _CPY.data, _TMP.data, bits );
-			
 			do
 			{
 				alup_t _DST = {0};
