@@ -12,10 +12,10 @@ include $(PRJ_MAK_DIR)/dst_sys.mak
 include $(PRJ_MAK_DIR)/dst_cc.mak
 
 PRJ:=ALU
-PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)
+PRJ_SFX:=$(DBG_SFX)$(PFL_SFX)$(SPD_SFX)
 ALL_GOALS=lint bin_dir build check clean debug gede info lib_dir libalu_32dll
 ALL_GOALS+= libalu_64dll libalu_dll libalu_so objects profile rebuild rebuildall
-ALL_GOALS+= run test
+ALL_GOALS+= run test fast
 
 UNIC_DIR:=$(PRJ_EXT_DIR)/unic
 UNIC_INC_DIR:=$(UNIC_DIR)/include
@@ -36,10 +36,10 @@ PRJ_TARGETS:=$(PRJ_DST_OBJ) $(PRJ_DST_LIB) $(PRJ_DST_BIN)
 
 ERR_FLAGS:=$(COP)Wall $(COP)Wextra $(F_pedantic)
 INC_FLAGS:=-I $(UNIC_INC_DIR) -I $(PRJ_INC_DIR)
-SRC_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
+SRC_FLAGS:=$(DBG_FLAGS) $(SPD_FLAGS) $(PFL_FLAGS) -fPIC $(ERR_FLAGS) $(INC_FLAGS)
 SRC_FLAGS+=$(DST_DEF:%=$(F_D) %)
-DLL_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIC -shared
-EXE_FLAGS:=$(DBG_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
+DLL_FLAGS:=$(DBG_FLAGS) $(SPD_FLAGS) $(PFL_FLAGS) -fPIC -shared
+EXE_FLAGS:=$(DBG_FLAGS) $(SPD_FLAGS) $(PFL_FLAGS) -fPIE $(COP)L $(PRJ_LIB_DIR)
 LIB_FLAGS:=$(COP)l $(PRJ_LIB_NAME) $(call ifin,$(PRJ_GOALS),check,$(CHK_FLAGS))
 
 COMPILE_EXE=$(CC) $(EXE_FLAGS) $1 $(COP)o $(PRJ_BIN_DIR)/$2 $(PRJ_CHK_DIR)/$3 $(RPATH_FLAG) $(LIB_FLAGS)
@@ -93,6 +93,9 @@ clean:
 
 %.run: %
 	$(DBG_APP) $(PFL_APP) $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
+
+%.fast: %
+	$(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
 test: build
 
@@ -104,7 +107,8 @@ check: build
 %.valgrind: %
 	valgrind $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 	
-debug: build
+%.debug:
+	gdb --args $(PRJ_BIN_DIR)/$(PRJ_DST_BIN)
 
 profile: build
 

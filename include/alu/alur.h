@@ -125,10 +125,10 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 #define alur_clr_active( alu, alur ) alu_clr_active( alu, (alur).node )
 #define alur_set_active( alu, alur ) alu_set_active( alu, (alur).node )
 
-#define alup_init_register( alu, alur, length ) \
+#define alup_init_register( alu, alur, BITS ) \
 	do \
 	{ \
-		size_t leng = EITHER( length, length, (alur).alup.leng ); \
+		size_t bits = EITHER( BITS, BITS, (alur).alup.bits ); \
 		(alur).node %= alu_upto( alu ); \
 		if ( !((alur).node) ) \
 		{ \
@@ -142,15 +142,15 @@ void alur_print_flags( char *pfx, alu_t *alu, alur_t reg, uint_t flags );
 		(alur).alup.data = alur_data( alu, alur ); \
 		if ( alur_floating( alur ) ) \
 		{ \
-			alup_init_floating( (alur).alup, (alur).alup.data, leng ); \
+			alup_init_floating( (alur).alup, (alur).alup.data, bits ); \
 		} \
 		else if ( alur___signed( alur ) ) \
 		{ \
-			alup_init___signed( (alur).alup, (alur).alup.data, leng ); \
+			alup_init___signed( (alur).alup, (alur).alup.data, bits ); \
 		} \
 		else \
 		{ \
-			alup_init_unsigned( (alur).alup , (alur).alup.data , leng ); \
+			alup_init_unsigned( (alur).alup , (alur).alup.data, bits ); \
 		} \
 	} \
 	while (0)

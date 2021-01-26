@@ -6,7 +6,7 @@
 /** @brief Holds various values for bit position in a number
  * @param seg Index number of size_t sized data segments
  * @param bit Overall bit from 0 to alur.upto
- * @param pos Position of bit from 0 to bitsof(size_t) - 1
+ * @param pos Position of bit from 0 to bitsof(T)
  * @param ptr Segment that is bit is in
  * @param mask Mask needed to reference specific bit
 **/

@@ -6,7 +6,7 @@ bool_t alur_below0( alu_t *alu, alur_t REG )
 	{	
 		alup_init_register( alu, REG, 0 );
 		
-		return alup_below0( &(REG.alup) );
+		return alup_get_sign( &(REG.alup) );
 	}
 	
 	(void)alu_err_null_ptr("alu");
@@ -290,7 +290,7 @@ alub_t	alu_final_one( alu_t *alu, uint_t num )
 	{
 		alur_t NUM;
 		alur_init_unsigned( alu, NUM, num );
-		return alup_final_one( &(NUM.alup) );
+		return alup_final_bit_with_val( &(NUM.alup), true );
 	}
 	
 	(void)alu_err_null_ptr("alu");
@@ -299,5 +299,5 @@ alub_t	alu_final_one( alu_t *alu, uint_t num )
 
 size_t alu_lowest_upto( alur_t NUM, alur_t VAL )
 {		
-	return NUM.alup.from + LOWEST(NUM.alup.leng,VAL.alup.leng);
+	return NUM.alup.from + LOWEST(NUM.alup.bits,VAL.alup.bits);
 }

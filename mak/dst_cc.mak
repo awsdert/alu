@@ -36,6 +36,9 @@ DBG_SFX:=
 PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
+SPD_FLAGS:=
+SPD_APP:=
+SPD_SFX:=
 CHK_FLAGS:=
 
 ifeq '$(filter profile,$(PRJ_GOALS))' 'profile'
@@ -44,11 +47,21 @@ PFL_APP:=$(GPROF)
 PFL_SFX:=_p
 endif
 
-ifeq '$(filter debug,$(PRJ_GOALS))' 'debug'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
+ifneq '$(GOALS4SPEED)' ''
+SPD_FLAGS:=$(F_O)3
+SPD_APP:=
+SPD_SFX:=_O3
+# Build is meant for speed, profiling goes against that
+PFL_FLAGS:=
+PFL_APP:=
+PFL_SFX:=
+endif
+
+ifneq '$(GOAL2DBUG))' ''
+DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
-# Debugging takes precedence over profiling
+# Debugging takes precedence over profiling & speed
 PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
@@ -58,30 +71,29 @@ ifneq '$(GOALS4GEDE)' ''
 DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
-# Debugging takes precedence over profiling
+# Debugging takes precedence over profiling & speed
 PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
+SPD_FLAGS:=
+SPD_APP:=
+SPD_SFX:=
 endif
 
 ifneq '$(GOALS4VALGRIND)' ''
 DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
 DBG_APP:=$(GDB) $(COP)ex run
 DBG_SFX:=_d
-# Debugging takes precedence over profiling
+# Debugging takes precedence over profiling & speed
 PFL_FLAGS:=
 PFL_APP:=
 PFL_SFX:=
+SPD_FLAGS:=
+SPD_APP:=
+SPD_SFX:=
 endif
 
 ifeq '$(filter check,$(PRJ_GOALS))' 'check'
-DBG_FLAGS:=$(F_g_gdb) $(F_D) _DEBUG $(F_O)0
-DBG_APP:=$(GDB) $(COP)ex run
-DBG_SFX:=_d
-# Debugging takes precedence over profiling
-PFL_FLAGS:=
-PFL_APP:=
-PFL_SFX:=
 # Check needs libraries
 # If this doesn't compile for you then add $(F_l) subunit between check and
 # $(F_l) rt, not yet figured out how to detect this situation

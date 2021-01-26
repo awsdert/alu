@@ -24,13 +24,19 @@ int reg_compare(
 		return ret;
 	}
 	
-	alur_init_unsigned( alu, NUM, nodes[0] );
-	alur_init_unsigned( alu, VAL, nodes[1] );
+	if ( info & ALU_INFO__SIGN )
+	{
+		alur_init___signed( alu, NUM, nodes[0] );
+		alur_init___signed( alu, VAL, nodes[1] );
+	}
+	else
+	{
+		alur_init_unsigned( alu, NUM, nodes[0] );
+		alur_init_unsigned( alu, VAL, nodes[1] );
+	}
 	
-	NUM.info = info;
-	VAL.info = info;
-	
-	NUM.upto = VAL.upto = bitsof(intmax_t);
+	NUM.alup.bits = VAL.alup.bits = bitsof(intmax_t);
+	NUM.alup.upto = VAL.alup.upto = bitsof(intmax_t);
 	
 	alu_int_set_raw( alu, NUM.node, _num );
 	alu_int_set_raw( alu, VAL.node, _val );
@@ -78,17 +84,24 @@ int modify(
 		return ret;
 	}
 	
-	alur_init_unsigned( alu, NUM, nodes[0] );
-	alur_init_unsigned( alu, VAL, nodes[1] );
 	tmp = nodes[2];
 	
-	NUM.info = info;
-	VAL.info = info;
+	if ( info & ALU_INFO__SIGN )
+	{
+		alur_init___signed( alu, NUM, nodes[0] );
+		alur_init___signed( alu, VAL, nodes[1] );
+	}
+	else
+	{
+		alur_init_unsigned( alu, NUM, nodes[0] );
+		alur_init_unsigned( alu, VAL, nodes[1] );
+	}
+	
+	NUM.alup.bits = VAL.alup.bits = bitsof(intmax_t);
+	NUM.alup.upto = VAL.alup.upto = bitsof(intmax_t);
 	
 	alu_int_set_raw( alu, NUM.node, _num );
 	alu_int_set_raw( alu, VAL.node, _val );
-	
-	NUM.upto = VAL.upto = bitsof(intmax_t);
 	
 	expect = _num;
 	switch ( op )

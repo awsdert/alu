@@ -71,18 +71,14 @@ int_t alu__err_domain
 	return EDOM;
 }
 
-size_t alu_set_bounds( alu_t *alu, alur_t *REG, size_t from, size_t upto )
-{
-	size_t full;
+size_t alu_set_bounds( alu_t *alu, alur_t *REG, size_t from, size_t bits )
+{	
+	bits = LOWEST( bits, alu_Nbits( alu ) );
 	
-	full = alu_Nsize( alu ) * CHAR_BIT;
-	upto = HIGHEST( upto, 1 );
-	upto = LOWEST( upto, full );
+	REG->alup.from = IFTRUE( from < bits, from );
+	REG->alup.bits = bits;
 	
-	REG->alup.from = IFTRUE( from < upto, from );
-	REG->alup.leng = upto - REG->alup.from;
-	
-	return upto;
+	return bits;
 }
 
 int_t alur_ensure( alu_t *alu, uint_t want, size_t need )
@@ -579,11 +575,11 @@ int_t alu_lit2reg
 		
 		Nsize = alu_Nsize( alu );
 		/* Make sure have enough space for later calculations */
-		if ( DST.alup.leng >= (alu_Nbits(alu) / 2) )
+		if ( DST.alup.bits >= (alu_Nbits(alu) / 2) )
 			return EDOM;
 		
 		/* Check how many bits to assign to exponent & mantissa */
-		man_dig = alu_man_dig( DST.alup.leng );
+		man_dig = alu_man_dig( DST.alup.bits );
 		exp_dig = ((Nsize * UNIC_CHAR_BIT) - man_dig) - 1;
 		
 		/* Update Exponent & Mantissa Bounds */

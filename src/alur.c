@@ -6,7 +6,7 @@ alub_t alur_final_one( alu_t *alu, alur_t NUM )
 	{	
 		alup_init_register( alu, NUM, 0 );
 		
-		return alup_final_one( &(NUM.alup) );
+		return alup_final_bit_with_val( &(NUM.alup), true );
 	}
 	else
 	{
@@ -349,7 +349,7 @@ int_t alur__shl( alu_t *alu, alur_t NUM, size_t by )
 	if ( alu )
 	{
 		alup_init_register( alu, NUM, 0 );	
-		return alup__shl( &(NUM.alup), by );
+		return alup__shl_int2int( &(NUM.alup), by );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -360,7 +360,7 @@ int_t alur__shr( alu_t *alu, alur_t NUM, size_t by )
 	if ( alu )
 	{
 		alup_init_register( alu, NUM, 0 );
-		return alup__shr( &(NUM.alup), by );
+		return alup__shr_int2int( &(NUM.alup), by );
 	}
 	
 	return alu_err_null_ptr("alu");
@@ -393,7 +393,7 @@ int_t alur__shift
 		alup_init_register( alu, VAL, 0 );
 		alup_init_unsigned( _TMP, &by, bitsof(size_t) );
 		
-		by = NUM.alup.leng;
+		by = NUM.alup.bits;
 		
 		cmp = alup_cmp_int2int( &(VAL.alup), &_TMP );
 		
@@ -674,7 +674,7 @@ int_t alur__rotate
 		alup_init_register( alu, VAL, 0 );
 		alup_init_unsigned( _TMP, &by, bitsof(size_t) );
 		
-		by = NUM.alup.leng;
+		by = NUM.alup.bits;
 		
 		cmp = alup_cmp_int2int( &(VAL.alup), &_TMP );
 		

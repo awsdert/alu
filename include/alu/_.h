@@ -11,7 +11,7 @@
 # include <unic/stdint.h>
 
 #ifndef aluout
-#define aluout stderr
+#define aluout stdout
 #endif
 
 # define alu__printf( FORMAT, THEFILE, THELINE, THEFUNC, ... ) \

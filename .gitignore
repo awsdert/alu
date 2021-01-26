@@ -8,3 +8,4 @@
 cloned/*
 *.geany
 gede2.ini
+tests/square_root.c
