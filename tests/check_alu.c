@@ -1218,8 +1218,8 @@ START_TEST( test_alup__op4_floating_incremental )
 		alup_init_floating( _RESULT, &result, bitsof(float) );
 		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
-		result = value2;
-		expect = flt_op4[func]( value2, value2 );
+		result = value1;
+		expect = flt_op4[func]( value1, value2 );
 		alup_op4[func]( &_RESULT, &_VALUE2, extra1, extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
@@ -1234,13 +1234,65 @@ START_TEST( test_alup__op4_floating_incremental )
 			alu_printf
 			(
 				"%f %s %f = %f, got %f"
-				, value2
+				, value1
 				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
-#if 0	
+#if 1
+			alup_print( &_VALUE1, 0, 1 );
+			alup_print( &_VALUE2, 0, 1 );
+#endif
+			alup_print( &_EXPECT, 0, 1 );
+			alup_print( &_RESULT, 0, 1 );
+			stop_checks = true;
+		}
+		
+		ck_assert( memcmp( &result, &expect, sizeof(float) ) == 0 );
+	}
+}
+END_TEST
+
+START_TEST( test_alup__op4_floating_negative )
+{
+	ck_assert( alu_upto(alu) > 0 );
+	
+	if ( !stop_checks )
+	{
+		size_t func = _i / per_func;
+		float extra1[2], extra2[2]
+			, value1 = _i
+			, value2 = -value1
+			, expect, result;
+		alup_t _RESULT, _VALUE2;
+		
+		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _VALUE2, &value2, bitsof(float) );
+		
+		result = value1;
+		expect = flt_op4[func]( value1, value2 );
+		alup_op4[func]( &_RESULT, &_VALUE2, extra1, extra2 );
+		
+		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
+		{
+			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
+			
+			alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			alup_init_floating( _VALUE1, &value1, bitsof(float) );
+			alup_init_exponent( &_VALUE1, _EXP );
+			alup_init_mantissa( &_VALUE1, _MAN );
+			
+			alu_printf
+			(
+				"%f %s %f = %f, got %f"
+				, value1
+				, text_op4[func]()
+				, value2
+				, expect
+				, result
+			);
+#if 1
 			alup_print( &_VALUE1, 0, 1 );
 			alup_print( &_VALUE2, 0, 1 );
 #endif
@@ -1440,6 +1492,7 @@ Suite * alu_suite(void)
 	tcase_add_loop_test( tc_core, test_alup_op1_floating_incremental, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup_op1_floating_randomised, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__op4_floating_incremental, 0, per_func * 4 );
+	tcase_add_loop_test( tc_core, test_alup__op4_floating_negative, 0, per_func * 4 );
 	tcase_add_loop_test( tc_core, test_alup__op4_floating_absolute, 0, abs_count * 4 );
 	tcase_add_loop_test( tc_core, test_alup__op4_floating_randomised, 0, per_func * 4 );
 
