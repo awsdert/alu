@@ -1210,8 +1210,8 @@ START_TEST( test_alup__op4_floating_incremental )
 	{
 		size_t func = _i / per_func;
 		float extra1[2], extra2[2]
-			, value1 = _i
-			, value2 = _i % per_func
+			, value1 = _i % per_func
+			, value2 = _i
 			, expect, result;
 		alup_t _RESULT, _VALUE2;
 		

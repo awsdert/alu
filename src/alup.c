@@ -996,13 +996,16 @@ int_t alup_addsub
 	, alup_t const * const _VAL
 	, void *_cpy
 	, void *_tmp
-	, alup__addsub_int2int addsub
+	, bool adding
 )
 {
+	alup__addsub_int2int addsub =
+		adding ? alup__add_int2int : alup__sub_int2int;
+	
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		int_t ret;
-		alup_t _CPY, _TMP;
+		alup_t _CPY, _TMP, _CEXP, _TEXP, _DST;
 		ssize_t cexp, texp;
 		size_t bits = HIGHEST( _NUM->bits, _VAL->bits );
 		bool_t truncated = false;
@@ -1013,82 +1016,103 @@ int_t alup_addsub
 		(void)alup_mov( &_CPY, _NUM );
 		(void)alup_mov( &_TMP, _VAL );
 		
-		cexp = alup_get_exponent( &_CPY );
-		texp = alup_get_exponent( &_TMP );
+		/* Get exponents */
+		alup_init_exponent( &_CPY, _CEXP );
+		alup_init_exponent( &_TMP, _TEXP );
 		
+		alup_init___signed( _DST, NULL, bitsof(ssize_t) );
+		
+		_DST.data = &cexp;
+		alup_mov_int2int( &_DST, &_CEXP );
+		
+		_DST.data = &texp;
+		alup_mov_int2int( &_DST, &_TEXP );
+		
+		/* Use exponents */
 		if ( cexp || texp )
 		{
-			bool_t neg = alup_below0( &_CPY );
-			alub_t final;
-			alup_t _CMAN, _TMAN;
-			size_t bias = alup_get_exponent_bias( &_CPY ), exp = 0;
-			
-			do
-			{
-				alup_t _DST = {0};
-				size_t diff = 0;
-					
-				if ( cexp > texp )
-				{
-					exp = cexp;
-					diff = cexp - texp;
-					_DST = _TMP;
-				}
-				else if ( texp > cexp )
-				{
-					exp = texp;
-					diff = texp - cexp;
-					_DST = _CPY;
-				}
-				
-				if ( diff )
-				{
-					alup_t _MAN;
-					
-					alup_init_mantissa( &_DST, _MAN );
-						
-					/* Match exponent and align mantissa */
-					(void)alup_set_exponent( &_DST, exp );
-					
-					ret = alup__shr_int2int( &_MAN, diff );
-					
-					truncated = (ret == ERANGE);
-				
-					/* Insert assumed bit back into position */
-					if ( diff < _MAN.bits )
-					{
-						alub_set( _MAN.data, _MAN.bits - diff, 1 );
-					}
-				}
-			}
-			while (0);
+			alub_t final
+				, csign = alup_final_bit( &_CPY )
+				, tsign = alup_final_bit( &_TMP );
+			bool_t neg
+				, cneg = *(csign.ptr) & csign.mask
+				, tneg = *(tsign.ptr) & tsign.mask;
+			alup_t _CMAN, _TMAN, __CPY, __TMP;
+			size_t //bias = alup_get_exponent_bias( &_CPY ),
+				exp = 0, diff = 0;
 			
 			alup_init_mantissa( &_CPY, _CMAN );
 			alup_init_mantissa( &_TMP, _TMAN );
 			
-			ret = addsub( &_CMAN, &_TMAN );
+			alup_init___signed( __CPY, _cpy, bits );
+			alup_init___signed( __TMP, _tmp, bits );
 			
-			if ( ret == EOVERFLOW )
+			if ( cexp > texp )
 			{
-				neg = !neg;
-				alup_neg( &_CMAN );
+				exp = cexp;
+				diff = cexp - texp;
+				_DST = __TMP;
+			}
+			else if ( texp > cexp )
+			{
+				exp = texp;
+				diff = texp - cexp;
+				_DST = __CPY;
+			}
+			else exp = cexp;
+			
+			/* Prevent curruption of values by removing unneeded signs */
+			*(csign.ptr) &= ~(csign.mask);
+			*(tsign.ptr) &= ~(tsign.mask);
+			
+			/* Insert assumed bits */
+			alup_set_exponent( &_CPY, !!cexp );
+			alup_set_exponent( &_TMP, !!texp );
+			
+			/* Give more room for less significant binary digits */
+			alup__shl_int2int( &__CPY, _CEXP.bits - adding );
+			alup__shl_int2int( &__TMP, _TEXP.bits - adding );
+			
+			/* Ensure integer representation */
+			if ( cneg ) alup_neg( &__CPY );
+			if ( tneg ) alup_neg( &__TMP );
+			
+			/* Align significant digits to match positions */
+			if ( diff )
+			{
+				_DST.sign = false;
+				ret = alup__shr_int2int( &_DST, diff );
+				truncated = (ret == ERANGE);
 			}
 			
-			final = alup_final_bit( &_CMAN );
-			exp = IFTRUE( *(final.ptr) & final.mask, _CMAN.upto - final.bit );
+			ret = addsub( &__CPY, &__TMP );
 			
-			if ( exp < _CPY.mdig )
+			neg = (cneg != tneg || ret == EOVERFLOW);
+			
+			if ( neg ) alup_neg( &__CPY );
+			
+			ret = alup__shr_int2int( &__CPY, _CEXP.bits - adding );
+			truncated = (truncated || ret == ERANGE);
+			
+			final = alup_final_bit( &__CPY );
+			
+			if ( final.bit < _CMAN.last )
 			{
-				alup__shl_int2int( &_CMAN, _CPY.mdig - exp );
+				diff = (_CMAN.last - final.bit);
+				exp -= diff;
+				exp = IFTRUE( exp >= _CMAN.bits || *(final.ptr) & final.mask, exp );
+				alup__shl_int2int( &_CMAN, diff );
 			}
 			else
 			{
-				alup__shr_int2int( &_CMAN, exp - _CPY.mdig );
+				diff = (final.bit - _CMAN.last);
+				exp += diff;
+				alup__shr_int2int( &_CMAN, diff );
 			}
 			
 			alup_set_sign( &_CPY, neg );
 			
-			(void)alup_set_exponent( &_CPY, IFTRUE( exp, exp + bias + (cexp - texp) ) );
+			(void)alup_set_exponent( &_CPY, exp );
 		}
 		
 		ret = alup_mov( _NUM, &_CPY );
@@ -1344,7 +1368,7 @@ int_t alup__sub( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 	
 	return alup__sub_int2int( _NUM, _VAL );
 #else
-	return alup_addsub( _NUM, _VAL, _cpy, _tmp, alup__sub_int2int );
+	return alup_addsub( _NUM, _VAL, _cpy, _tmp, false );
 #endif
 }
 
