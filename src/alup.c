@@ -1043,8 +1043,8 @@ int_t alup_addsub
 				, cneg = *(csign.ptr) & csign.mask
 				, tneg = *(tsign.ptr) & tsign.mask;
 			alup_t _CMAN, _TMAN, __CPY, __TMP;
-			size_t //bias = alup_get_exponent_bias( &_CPY ),
-				exp = 0, diff = 0, shift = _CEXP.bits - adding;
+			size_t diff = 0, shift = _CEXP.bits - adding;
+			ssize_t exp = 0, bias = alup_get_exponent_bias( &_CPY );
 			
 			alup_init_mantissa( &_CPY, _CMAN );
 			alup_init_mantissa( &_TMP, _TMAN );
@@ -1097,7 +1097,12 @@ int_t alup_addsub
 			
 			ret = addsub( &__CPY, &__TMP );
 			
-			neg = (cneg != tneg || (!cneg && ret == EOVERFLOW));
+			neg =
+			(
+				cneg != tneg
+				|| (!adding && cexp)
+				|| (!adding && !cexp && ret == EOVERFLOW)
+			);
 			
 			bits = _CEXP.last;
 			
@@ -1126,9 +1131,13 @@ int_t alup_addsub
 				truncated = (truncated || ret == ERANGE);
 			}
 			
-			alup_set_sign( &_CPY, neg );
+			/* Anything out of range must be clamped */
+			if ( (exp - bias) > bias ) alup_set_inf( &_CPY, neg );
+			else if ( (exp - bias) < -bias ) alup_set( &_CPY, 0 );
+			else (void)alup_set_exponent( &_CPY, exp );
 			
-			(void)alup_set_exponent( &_CPY, exp );
+			/* Set this after so -0 doesn't get wiped out by above lines */
+			alup_set_sign( &_CPY, neg );
 		}
 		
 		ret = alup_mov( _NUM, &_CPY );
@@ -1205,61 +1214,7 @@ int_t alup__add_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
 
 int_t alup__add( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp )
 {
-#if 1
-	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
-	{
-		int_t ret;
-		alup_t _CPY, _TMP, _CMAN, _TMAN;
-		size_t exp, cexp, texp;
-		size_t bits = HIGHEST( _NUM->bits, _VAL->bits );
-		bool_t truncated = false;
-		
-		alup_init_floating( _CPY, _cpy, bits );
-		alup_init_floating( _TMP, _tmp, bits );
-		
-		alup_init_mantissa( &_CPY, _CMAN );
-		alup_init_mantissa( &_TMP, _TMAN );
-		
-		alup_mov( &_CPY, _NUM );
-		alup_mov( &_TMP, _VAL );
-		
-		cexp = alup_get_exponent( &_CPY );
-		texp = alup_get_exponent( &_TMP );
-		
-		ret = alup_match_exponents( _CPY.data, _TMP.data, bits );
-		
-		truncated = (ret == ERANGE);
-		
-		exp = alup_get_exponent( &_CPY );
-		
-		ret = alup__add_int2int( &_CMAN, &_TMAN );
-		
-		if ( cexp || texp )
-		{
-			if ( ret == EOVERFLOW || cexp == texp )
-			{
-				size_t both = 1 + (ret == EOVERFLOW && cexp == texp);
-				alub_t c = alub( _CMAN.data, _CMAN.bits - 1 );
-				
-				++exp;
-				alup__shr_int2int( &_CMAN, 1 );
-				
-				*(c.ptr) &= ~(c.mask);
-				*(c.ptr) |= IFTRUE( both == 2, c.mask );
-			}
-		}
-		
-		(void)alup_set_exponent( &_CPY, exp );
-		
-		ret = alup_mov( _NUM, &_CPY );
-		
-		return IFTRUE( truncated || ret == ERANGE, ERANGE );
-	}
-	
-	return alup__add_int2int( _NUM, _VAL );
-#else
-	return alup_addsub( _NUM, _VAL, _cpy, _tmp, alup__add_int2int );
-#endif
+	return alup_addsub( _NUM, _VAL, _cpy, _tmp, true );
 }
 
 int_t alup__sub_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
@@ -1327,65 +1282,7 @@ int_t alup__sub_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
 
 int_t alup__sub( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp )
 {
-#if 0
-	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
-	{
-		int_t ret;
-		alup_t _CPY, _TMP;
-		ssize_t cexp, texp;
-		size_t bits = HIGHEST( _NUM->bits, _VAL->bits );
-		bool_t truncated = false;
-		
-		alup_init_floating( _CPY, _cpy, bits );
-		alup_init_floating( _TMP, _tmp, bits );
-		
-		alup_mov( &_CPY, _NUM );
-		alup_mov( &_TMP, _VAL );
-		
-		cexp = alup_get_exponent( &_CPY );
-		texp = alup_get_exponent( &_TMP );
-		
-		if ( cexp || texp )
-		{
-			bool_t neg = alup_below0( &_CPY );
-			alub_t final;
-			alup_t _CMAN, _TMAN;
-			ssize_t bias = alup_get_exponent_bias( &_CPY ), exp;
-			
-			ret = alup_match_exponents( _CPY.data, _TMP.data, bits );
-			
-			truncated = (ret == ERANGE);
-			
-			exp = alup_get_exponent( &_CPY );
-			
-			alup_init_mantissa( &_CPY, _CMAN );
-			alup_init_mantissa( &_TMP, _TMAN );
-			
-			ret = alup__sub_int2int( &_CMAN, &_TMAN );
-			
-			if ( ret == EOVERFLOW )
-			{
-				neg = !neg;
-				alup_neg( &_CMAN );
-			}
-			
-			final = alup_final_bit( &_CMAN );
-			exp = _CMAN.upto - final.bit;
-			
-			alup_set_sign( &_CPY, neg );
-			
-			(void)alup_set_exponent( &_CPY, IFTRUE( exp, exp + bias ) );
-		}
-		
-		ret = alup_mov( _NUM, &_CPY );
-		
-		return IFTRUE( truncated || ret == ERANGE, ERANGE );
-	}
-	
-	return alup__sub_int2int( _NUM, _VAL );
-#else
 	return alup_addsub( _NUM, _VAL, _cpy, _tmp, false );
-#endif
 }
 
 int_t alup__shl_int2int( alup_t const * const _NUM, size_t by )
