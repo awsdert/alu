@@ -1010,6 +1010,8 @@ int_t alup_addsub
 		size_t bits = HIGHEST( _NUM->bits, _VAL->bits );
 		bool_t truncated = false;
 		
+		//alu_printf( "adding = %s", adding ? "true" : "false" );
+		
 		alup_init_floating( _CPY, _cpy, bits );
 		alup_init_floating( _TMP, _tmp, bits );
 		
@@ -1042,13 +1044,13 @@ int_t alup_addsub
 				, tneg = *(tsign.ptr) & tsign.mask;
 			alup_t _CMAN, _TMAN, __CPY, __TMP;
 			size_t //bias = alup_get_exponent_bias( &_CPY ),
-				exp = 0, diff = 0, shift = (_CEXP.bits - 1) - adding;
+				exp = 0, diff = 0, shift = _CEXP.bits - adding;
 			
 			alup_init_mantissa( &_CPY, _CMAN );
 			alup_init_mantissa( &_TMP, _TMAN );
 			
-			alup_init___signed( __CPY, _cpy, bits );
-			alup_init___signed( __TMP, _tmp, bits );
+			alup_init_unsigned( __CPY, _cpy, bits );
+			alup_init_unsigned( __TMP, _tmp, bits );
 			
 			if ( cexp > texp )
 			{
@@ -1075,6 +1077,11 @@ int_t alup_addsub
 			alub_set_val( cmbit, !!cexp );
 			alub_set_val( tmbit, !!texp );
 			
+			/* Convert mantissa/s to integer representation
+			 * CHECKME: I may have misunderstood a set of results here */
+			if ( cneg ) alup_neg( &__CPY );
+			if ( tneg ) alup_neg( &__TMP );
+			
 			/* Minimise potential loss of bits, shift is done on added
 			 * mantissas as well to simplify the exponent correction later*/
 			alup__shl_int2int( &__CPY, shift );
@@ -1088,35 +1095,34 @@ int_t alup_addsub
 				truncated = (ret == ERANGE);
 			}
 			
-			/* Convert mantissa/s to integer representation */
-			if ( cneg ) alup_neg( &__CPY );
-			if ( tneg ) alup_neg( &__TMP );
-			
 			ret = addsub( &__CPY, &__TMP );
 			
-			neg = (cneg != tneg || ret == EOVERFLOW);
+			neg = (cneg != tneg || (!cneg && ret == EOVERFLOW));
 			
-			/* Mantissas only hold positive format so switch back for correct
-			 * exponent handling and storage */
-			if ( neg ) alup_neg( &__CPY );
+			bits = _CEXP.last;
 			
-			final = alup_final_bit_with_val( &__CPY, 1 );
+			final = alup_final_bit_with_val( &__CPY, !neg );
 			
-			if ( final.bit < _CEXP.last )
+			tneg = final.bit < bits;
+			texp = EITHER( tneg, -1, 1 )
+				* (
+					(ssize_t)EITHER
+					(
+						tneg
+						, bits - final.bit
+						, final.bit - bits
+					)
+				);
+			exp += texp;
+			
+			bits = _CMAN.last + !tneg;
+			if ( bits >= final.bit )
 			{
-				/* No further bits can be lost, just move bits into position */
-				diff = (_CEXP.last - final.bit);
-				exp -= diff;
-				if ( _CMAN.last < final.bit )
-					alup__shr_int2int( &__CPY, final.bit - _CMAN.last );
-				else
-					alup__shl_int2int( &__CPY, _CMAN.last - final.bit );
+				alup__shl_int2int( &__CPY, bits - final.bit );
 			}
 			else
 			{
-				diff = (final.bit - _CEXP.last);
-				exp += diff;
-				ret = alup__shr_int2int( &__CPY, diff + shift );
+				ret = alup__shr_int2int( &__CPY, (final.bit - bits) );
 				truncated = (truncated || ret == ERANGE);
 			}
 			
