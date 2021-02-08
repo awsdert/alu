@@ -33,12 +33,12 @@ typedef struct alup
 #define alup_first_pos( alup ) ((alup)->from)
 #define alup_first_bit( alup ) alup_bit( alup, alup_first_pos( alup ) )
 #define alup_get_sign( alup ) \
-	((alup)->sign && alub_get( (alup)->data, alup_final_pos(alup) ))
+	((alup)->sign && alub_get_val( alup_final_bit( alup ) ))
 #define alup_set_sign( alup, neg ) \
 	do \
 	{ \
 		if ( (alup)->sign ) \
-			alub_set( (alup)->data, alup_final_pos(alup), neg ); \
+			alub_set_val( alup_final_bit(alup), neg ); \
 	} \
 	while (0)
 

@@ -21,8 +21,11 @@ void alub_print( char *pfx, alub_t pos, bool getbit );
  * @param pos Bit index to calculate position from
  * **/
 alub_t alub( uintmax_t *ptr, size_t bit );
-bool alub_get( uintmax_t *ptr, size_t bit );
-void alub_set( uintmax_t *ptr, size_t bit, bool val );
+bool alub_get_val( alub_t src );
+bool alub_set_val( alub_t dst, bool val );
+#define alub_get( src, bit ) alub_get_val( alub( src, bit ) )
+#define alub_set( dst, bit, val ) alub_set_val( alub( dst, bit ), val )
+	
 /** @brief sets bit position by byte count
  * @param ptr Base pointer that byte 0 starts from
  * @param pos Byte index to calculate position from

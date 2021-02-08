@@ -12,17 +12,17 @@ alub_t alub( uintmax_t *ptr, size_t bit )
 	return alub;
 }
 
-bool alub_get( uintmax_t *ptr, size_t bit )
+bool alub_get_val( alub_t src )
 {
-	alub_t b = alub( ptr, bit );
-	return !!(*(b.ptr) & b.mask);
+	return !!(*(src.ptr) & src.mask);
 }
 
-void alub_set( uintmax_t *ptr, size_t bit, bool val )
+bool alub_set_val( alub_t dst, bool val )
 {
-	alub_t b = alub( ptr, bit );
-	*(b.ptr) &= ~(b.mask);
-	*(b.ptr) |= IFTRUE( val, b.mask );
+	bool old = !!(*(dst.ptr) & dst.mask);
+	*(dst.ptr) &= ~(dst.mask);
+	*(dst.ptr) |= dst.mask * !!val;
+	return old;
 }
 
 void alub_inc( alub_t *alub )
