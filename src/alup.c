@@ -1933,18 +1933,18 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 			__DST = _DST;
 			__DST.mdig = 0;
 			__DST.sign = false;
-			
+
 			__SRC = _SRC;
 			__SRC.mdig = 0;
 			__SRC.sign = false;
-			
+
 			/* Set position data of assumed bits */
 			_DINFER = __DST;
 			_SINFER = __SRC;
-			
+
 			_DINFER.from = _DEXP.from;
 			_SINFER.from = _SEXP.from;
-			
+
 			_DINFER.bits = _DINFER.upto - _DINFER.from;
 			_SINFER.bits = _SINFER.upto - _SINFER.from;
 			
@@ -1972,22 +1972,18 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 			
 			/* Normalise */
 			final = alup_final_bit_with_val( &__DST, 1 );
+			dmov = _DEXP.from - d1st.bit;
+			smov = _SEXP.from - s1st.bit;
+			mov = final.bit - __DST.from;
+			exp += mov - (dmov + smov);
 			
 			if ( final.bit > _DEXP.from )
 			{
-				alu_puts("final.bit > _DEXP.from");
-				mov = final.bit - _DEXP.from;
-				
-				//exp += mov;
-				alup__shr_int2int( &__DST, mov );
+				alup__shr_int2int( &__DST, final.bit - _DEXP.from );
 			}
 			else
 			{
-				alu_puts("final.bit < _DEXP.from");
-				mov = _DEXP.from - final.bit;
-				
-				//exp -= mov;
-				alup__shl_int2int( &__DST, mov );
+				alup__shl_int2int( &__DST, _DEXP.from - final.bit );
 			}
 			
 			/* Mantissa is in place so all we need to do is set the exponent
