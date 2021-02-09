@@ -1876,7 +1876,7 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
 	{
 		alup_t _DST, _SRC;
-		ssize_t exp, dexp, sexp, bias, bits = _NUM->bits;
+		ssize_t exp, dexp, sexp, dbias, sbias, bits = _NUM->bits;
 		bool_t dneg, sneg;
 		
 		/* Ensure dealing with just floating numbers */
@@ -1907,11 +1907,12 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 			return 0;
 		}
 		
-		bias = alup_get_exponent_bias( &_DST );
+		dbias = alup_get_exponent_bias( &_DST );
+		sbias = alup_get_exponent_bias( &_SRC );
 		
-		exp = IFTRUE( dexp, dexp - bias ) + IFTRUE( sexp, sexp - bias );
+		exp = IFTRUE( dexp, dexp - dbias ) + IFTRUE( sexp, sexp - sbias );
 		
-		if ( exp >= bias )
+		if ( exp >= dbias )
 		{	
 			alu_puts("MUL 1");
 			
@@ -1970,14 +1971,14 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 	
 			/* Remove useless 0s */
 			
-			alu_puts("Before Shift");
+			alu_puts("Before 1st Shift");
 			alup_print( &_DST, 0, 1 );
 			(void)alup__shr_int2int( &__DST, dmov );
 			(void)alup__shr_int2int( &__SRC, smov );
-			alu_puts("After Shift");
+			alu_puts("After 1st Shift");
 			alup_print( &_DST, 0, 1 );
 			
-			exp += (_DEXP.from - d1st.bit) + (_SEXP.from - s1st.bit);
+			exp += (_DEXP.from - d1st.bit) + (_SEXP.from - s1st.bit) + !!dexp + !!sexp;
 			
 			alu_puts("Before Multiply");
 			alup_print( &_DST, 0, 1 );
@@ -1988,28 +1989,39 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 			/* Normalise */
 			final = alup_final_bit_with_val( &__DST, 1 );
 			
+			alu_puts("Before 2nd Shift");
+			alup_print( &_DST, 0, 1 );
 			if ( final.bit > _DEXP.from )
 			{
 				alu_puts("final.bit > _DEXP.from");
 				mov = final.bit - _DEXP.from;
 				
-				exp += mov;
+				//exp += mov;
 				alup__shr_int2int( &__DST, mov );
 			}
-			else if ( final.bit < _DEXP.from )
+			else
 			{
 				alu_puts("final.bit < _DEXP.from");
 				mov = _DEXP.from - final.bit;
 				
-				exp -= mov;
+				//exp -= mov;
 				alup__shl_int2int( &__DST, mov );
 			}
 			
+			alu_puts("After 2nd Shift");
+			alup_print( &_DST, 0, 1 );
+			
 			/* Mantissa is in place so all we need to do is set the exponent
 			 * and sign */
-			alup_set_exponent( &_DST, exp + bias );
+			alup_set_exponent( &_DST, exp + dbias );
+			
+			alu_puts("After Setting Exponent");
+			alup_print( &_DST, 0, 1 );
 			
 			alup_set_sign( &_DST, dneg != sneg );
+			
+			alu_puts("After Setting Sign");
+			alup_print( &_DST, 0, 1 );
 				
 			return alup_mov( _NUM, &_DST );
 		}
