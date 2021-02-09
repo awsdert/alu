@@ -1880,13 +1880,8 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 		bool_t dneg, sneg;
 		
 		/* Ensure dealing with just floating numbers */
-		
-		alu_puts("Before Move");
-		alup_print( _NUM, 0, 1 );
 		alup_init_floating( _DST, _tmp, bits * 2 );
 		alup_mov( &_DST, _NUM );
-		alu_puts("After Move");
-		alup_print( &_DST, 0, 1 );
 		
 		alup_init_floating( _SRC, _NUM->data, bits );
 		_SRC.upto = _NUM->upto;
@@ -1910,7 +1905,7 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 		dbias = alup_get_exponent_bias( &_DST );
 		sbias = alup_get_exponent_bias( &_SRC );
 		
-		exp = IFTRUE( dexp, dexp - dbias ) + IFTRUE( sexp, sexp - sbias );
+		exp = (dexp - dbias) + (sexp - sbias);
 		
 		if ( exp >= dbias )
 		{	
@@ -1970,27 +1965,14 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 			smov = s1st.bit - __SRC.from;
 	
 			/* Remove useless 0s */
-			
-			alu_puts("Before 1st Shift");
-			alup_print( &_DST, 0, 1 );
 			(void)alup__shr_int2int( &__DST, dmov );
 			(void)alup__shr_int2int( &__SRC, smov );
-			alu_puts("After 1st Shift");
-			alup_print( &_DST, 0, 1 );
 			
-			exp += (_DEXP.from - d1st.bit) + (_SEXP.from - s1st.bit) + !!dexp + !!sexp;
-			
-			alu_puts("Before Multiply");
-			alup_print( &_DST, 0, 1 );
 			(void)alup__mul_int2int( &__DST, &__SRC, _cpy );
-			alu_puts("After Multiply");
-			alup_print( &_DST, 0, 1 );
 			
 			/* Normalise */
 			final = alup_final_bit_with_val( &__DST, 1 );
 			
-			alu_puts("Before 2nd Shift");
-			alup_print( &_DST, 0, 1 );
 			if ( final.bit > _DEXP.from )
 			{
 				alu_puts("final.bit > _DEXP.from");
@@ -2008,20 +1990,10 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 				alup__shl_int2int( &__DST, mov );
 			}
 			
-			alu_puts("After 2nd Shift");
-			alup_print( &_DST, 0, 1 );
-			
 			/* Mantissa is in place so all we need to do is set the exponent
 			 * and sign */
 			alup_set_exponent( &_DST, exp + dbias );
-			
-			alu_puts("After Setting Exponent");
-			alup_print( &_DST, 0, 1 );
-			
 			alup_set_sign( &_DST, dneg != sneg );
-			
-			alu_puts("After Setting Sign");
-			alup_print( &_DST, 0, 1 );
 				
 			return alup_mov( _NUM, &_DST );
 		}
