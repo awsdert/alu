@@ -1874,7 +1874,6 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 		alup_t _DST, _SRC;
 		ssize_t exp, dexp, sexp, bias, bits = _NUM->bits;
 		bool_t dneg, sneg;
-		alub_t final, prior;
 		
 		/* Ensure dealing with just floating numbers */
 		
@@ -1883,6 +1882,7 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 		
 		alup_init_floating( _SRC, _NUM->data, bits );
 		_SRC.upto = _NUM->upto;
+		_SRC.last = _NUM->last;
 		_SRC.from = _NUM->from;
 		alup_mov( &_SRC, _VAL );
 		
@@ -1901,10 +1901,7 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 		
 		bias = alup_get_exponent_bias( &_DST );
 		
-		dexp -= bias;
-		sexp -= bias;
-		
-		exp = dexp + sexp;
+		exp = IFTRUE( dexp, dexp - bias ) + IFTRUE( sexp, sexp - bias );
 		
 		if ( exp >= bias )
 		{	
@@ -1915,78 +1912,79 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 		}
 		else
 		{
-			size_t add, mov;
-			ssize_t dmov, smov, mdig = _DST.mdig;
-			alup_t _DEXP, _SEXP, _DMAN, _SMAN, __DMAN, __SMAN;
+			size_t mov;
+			ssize_t dmov, smov;
+			alup_t _DEXP, _SEXP, _DMAN, _SMAN, __DST, __SRC, _DINFER, _SINFER;
+			alub_t final, d1st, s1st, dinfer, sinfer;
 			
 			alup_init_exponent( &_DST, _DEXP );
 			alup_init_exponent( &_SRC, _SEXP );
 			
-			_DEXP.upto++;
-			_SEXP.upto++;
-			alup_set( &_DEXP, 0 );
-			alup_set( &_SEXP, 0 );
+			alup_set( &_DEXP, !!dexp );
+			alup_set( &_SEXP, !!sexp );
 			
 			alup_init_mantissa( &_DST, _DMAN );
 			alup_init_mantissa( &_SRC, _SMAN );
 			
-			alup_init_unsigned( __DMAN, _DST.data, bits );
-			alup_init_unsigned( __SMAN, _SRC.data, bits );
-			__SMAN.upto = _SRC.upto;
-			__SMAN.from = _SRC.from;
+			__DST = _DST;
+			__DST.mdig = 0;
+			__DST.sign = false;
 			
-			alub_set( _DST.data, _DEXP.from, 1 );
-			alub_set( _SRC.data, _SEXP.from, 1 );
+			__SRC = _SRC;
+			__SRC.mdig = 0;
+			__SRC.sign = false;
 			
-			dmov = mdig - (dexp+1);
-			dmov = IFTRUE( dmov > 0, dmov );
-			dmov = EITHER( dmov < mdig, dmov, mdig );
-			smov = mdig - sexp;
-			smov = IFTRUE( smov > 0, smov );
-			smov = EITHER( smov < mdig, smov, mdig );
+			/* Set position data of assumed bits */
+			_DINFER = __DST;
+			_SINFER = __SRC;
 			
-#if 0
-			alu_puts("Before");
-			alup_print( &__DMAN, 1, 1 );
-			alup_print( &__SMAN, 1, 1 );
-#endif
+			_DINFER.from = _DEXP.from;
+			_SINFER.from = _SEXP.from;
+			
+			_DINFER.bits = _DINFER.upto - _DINFER.from;
+			_SINFER.bits = _SINFER.upto - _SINFER.from;
+			
+			dinfer = alup_bit( &_DINFER, _DINFER.from );
+			sinfer = alup_bit( &_SINFER, _SINFER.from );
+			
+			/* Insert assumed bits */
+			alup_set( &_DINFER, 0 );
+			alup_set( &_SINFER, 0 );
+			alub_set_val( dinfer, !!dexp );
+			alub_set_val( sinfer, !!sexp );
+			
+			/* Determine how far to move mantissa to right */
+			d1st = alup_first_bit_with_val( &_DMAN, 1 );
+			s1st = alup_first_bit_with_val( &_SMAN, 1 );
+			
+			dmov = d1st.bit - __DST.from;
+			smov = s1st.bit - __SRC.from;
 	
-			(void)alup__shr_int2int( &__DMAN, dmov );
-			(void)alup__shr_int2int( &__SMAN, dmov );
-			_SMAN.from = _DEXP.from - smov;
-			_SMAN.bits = smov;
+			/* Remove useless 0s */
+			(void)alup__shr_int2int( &__DST, dmov );
+			(void)alup__shr_int2int( &__SRC, smov );
 			
-#if 0
-			alu_printf("After moving %zd & %zd bits", dmov, smov );
-			alup_print( &__DMAN, 1, 1 );
-			alup_print( &__SMAN, 1, 1 );
-#endif
+			exp += (_DEXP.from - d1st.bit) + (_SEXP.from - s1st.bit);
 			
-			prior = alup_final_bit_with_val( &__DMAN, true );
-			(void)alup__mul_int2int( &__DMAN, &__SMAN, _cpy );
+			(void)alup__mul_int2int( &__DST, &__SRC, _cpy );
 			
-			final = alup_final_bit_with_val( &__DMAN, true );
-			add = final.bit - prior.bit;
+			final = alup_final_bit_with_val( &__DST, 1 );
 			
-			if ( final.bit >= _DEXP.from )
-			{
-				//alu_puts("MUL final.bit >= dmuntil_pos");
-				
+			if ( final.bit > _DEXP.from )
+			{	
 				/* Normalise */
 				mov = final.bit - _DEXP.from;
 				
-				exp = dexp + add;
-				alup__shr_int2int( &__DMAN, mov );
+				exp += mov;
+				alup__shr_int2int( &__DST, mov );
 			}
 			else
 			{
-				//alu_puts("MUL final.bit < dmuntil_pos");
-				
 				/* Normalise */
 				mov = _DEXP.from - final.bit;
 				
-				exp = dexp + add;
-				alup__shl_int2int( &__DMAN, mov );
+				exp -= mov;
+				alup__shl_int2int( &__DST, mov );
 			}
 			
 			alup_set_sign( &_DST, dneg != sneg );
