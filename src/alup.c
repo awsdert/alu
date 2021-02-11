@@ -635,7 +635,7 @@ int_t alup_cmp_int2int( alup_t const * const _NUM, alup_t const * const _VAL )
 			r = a - b;
 			
 			if ( r )
-				return -r;
+				return r;
 		}
 		
 		while ( vlen > nlen )
@@ -1966,7 +1966,12 @@ int_t alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cp
 	
 			/* Remove useless 0s */
 			(void)alup__shr_int2int( &__DST, dmov );
-			(void)alup__shr_int2int( &__SRC, smov );
+			
+			/* Remove useless 0s */
+			__SRC.from = s1st.bit;
+			__SRC.last = _SEXP.from;
+			__SRC.upto = _SEXP.from + 1;
+			__SRC.bits = __SRC.upto - __SRC.from;
 			
 			(void)alup__mul_int2int( &__DST, &__SRC, _cpy );
 			
@@ -2004,44 +2009,25 @@ int_t alup__div_int2int( alup_t const * const _NUM, alup_t const * const _VAL, v
 	int ret = 0;
 	alup_t _SEG, _REM;
 	alub_t n;
-	bool_t nNeg, vNeg;
+	bool_t nNeg = alup_below0( _NUM ), vNeg = alup_below0( _VAL );
 	size_t bits = 0;
 	
-	if ( !_NUM->data || !_VAL->data || !_rem )
-	{
-		ret = EINVAL;
-		
-		alu_error( ret );
-		
-		if ( !_NUM->data ) alu_puts("NUM.data was NULL!");
-			
-		if ( !_VAL->data ) alu_puts("VAL.data was NULL!");
-			
-		if ( !_rem ) alu_puts("_rem was NULL!");
-		
-		return ret;
-	}
-	
-	nNeg = alup_below0( _NUM );
-	vNeg = alup_below0( _VAL );
-	
-	if ( nNeg )
-		alup_neg( _NUM );
-	
-	if ( vNeg )
-		alup_neg( _VAL );
+	if ( nNeg ) alup_neg( _NUM );
+	if ( vNeg ) alup_neg( _VAL );
 	
 	alup_init_unsigned( _REM, _rem, _NUM->bits );
 	
 	(void)alup_mov_int2int( &_REM, _NUM );
 	(void)alup_set( _NUM, 0 );
 	
+	n = alup_final_bit_with_val( &_REM, 1 );
+	_REM.bits = _REM.upto = n.bit + 1;
 	_SEG = _REM;
 	
-	n = alup_final_bit_with_val( &_REM, true );
-	_SEG.upto = _SEG.from = n.bit + 1;
+	_SEG.from = n.bit + 1;
 	_SEG.last = n.bit;
 	_SEG.bits = 0;
+	
 	n = alup_first_bit( _NUM );
 
 /* Currently a subtle bug is causing a segfault with the other method, this
@@ -2069,28 +2055,187 @@ int_t alup__div_int2int( alup_t const * const _NUM, alup_t const * const _VAL, v
 		}
 	}
 
-#ifdef ALUP__DIV_USE_REM_FROM
+#ifndef ALUP__DIV_USE_REM_FROM
 	bits += _SEG.from - _REM.from;
-	
-	if ( bits )
-		alup__shl_int2int( _NUM, bits );
 #endif
+	
+	if ( bits ) alup__shl_int2int( _NUM, bits );
 		
-	if ( nNeg != vNeg )
-		alup_neg( _NUM );
+	if ( nNeg != vNeg ) alup_neg( _NUM );
 	
 	_REM.sign = _NUM->sign;
-	if ( nNeg )
-		alup_neg( &_REM );
 	
-	if ( vNeg )
-		alup_neg( _VAL );
+	if ( nNeg ) alup_neg( &_REM );
+	if ( vNeg ) alup_neg( _VAL );
 		
-	n = alup_final_bit_with_val( &_REM, true );
+	n = alup_first_bit_with_val( &_REM, true );
 	
 	return EITHER( ret, ret, IFTRUE( *(n.ptr) & n.mask, ERANGE ) );
 }
+#if 1
+int_t alup__div(
+	alup_t const * const _NUM
+	, alup_t const * const _VAL
+	, void *_rem
+	, void *_tmp
+)
+{
+	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
+	{
+		alup_t _DST, _SRC;
+		ssize_t exp, dexp, sexp, dbias, sbias, bits = _NUM->bits;
+		bool_t dneg, sneg;
+		
+		/* Ensure dealing with just floating numbers */
+		alup_init_floating( _DST, _tmp, bits * 2 );
+		alup_mov( &_DST, _NUM );
+		
+		alup_init_floating( _SRC, _NUM->data, bits );
+		_SRC.upto = _NUM->upto;
+		_SRC.last = _NUM->last;
+		_SRC.from = _NUM->from;
+		alup_mov( &_SRC, _VAL );
+		
+		dneg = alup_below0( &_DST );
+		sneg = alup_below0( &_SRC );
+		
+		dexp = alup_get_exponent( &_DST );
+		sexp = alup_get_exponent( &_SRC );
+		
+		if ( !dexp || !sexp )
+		{
+			alup_set( _NUM, 0 );
+			alup_set_sign( &_DST, dneg != sneg );
+			return 0;
+		}
+		
+		dbias = alup_get_exponent_bias( &_DST );
+		sbias = alup_get_exponent_bias( &_SRC );
+		
+		exp = (dexp - dbias) - (sexp - sbias);
+		
+		if ( exp >= dbias )
+		{	
+			alu_puts("MUL 1");
+			
+			(void)alup_set_fltinf( _NUM, dneg != sneg );
+			return ERANGE;
+		}
+		else
+		{
+			int_t ret = 0;
+			size_t mov;
+			ssize_t dmov, smov;
+			alup_t _DEXP, _SEXP, _DMAN, _SMAN, __DST, __SRC, _DINFER, _SINFER;
+			alub_t final, d1st, s1st, dinfer, sinfer;
+			bool_t truncated = false;
+			
+			alup_init_exponent( &_DST, _DEXP );
+			alup_init_exponent( &_SRC, _SEXP );
+			
+			alup_set( &_DEXP, !!dexp );
+			alup_set( &_SEXP, !!sexp );
+			
+			alup_init_mantissa( &_DST, _DMAN );
+			alup_init_mantissa( &_SRC, _SMAN );
+			
+			__DST = _DST;
+			__DST.mdig = 0;
+			__DST.sign = false;
 
+			__SRC = _SRC;
+			__SRC.mdig = 0;
+			__SRC.sign = false;
+
+			/* Set position data of assumed bits */
+			_DINFER = __DST;
+			_SINFER = __SRC;
+
+			_DINFER.from = _DEXP.from;
+			_SINFER.from = _SEXP.from;
+
+			_DINFER.bits = _DINFER.upto - _DINFER.from;
+			_SINFER.bits = _SINFER.upto - _SINFER.from;
+			
+			dinfer = alup_bit( &_DINFER, _DINFER.from );
+			sinfer = alup_bit( &_SINFER, _SINFER.from );
+			
+			/* Insert assumed bits */
+			alup_set( &_DINFER, 0 );
+			alup_set( &_SINFER, 0 );
+			alub_set_val( dinfer, !!dexp );
+			alub_set_val( sinfer, !!sexp );
+			
+			/* Determine how far to move mantissa to right */
+			d1st = alup_first_bit_with_val( &_DMAN, 1 );
+			s1st = alup_first_bit_with_val( &_SMAN, 1 );
+			
+			dmov = d1st.bit - __DST.from;
+			smov = s1st.bit - __SRC.from;
+	
+			/* Insert 0s for  */
+			(void)alup__shl_int2int( &__DST, _DEXP.bits );
+			
+			/* Remove useless 0s */
+			__SRC.from = s1st.bit;
+			__SRC.last = _SEXP.from;
+			__SRC.upto = _SEXP.from + 1;
+			__SRC.bits = __SRC.upto - __SRC.from;
+			
+			alup_print( &__DST, 0, 1 );
+			alup_print( &__SRC, 0, 1 );
+			
+			ret = alup__div_int2int( &__DST, &__SRC, _rem );
+			
+			alup_print( &__DST, 0, 1 );
+			truncated = (ret == ERANGE);
+			
+			/* Normalise */
+			final = alup_final_bit_with_val( &__DST, 1 );
+			dmov = _DEXP.from - d1st.bit;
+			smov = _SEXP.from - s1st.bit;
+			mov = final.bit - __DST.from;
+			
+			alu_printf
+			(
+				"exp = %zd, mov = %zu, dmov = %zd, smov = %zd"
+				, exp
+				, mov
+				, dmov
+				, smov
+			);
+			//exp += mov - (dmov + smov);
+			alu_printf
+			(
+				"exp = %zd, mov = %zu, dmov = %zd, smov = %zd"
+				, exp
+				, mov
+				, dmov
+				, smov
+			);
+			
+			if ( final.bit > _DEXP.from )
+			{
+				alup__shr_int2int( &__DST, final.bit - _DEXP.from );
+			}
+			else
+			{
+				alup__shl_int2int( &__DST, _DEXP.from - final.bit );
+			}
+			
+			/* Mantissa is in place so all we need to do is set the exponent
+			 * and sign */
+			alup_set_exponent( &_DST, exp + dbias );
+			alup_set_sign( &_DST, dneg != sneg );
+				
+			ret = alup_mov( _NUM, &_DST );
+			return EITHER( ret, ret, IFTRUE( truncated, ERANGE ) );
+		}
+	}
+	
+	return alup__div_int2int( _NUM, _VAL, _rem );
+}
+#else
 int_t alup__div( alup_t const * const _NUM, alup_t const * const _VAL, void *_rem, void *_tmp )
 {
 	if ( alup_floating( _NUM ) || alup_floating( _VAL ) )
@@ -2221,3 +2366,4 @@ int_t alup__div( alup_t const * const _NUM, alup_t const * const _VAL, void *_re
 	
 	return alup__div_int2int( _NUM, _VAL, _rem );
 }
+#endif
