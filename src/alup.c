@@ -2182,12 +2182,7 @@ int_t alup__div(
 			__SRC.upto = _SEXP.from + 1;
 			__SRC.bits = __SRC.upto - __SRC.from;
 			
-			alup_print( &__DST, 0, 1 );
-			alup_print( &__SRC, 0, 1 );
-			
 			ret = alup__div_int2int( &__DST, &__SRC, _rem );
-			
-			alup_print( &__DST, 0, 1 );
 			truncated = (ret == ERANGE);
 			
 			/* Normalise */
@@ -2195,24 +2190,7 @@ int_t alup__div(
 			dmov = _DEXP.from - d1st.bit;
 			smov = _SEXP.from - s1st.bit;
 			mov = final.bit - __DST.from;
-			
-			alu_printf
-			(
-				"exp = %zd, mov = %zu, dmov = %zd, smov = %zd"
-				, exp
-				, mov
-				, dmov
-				, smov
-			);
-			//exp += mov - (dmov + smov);
-			alu_printf
-			(
-				"exp = %zd, mov = %zu, dmov = %zd, smov = %zd"
-				, exp
-				, mov
-				, dmov
-				, smov
-			);
+			exp -= ((__DST.upto - final.bit) - __SRC.bits);
 			
 			if ( final.bit > _DEXP.from )
 			{
