@@ -1065,10 +1065,7 @@ int_t alup_addsub
 		{
 			alub_t final
 				, csign = alup_final_bit( &_CPY )
-				, tsign = alup_final_bit( &_TMP )
-				/* Assumed mantissa bits */
-				, cmbit
-				, tmbit;
+				, tsign = alup_final_bit( &_TMP );
 			bool_t neg
 				, cneg = *(csign.ptr) & csign.mask
 				, tneg = *(tsign.ptr) & tsign.mask;
@@ -2144,10 +2141,8 @@ int_t alup__div(
 		else
 		{
 			int_t ret = 0;
-			size_t mov;
-			ssize_t dmov, smov;
-			alup_t _DEXP, _SEXP, _DMAN, _SMAN, __DST, __SRC, _DINFER, _SINFER;
-			alub_t final, d1st, s1st, dinfer, sinfer;
+			alup_t _DEXP, _SEXP, _DMAN, _SMAN, __DST, __SRC, _LOST;
+			alub_t final, first, s1st, lost;
 			bool_t truncated = false;
 			
 			alup_init_exponent( &_DST, _DEXP );
@@ -2166,34 +2161,15 @@ int_t alup__div(
 			__SRC = _SRC;
 			__SRC.mdig = 0;
 			__SRC.sign = false;
-
-			/* Set position data of assumed bits */
-			_DINFER = __DST;
-			_SINFER = __SRC;
-
-			_DINFER.from = _DEXP.from;
-			_SINFER.from = _SEXP.from;
-
-			_DINFER.bits = _DINFER.upto - _DINFER.from;
-			_SINFER.bits = _SINFER.upto - _SINFER.from;
 			
-			dinfer = alup_bit( &_DINFER, _DINFER.from );
-			sinfer = alup_bit( &_SINFER, _SINFER.from );
-			
-			/* Insert assumed bits */
-			alup_set( &_DINFER, 0 );
-			alup_set( &_SINFER, 0 );
-			alub_set_val( dinfer, !!dexp );
-			alub_set_val( sinfer, !!sexp );
-			
-			/* Determine how far to move mantissa to right */
-			d1st = alup_first_bit_with_val( &_DMAN, 1 );
+			/* ??? */
 			s1st = alup_first_bit_with_val( &_SMAN, 1 );
 			
-			dmov = d1st.bit - __DST.from;
-			smov = s1st.bit - __SRC.from;
-	
-			/* Insert 0s for  */
+			/* Insert assumed bits */
+			alup_set_exponent( &_DST, !!dexp );
+			alup_set_exponent( &_SRC, !!sexp );
+
+			/* Insert 0s to avoid loosing bits in division */
 			(void)alup__shl_int2int( &__DST, _DEXP.bits );
 			
 			/* Remove useless 0s */
@@ -2205,11 +2181,34 @@ int_t alup__div(
 			ret = alup__div_int2int( &__DST, &__SRC, _rem );
 			truncated = (ret == ERANGE);
 			
+			alup_print( &_DST, 0, 1 );
+			
 			/* Normalise */
 			final = alup_final_bit_with_val( &__DST, 1 );
-			dmov = _DEXP.from - d1st.bit;
-			smov = _SEXP.from - s1st.bit;
-			mov = final.bit - __DST.from;
+			first.bit = final.bit - _DST.from;
+			first.bit = EITHER( first.bit > _DST.mdig, _DST.mdig, first.bit );
+			first = alup_bit( &__DST, final.bit - first.bit );
+			
+			_LOST = __DST;
+			_LOST.upto = first.bit;
+			_LOST.last =
+				EITHER( _LOST.upto > _LOST.from, _LOST.upto - 1, _LOST.from );
+			_LOST.bits = _LOST.upto - _LOST.from;
+			lost = alup_final_bit_with_val( &_LOST, 1 );
+			
+			if ( lost.bit < first.bit )
+			{
+				_LOST.from = lost.bit;
+				_LOST.upto = __DST.upto;
+				_LOST.last = __DST.last;
+				_LOST.bits = _LOST.upto - _LOST.from;
+				alup_inc( &_LOST );
+				ret = ERANGE;
+				truncated = true;
+			}
+			
+			alup_print( &_DST, 0, 1 );
+			
 			exp -= ((__DST.upto - final.bit) - __SRC.bits);
 			
 			if ( final.bit > _DEXP.from )
