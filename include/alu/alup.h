@@ -161,20 +161,22 @@ int_t	alup_shr( alup_t const * const _NUM, alup_t const * const _VAL );
 int_t	alup_rol( alup_t const * const _NUM, alup_t const * const _VAL );
 int_t	alup_ror( alup_t const * const _NUM, alup_t const * const _VAL );
 
+int_t	alup__inc_int( alup_t const * const _NUM );
+int_t	alup__dec_int( alup_t const * const _NUM );
+
 int_t	alup_neg( alup_t const * const _NUM );
 int_t	alup_inc( alup_t const * const _NUM );
 int_t	alup_dec( alup_t const * const _NUM );
 int_t	alup_match_exponents( void *_num, void *_val, size_t size );
 
 int_t	alup__add_int2int( alup_t const * const _NUM, alup_t const * const _VAL );
-int_t	alup__add( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
-
 int_t	alup__sub_int2int( alup_t const * const _NUM, alup_t const * const _VAL );
-int_t	alup__sub( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
-
 int_t	alup__mul_int2int( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy );
-int_t	alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
 int_t	alup__div_int2int( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy );
+
+int_t	alup__add( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
+int_t	alup__sub( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
+int_t	alup__mul( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
 int_t	alup__div( alup_t const * const _NUM, alup_t const * const _VAL, void *_cpy, void *_tmp );
 
 #endif

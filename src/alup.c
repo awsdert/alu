@@ -499,6 +499,10 @@ int_t	alup_mov_flt2flt( alup_t const * const _DST, alup_t const * const _SRC )
 	alup_t _DMAN, _SMAN;
 	ssize_t exp, dbias, sbias, dinf, sinf;
 	bool neg = alup_below0( _SRC );
+//#define INC_MANTISSA
+#ifdef INC_MANTISSA
+	bool inc = false;
+#endif
 	int_t ret = 0;
 	
 	exp = alup_get_exponent( _SRC );
@@ -520,6 +524,9 @@ int_t	alup_mov_flt2flt( alup_t const * const _DST, alup_t const * const _SRC )
 	alup_init_mantissa( _DST, _DMAN );
 	alup_init_mantissa( _SRC, _SMAN );
 	
+	/* Clear this before we fiddle with boundaries */
+	alup_set( &_DMAN, 0 );
+	
 	/* Make sure we refer to upper bits of both mantissa's if they're of
 	 * different lengths */
 	if ( _DST->mdig > _SRC->mdig )
@@ -530,27 +537,46 @@ int_t	alup_mov_flt2flt( alup_t const * const _DST, alup_t const * const _SRC )
 	}
 	else if ( _SRC->mdig > _DST->mdig )
 	{
+		alup_t _MAN = _SMAN;
+#ifdef INC_MANTISSA
+		alub_t final;
+#endif	
+	
 		_SMAN.bits = _DST->mdig;
 		_SMAN.from += _SRC->mdig - _DST->mdig;
 		_SMAN.bits = _SMAN.upto - _SMAN.from;
+		
+		_MAN.upto = _SMAN.from;
+		_MAN.last = _SMAN.from - 1;
+		_MAN.bits = _MAN.upto - _MAN.from;
+
+#ifdef INC_MANTISSA
+		final = alup_final_bit_with_val( &_MAN, 1 );
+		inc = !!(*(final.ptr) & final.mask);
+#endif
+		
 		ret = ERANGE;
 	}
 	
-	exp = EITHER( exp == sinf, dbias, exp - sbias );
-	exp = EITHER( exp <= -dbias, 0, EITHER( exp >= dbias, dinf, exp + dbias ) );
+	exp = EITHER( exp == sinf, dinf, exp - sbias );
+	ret = EITHER( exp < -dbias, ERANGE, EITHER( exp > dbias, ERANGE, ret ) );
+	exp = EITHER( exp < -dbias, 0, EITHER( exp > dbias, dinf, exp + dbias ) );
 	
 	alup_set_sign( _DST, neg );
 	(void)alup_set_exponent( _DST, exp );
 	
-	if ( exp == 0 )
-	{
-		ret = ERANGE;
-		alup_set( &_DMAN, 0 );
-	}
-	else
+	/* Apparently NaN is treated as inifinity when transfering from large to
+	 * small, mimic that behaviour for consistancy */
+	if ( exp < dinf )
 	{
 		(void)alup_mov_int2int(  &_DMAN, &_SMAN );
+#ifdef INC_MANTISSA
+		if ( inc )
+			(void)alup__inc_int( &_DMAN );
+#undef INC_MANTISSA
+#endif
 	}
+	
 	return ret;
 }
 
@@ -1047,7 +1073,7 @@ int_t alup_addsub
 				, cneg = *(csign.ptr) & csign.mask
 				, tneg = *(tsign.ptr) & tsign.mask;
 			alup_t _CMAN, _TMAN, __CPY, __TMP;
-			size_t diff = 0, shift = _CEXP.bits - adding;
+			size_t diff = 0, shift = (_CEXP.bits - 1) - adding;
 			ssize_t exp = 0, bias = alup_get_exponent_bias( &_CPY );
 			
 			alup_init_mantissa( &_CPY, _CMAN );
@@ -1070,26 +1096,21 @@ int_t alup_addsub
 			}
 			else exp = cexp;
 			
-			/* Prevent curruption of values by removing unneeded signs */
-			*(csign.ptr) &= ~(csign.mask);
-			*(tsign.ptr) &= ~(tsign.mask);
-			
 			/* Insert assumed bits */
-			cmbit = alup_until_bit( &_CMAN );
-			tmbit = alup_until_bit( &_TMAN );
+			alup_set_exponent( &_CPY, !!cexp );
+			alup_set_exponent( &_TMP, !!texp );
 			
-			alub_set_val( cmbit, !!cexp );
-			alub_set_val( tmbit, !!texp );
-			
+#if 0	
 			/* Convert mantissa/s to integer representation
 			 * CHECKME: I may have misunderstood a set of results here */
 			if ( cneg ) alup_neg( &__CPY );
 			if ( tneg ) alup_neg( &__TMP );
+#endif
 			
 			/* Minimise potential loss of bits, shift is done on added
-			 * mantissas as well to simplify the exponent correction later*/
-			alup__shl_int2int( &__CPY, shift );
-			alup__shl_int2int( &__TMP, shift );
+			 * mantissas as well to simplify the exponent correction later */
+			alup__shl_int2int( &__CPY, shift + cneg + (cneg * adding) );
+			alup__shl_int2int( &__TMP, shift + tneg + (tneg * adding) );
 			
 			/* Align significant digits to match positions */
 			if ( diff )
@@ -1108,40 +1129,39 @@ int_t alup_addsub
 				|| (!adding && !cexp && ret == EOVERFLOW)
 			);
 			
-			bits = _CEXP.last;
-			
 			final = alup_final_bit_with_val( &__CPY, !neg );
+			if ( neg ) alub_inc( &final );
 			
-			tneg = final.bit < bits;
-			texp = EITHER( tneg, -1, 1 )
-				* (
-					(ssize_t)EITHER
-					(
-						tneg
-						, bits - final.bit
-						, final.bit - bits
-					)
-				);
+			texp = __CPY.last;
+			texp -= final.bit;
 			exp += texp;
-			
-			bits = _CMAN.last + !tneg;
-			if ( bits >= final.bit )
-			{
-				alup__shl_int2int( &__CPY, bits - final.bit );
-			}
-			else
-			{
-				ret = alup__shr_int2int( &__CPY, (final.bit - bits) );
-				truncated = (truncated || ret == ERANGE);
-			}
+			exp -= neg;
 			
 			/* Anything out of range must be clamped */
-			if ( (exp - bias) > bias ) alup_set_inf( &_CPY, neg );
-			else if ( (exp - bias) < -bias ) alup_set( &_CPY, 0 );
-			else (void)alup_set_exponent( &_CPY, exp );
-			
-			/* Set this after so -0 doesn't get wiped out by above lines */
-			alup_set_sign( &_CPY, neg );
+			if ( (exp - bias) > bias )
+			{
+				alup_set_inf( &_CPY, neg );
+			}
+			else if ( (exp - bias) < -bias )
+			{
+				alup_set( &_CPY, 0 );
+				alup_set_sign( &_CPY, neg );
+			}
+			else
+			{	
+				bits = _CMAN.upto;
+				if ( bits >= final.bit )
+				{
+					alup__shl_int2int( &__CPY, bits - final.bit );
+				}
+				else
+				{
+					ret = alup__shr_int2int( &__CPY, (final.bit - bits) );
+					truncated = (truncated || ret == ERANGE);
+				}
+				(void)alup_set_exponent( &_CPY, exp );
+				alup_set_sign( &_CPY, neg );
+			}
 		}
 		
 		ret = alup_mov( _NUM, &_CPY );

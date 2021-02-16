@@ -445,32 +445,30 @@ START_TEST( test_alup_mov_flt2flt )
 {	
 	if ( !stop_checks )
 	{
-		alup_t _EXPECT, _RESULT, _RPRIOR, _EPRIOR;
-		float expect = _i, result = 0;
+		alup_t _BEFORE, _RESULT;
+		double before = _i * 1.0e+100;
+		float expect = before, result = 0;
 		
+		alup_init_floating( _BEFORE, &before, bitsof(double) );
 		alup_init_floating( _RESULT, &result, bitsof(float) );
-		alup_init_floating( _EXPECT, &expect, bitsof(float) );
 		
-		_RPRIOR = _RESULT;
-		_EPRIOR = _EXPECT;
-		
-		alup_mov_flt2flt( &_RESULT, &_EXPECT );
-		
-		ck_assert( memcmp( &_RESULT, &_RPRIOR, sizeof(alup_t) ) == 0 );
-		ck_assert( memcmp( &_EXPECT, &_EPRIOR, sizeof(alup_t) ) == 0 );
+		alup_mov_flt2flt( &_RESULT, &_BEFORE );
 		
 		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
 		{
-			//alup_init_floating( _EXPECT, &expect, bitsof(float) );
+			alup_t _EXPECT;
+			alup_init_floating( _EXPECT, &expect, bitsof(float) );
 			
 			alu_printf
 			(
-				"%d, Expect %f, Result %f"
+				"%d, %f, Expect %f, Result %f"
 				, _i
+				, before
 				, expect
 				, result
 			);
 			
+			alup_print( &_BEFORE, 0, 1 );
 			alup_print( &_RESULT, 0, 1 );
 			alup_print( &_EXPECT, 0, 1 );
 			stop_checks = true;
@@ -1213,37 +1211,38 @@ START_TEST( test_alup__op4_floating_incremental )
 			, value1 = _i % per_func
 			, value2 = _i
 			, expect, result;
-		alup_t _RESULT, _VALUE2;
+		alup_t _RESULT, _VALUE2, _EXPECT, _VALUE1;
 		
 		alup_init_floating( _RESULT, &result, bitsof(float) );
+		alup_init_floating( _EXPECT, &expect, bitsof(float) );
+		alup_init_floating( _VALUE1, &value1, bitsof(float) );
 		alup_init_floating( _VALUE2, &value2, bitsof(float) );
 		
 		result = value1;
 		expect = flt_op4[func]( value1, value2 );
+		
 		alup_op4[func]( &_RESULT, &_VALUE2, extra1, extra2 );
 		
 		if ( memcmp( &result, &expect, sizeof(float) ) != 0 )
 		{
-			alup_t _EXP, _MAN, _EXPECT, _VALUE1;
+			alup_t _EXP, _MAN;
 			
-			alup_init_floating( _EXPECT, &expect, bitsof(float) );
-			alup_init_floating( _VALUE1, &value1, bitsof(float) );
 			alup_init_exponent( &_VALUE1, _EXP );
 			alup_init_mantissa( &_VALUE1, _MAN );
 			
 			alu_printf
 			(
-				"%f %s %f = %f, got %f"
+				"%zu: %f %s %f = %f, got %f"
+				, func
 				, value1
 				, text_op4[func]()
 				, value2
 				, expect
 				, result
 			);
-#if 1
+			
 			alup_print( &_VALUE1, 0, 1 );
 			alup_print( &_VALUE2, 0, 1 );
-#endif
 			alup_print( &_EXPECT, 0, 1 );
 			alup_print( &_RESULT, 0, 1 );
 			stop_checks = true;
