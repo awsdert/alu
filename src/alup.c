@@ -2186,7 +2186,8 @@ int_t alup__div(
 			/* Normalise */
 			final = alup_final_bit_with_val( &__DST, 1 );
 			first.bit = final.bit - _DST.from;
-			first.bit = EITHER( first.bit > _DST.mdig, _DST.mdig, first.bit );
+			
+			first.bit = EITHER( first.bit > _NUM->mdig, _NUM->mdig, first.bit );
 			first = alup_bit( &__DST, final.bit - first.bit );
 			
 			_LOST = __DST;
